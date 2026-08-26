@@ -12,6 +12,7 @@ from app.core.security import (
     generate_secure_otp,
 )
 from app.models.user import User
+from app.models.user_profile import UserProfile
 from app.models.otp import OtpCode
 from app.schemas.auth import (
     UserRegister,
@@ -25,6 +26,8 @@ from app.schemas.auth import (
     TokenResponse,
     AuthActionResponse,
     UserOut,
+    UserSettingsResponse,
+    UserSettingsUpdate,
 )
 from app.services.email import (
     send_verification_otp_email,
