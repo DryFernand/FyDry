@@ -282,6 +282,10 @@
   - En `frontend/app/auth/callback/[provider]/page.tsx`, se guardan de forma permanente `fydry_access_token`, `fydry_token` y `fydry_user`.
   - Redirección inteligente post-autenticación: si el usuario ya completó el onboarding va directo a `/dashboard`; si es un usuario recién creado, entra a `/onboarding`.
 - **Despliegue a Producción**: Recompilados y desplegados `fydry` y `fydry-api` en Vercel con estado `READY`.
+- **Corrección de Startup NameError y CORS Preflight (200 OK)**:
+  - Resuelto `NameError` en `backend/app/api/v1/endpoints/auth.py` importando `UserSettingsResponse`, `UserSettingsUpdate` y `UserProfile`.
+  - Verificado el preflight `OPTIONS` devolviendo código `200 OK` con cabecera `access-control-allow-origin: https://fydry-dary.vercel.app`.
+
 
 
 
