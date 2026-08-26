@@ -1,0 +1,73 @@
+from typing import Optional
+from pydantic import BaseModel, EmailStr, Field
+from app.schemas import CoreSchema
+
+
+# --- User Out Schema ---
+class UserOut(CoreSchema):
+    id: str
+    email: str
+    full_name: str
+    avatar_url: Optional[str] = None
+    is_active: bool
+    is_verified: bool
+    auth_provider: str
+
+
+# --- Registration & Login ---
+class UserRegister(BaseModel):
+    email: EmailStr
+    password: str = Field(..., min_length=8, description="Contraseña mínimo 8 caracteres")
+    full_name: str = Field(..., min_length=2, max_length=100)
+
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+
+
+# --- OTP Verification ---
+class VerifyOtpRequest(BaseModel):
+    email: EmailStr
+    code: str = Field(..., min_length=6, max_length=6, description="Código de 6 dígitos")
+    code_type: str = Field(default="register_verification", description="register_verification, login_otp, password_reset")
+
+
+class ResendOtpRequest(BaseModel):
+    email: EmailStr
+    code_type: str = "register_verification"
+
+
+# --- Password Recovery ---
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+    code: str = Field(..., min_length=6, max_length=6)
+    new_password: str = Field(..., min_length=8)
+
+
+# --- OAuth Requests ---
+class GoogleAuthRequest(BaseModel):
+    id_token: str
+
+
+class GitHubAuthRequest(BaseModel):
+    code_or_token: str
+
+
+# --- Responses ---
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserOut
+
+
+class AuthActionResponse(BaseModel):
+    status: str
+    message: str
+    require_otp: bool = False
+    remaining_attempts: Optional[int] = None
+    locked_seconds: Optional[int] = None
