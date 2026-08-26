@@ -601,3 +601,77 @@ def complete_onboarding(
     db.refresh(current_user)
     return current_user
 
+
+@router.get(
+    "/settings",
+    response_model=UserSettingsResponse,
+    summary="Obtener configuraciones y preferencias del usuario",
+)
+def get_user_settings(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Any:
+    profile = current_user.profile
+    if not profile:
+        profile = UserProfile(user_id=current_user.id)
+        db.add(profile)
+        db.commit()
+        db.refresh(profile)
+
+    return UserSettingsResponse(
+        full_name=current_user.full_name,
+        email=current_user.email,
+        phone=profile.phone,
+        city=profile.city,
+        country=profile.country,
+        preferred_currency=profile.preferred_currency or "USD",
+        language=profile.language or "es",
+        notifications_enabled=profile.notifications_enabled,
+        email_notifications=profile.email_notifications,
+        budget_alerts=profile.budget_alerts,
+        weekly_digest=profile.weekly_digest,
+    )
+
+
+@router.put(
+    "/settings",
+    response_model=UserSettingsResponse,
+    summary="Actualizar configuraciones y preferencias del usuario",
+)
+def update_user_settings(
+    settings_in: UserSettingsUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Any:
+    if settings_in.full_name is not None:
+        current_user.full_name = settings_in.full_name
+
+    profile = current_user.profile
+    if not profile:
+        profile = UserProfile(user_id=current_user.id)
+        db.add(profile)
+
+    update_dict = settings_in.model_dump(exclude_unset=True)
+    for field, val in update_dict.items():
+        if field != "full_name" and hasattr(profile, field):
+            setattr(profile, field, val)
+
+    db.commit()
+    db.refresh(current_user)
+    db.refresh(profile)
+
+    return UserSettingsResponse(
+        full_name=current_user.full_name,
+        email=current_user.email,
+        phone=profile.phone,
+        city=profile.city,
+        country=profile.country,
+        preferred_currency=profile.preferred_currency or "USD",
+        language=profile.language or "es",
+        notifications_enabled=profile.notifications_enabled,
+        email_notifications=profile.email_notifications,
+        budget_alerts=profile.budget_alerts,
+        weekly_digest=profile.weekly_digest,
+    )
+
+

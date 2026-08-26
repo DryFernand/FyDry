@@ -73,3 +73,32 @@ class AuthActionResponse(BaseModel):
     require_otp: bool = False
     remaining_attempts: Optional[int] = None
     locked_seconds: Optional[int] = None
+
+
+# --- User Settings Schemas ---
+class UserSettingsResponse(BaseModel):
+    full_name: str
+    email: str
+    phone: Optional[str] = None
+    city: Optional[str] = None
+    country: Optional[str] = None
+    preferred_currency: str = "USD"
+    language: str = "es"
+    notifications_enabled: bool = True
+    email_notifications: bool = True
+    budget_alerts: bool = True
+    weekly_digest: bool = True
+
+
+class UserSettingsUpdate(BaseModel):
+    full_name: Optional[str] = None
+    phone: Optional[str] = None
+    city: Optional[str] = None
+    country: Optional[str] = None
+    preferred_currency: Optional[str] = None
+    language: Optional[str] = None
+    notifications_enabled: Optional[bool] = None
+    email_notifications: Optional[bool] = None
+    budget_alerts: Optional[bool] = None
+    weekly_digest: Optional[bool] = None
+

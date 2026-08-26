@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import {
   X,
@@ -21,6 +21,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { apiForgotPassword, apiVerifyResetOtp, apiResetPassword } from "@/lib/auth";
+import { fetchUserSettingsApi, updateUserSettingsApi, resetUserDataApi } from "@/lib/api";
 import { useLanguage } from "@/context/LanguageContext";
 
 interface SettingsModalProps {
@@ -41,16 +42,16 @@ type SettingsTab =
 export default function SettingsModal({
   isOpen,
   onClose,
-  userName = "Fernando Gómez",
-  userEmail = "daryfernand7@gmail.com",
+  userName = "Usuario FyDry",
+  userEmail = "usuario@fydry.io",
 }: SettingsModalProps) {
   const { language, setLanguage, t } = useLanguage();
   const [activeTab, setActiveTab] = useState<SettingsTab>("profile");
 
   // Profile State
   const [name, setName] = useState(userName);
-  const [phone, setPhone] = useState("+34 600 123 456");
-  const [city, setCity] = useState("Madrid");
+  const [phone, setPhone] = useState("");
+  const [city, setCity] = useState("");
   const [isSavedProfile, setIsSavedProfile] = useState(false);
 
   // Security / Password Reset with OTP State
@@ -83,13 +84,65 @@ export default function SettingsModal({
   const [isResettingData, setIsResettingData] = useState(false);
   const [resetSuccess, setResetSuccess] = useState(false);
 
+  // Cargar configuraciones reales del backend al abrir el modal
+  useEffect(() => {
+    if (isOpen) {
+      fetchUserSettingsApi().then((settings) => {
+        if (settings) {
+          if (settings.full_name) setName(settings.full_name);
+          if (settings.phone) setPhone(settings.phone);
+          if (settings.city) setCity(settings.city);
+          if (settings.preferred_currency) setCurrency(settings.preferred_currency);
+          if (settings.language && (settings.language === "es" || settings.language === "en")) {
+            setLanguage(settings.language as "es" | "en");
+          }
+          if (settings.email_notifications !== undefined) setEmailAlerts(settings.email_notifications);
+          if (settings.budget_alerts !== undefined) setBudgetWarnings(settings.budget_alerts);
+          if (settings.weekly_digest !== undefined) setWeeklyDigest(settings.weekly_digest);
+        }
+      });
+    }
+  }, [isOpen, setLanguage]);
+
   if (!isOpen) return null;
 
   // Handlers
-  const handleSaveProfile = (e: React.FormEvent) => {
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+    await updateUserSettingsApi({
+      full_name: name,
+      phone: phone || null,
+      city: city || null,
+      preferred_currency: currency,
+    });
     setIsSavedProfile(true);
+    if (typeof window !== "undefined") {
+      const u = localStorage.getItem("fydry_user");
+      if (u) {
+        try {
+          const parsed = JSON.parse(u);
+          parsed.full_name = name;
+          localStorage.setItem("fydry_user", JSON.stringify(parsed));
+        } catch {}
+      }
+      window.dispatchEvent(new Event("fydry_storage_updated"));
+    }
     setTimeout(() => setIsSavedProfile(false), 2000);
+  };
+
+  const handleLanguageChange = async (newLang: "es" | "en") => {
+    setLanguage(newLang);
+    await updateUserSettingsApi({ language: newLang });
+  };
+
+  const handleNotificationSave = async (
+    updates: { emailAlerts?: boolean; budgetWarnings?: boolean; weeklyDigest?: boolean }
+  ) => {
+    await updateUserSettingsApi({
+      email_notifications: updates.emailAlerts !== undefined ? updates.emailAlerts : emailAlerts,
+      budget_alerts: updates.budgetWarnings !== undefined ? updates.budgetWarnings : budgetWarnings,
+      weekly_digest: updates.weeklyDigest !== undefined ? updates.weeklyDigest : weeklyDigest,
+    });
   };
 
   const handleRequestPasswordOtp = async () => {
@@ -194,18 +247,18 @@ export default function SettingsModal({
     }, 1200);
   };
 
-  const handleResetAllData = () => {
+  const handleResetAllData = async () => {
     setIsResettingData(true);
+    await resetUserDataApi();
+    setIsResettingData(false);
+    setResetSuccess(true);
+    setIsResetConfirmOpen(false);
     setTimeout(() => {
-      setIsResettingData(false);
-      setResetSuccess(true);
-      setIsResetConfirmOpen(false);
-      setTimeout(() => {
-        setResetSuccess(false);
-        window.location.reload();
-      }, 1500);
-    }, 1400);
+      setResetSuccess(false);
+      window.location.reload();
+    }, 1200);
   };
+
 
   const tabs = [
     { id: "profile", label: t.settings.tabs.profile, icon: User },
@@ -506,7 +559,7 @@ export default function SettingsModal({
                   <div className="grid grid-cols-2 gap-3">
                     <button
                       type="button"
-                      onClick={() => setLanguage("es")}
+                      onClick={() => handleLanguageChange("es")}
                       className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between ${
                         language === "es"
                           ? "border-zinc-950 bg-zinc-950 text-white shadow-xs"
@@ -524,7 +577,7 @@ export default function SettingsModal({
 
                     <button
                       type="button"
-                      onClick={() => setLanguage("en")}
+                      onClick={() => handleLanguageChange("en")}
                       className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between ${
                         language === "en"
                           ? "border-zinc-950 bg-zinc-950 text-white shadow-xs"
@@ -548,7 +601,11 @@ export default function SettingsModal({
                   </label>
                   <select
                     value={currency}
-                    onChange={(e) => setCurrency(e.target.value)}
+                    onChange={(e) => {
+                      const newCurr = e.target.value;
+                      setCurrency(newCurr);
+                      updateUserSettingsApi({ preferred_currency: newCurr });
+                    }}
                     className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 text-xs text-zinc-900 focus:outline-none focus:border-zinc-900 cursor-pointer"
                   >
                     <option value="USD">USD ($) - Dólar estadounidense</option>
@@ -606,7 +663,11 @@ export default function SettingsModal({
                     <input
                       type="checkbox"
                       checked={budgetWarnings}
-                      onChange={(e) => setBudgetWarnings(e.target.checked)}
+                      onChange={(e) => {
+                        const val = e.target.checked;
+                        setBudgetWarnings(val);
+                        handleNotificationSave({ budgetWarnings: val });
+                      }}
                       className="rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900"
                     />
                   </label>
@@ -623,7 +684,11 @@ export default function SettingsModal({
                     <input
                       type="checkbox"
                       checked={emailAlerts}
-                      onChange={(e) => setEmailAlerts(e.target.checked)}
+                      onChange={(e) => {
+                        const val = e.target.checked;
+                        setEmailAlerts(val);
+                        handleNotificationSave({ emailAlerts: val });
+                      }}
                       className="rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900"
                     />
                   </label>
@@ -640,7 +705,11 @@ export default function SettingsModal({
                     <input
                       type="checkbox"
                       checked={weeklyDigest}
-                      onChange={(e) => setWeeklyDigest(e.target.checked)}
+                      onChange={(e) => {
+                        const val = e.target.checked;
+                        setWeeklyDigest(val);
+                        handleNotificationSave({ weeklyDigest: val });
+                      }}
                       className="rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900"
                     />
                   </label>

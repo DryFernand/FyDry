@@ -75,16 +75,27 @@ export default function DashboardLayout() {
 
           if (res.data?.id) {
             setCurrentUser(res.data);
+            if (typeof window !== "undefined") {
+              localStorage.setItem("fydry_user", JSON.stringify(res.data));
+            }
           } else {
             localStorage.removeItem("fydry_token");
+            localStorage.removeItem("fydry_access_token");
             router.push("/login");
             return;
           }
         } catch {
-          setCurrentUser({
-            full_name: "Fernando Gómez",
-            email: "daryfernand7@gmail.com",
-          });
+          const cachedUser = typeof window !== "undefined" ? localStorage.getItem("fydry_user") : null;
+          if (cachedUser) {
+            try {
+              setCurrentUser(JSON.parse(cachedUser));
+            } catch {}
+          } else {
+            setCurrentUser({
+              full_name: "Usuario FyDry",
+              email: "usuario@fydry.io",
+            });
+          }
         } finally {
           setIsLoadingAuth(false);
         }

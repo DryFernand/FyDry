@@ -323,3 +323,25 @@ def delete_debt(
     db.delete(debt)
     db.commit()
     return {"status": "success", "message": "Deuda eliminada exitosamente."}
+
+
+# ==========================================
+# RESET USER FINANCIAL DATA
+# ==========================================
+@router.post("/reset-data")
+def reset_user_data(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Safely wipe only the financial records owned by this user."""
+    db.query(Transaction).filter(Transaction.user_id == current_user.id).delete()
+    db.query(Account).filter(Account.user_id == current_user.id).delete()
+    db.query(Budget).filter(Budget.user_id == current_user.id).delete()
+    db.query(Debt).filter(Debt.user_id == current_user.id).delete()
+    db.commit()
+
+    return {
+        "status": "success",
+        "message": "Todos los datos financieros del usuario han sido restablecidos exitosamente.",
+    }
+

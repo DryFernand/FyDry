@@ -468,3 +468,87 @@ export async function completeOnboardingApi(): Promise<void> {
     console.warn("Error marking onboarding as completed:", err);
   }
 }
+
+// ==========================================
+// USER SETTINGS & PREFERENCES API
+// ==========================================
+export interface UserSettingsData {
+  full_name: string;
+  email: string;
+  phone?: string | null;
+  city?: string | null;
+  country?: string | null;
+  preferred_currency: string;
+  language: string;
+  notifications_enabled: boolean;
+  email_notifications: boolean;
+  budget_alerts: boolean;
+  weekly_digest: boolean;
+}
+
+export async function fetchUserSettingsApi(): Promise<UserSettingsData | null> {
+  try {
+    const res = await fetch(`${getApiBase()}/auth/settings`, {
+      headers: getAuthHeaders(),
+    });
+    if (res.ok) {
+      const data: UserSettingsData = await res.json();
+      if (typeof window !== "undefined") {
+        localStorage.setItem("fydry_user_settings", JSON.stringify(data));
+      }
+      return data;
+    }
+  } catch (err) {
+    console.warn("Backend unavailable, using cached settings:", err);
+  }
+
+  if (typeof window !== "undefined") {
+    const cached = localStorage.getItem("fydry_user_settings");
+    if (cached) return JSON.parse(cached);
+  }
+  return null;
+}
+
+export async function updateUserSettingsApi(settings: Partial<UserSettingsData>): Promise<UserSettingsData | null> {
+  try {
+    const res = await fetch(`${getApiBase()}/auth/settings`, {
+      method: "PUT",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(settings),
+    });
+    if (res.ok) {
+      const data: UserSettingsData = await res.json();
+      if (typeof window !== "undefined") {
+        localStorage.setItem("fydry_user_settings", JSON.stringify(data));
+      }
+      return data;
+    }
+  } catch (err) {
+    console.warn("Error updating user settings on backend:", err);
+  }
+  return null;
+}
+
+export async function resetUserDataApi(): Promise<boolean> {
+  try {
+    const res = await fetch(`${getApiBase()}/reset-data`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+    });
+    if (res.ok) {
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("fydry_accounts");
+        localStorage.removeItem("fydry_expenses");
+        localStorage.removeItem("fydry_incomes");
+        localStorage.removeItem("fydry_budgets");
+        localStorage.removeItem("fydry_debts");
+        window.dispatchEvent(new Event("fydry_storage_updated"));
+      }
+      return true;
+    }
+  } catch (err) {
+    console.warn("Error resetting user data on backend:", err);
+  }
+  return false;
+}
+
