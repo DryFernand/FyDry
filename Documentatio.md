@@ -274,6 +274,16 @@
     - Carga automática del nombre y credenciales del usuario al iniciar sesión y mantener activa la sesión.
 - **Despliegue a Producción**: Actualizados y verificados los servicios `fydry` y `fydry-api` en Vercel con `npx tsc --noEmit` completado sin errores.
 
+### 2026-08-26 - Corrección y Resiliencia de Google OAuth en Producción
+- **Resolución Dinámica de `redirect_uri` en Google Token Exchange**:
+  - Actualizado el endpoint `/api/v1/auth/google` y el servicio `exchange_google_code_or_token` para recibir dinámicamente el `redirect_uri` utilizado por el cliente web (`window.location.origin/auth/callback/google`).
+  - Implementado fallback automático que prueba las URIs candidatas de redirección (`https://fydry-dary.vercel.app`, `https://fydry.vercel.app`, `http://localhost:3000`) para evitar errores por `redirect_uri_mismatch`.
+- **Persistencia de Sesión OAuth en el Cliente**:
+  - En `frontend/app/auth/callback/[provider]/page.tsx`, se guardan de forma permanente `fydry_access_token`, `fydry_token` y `fydry_user`.
+  - Redirección inteligente post-autenticación: si el usuario ya completó el onboarding va directo a `/dashboard`; si es un usuario recién creado, entra a `/onboarding`.
+- **Despliegue a Producción**: Recompilados y desplegados `fydry` y `fydry-api` en Vercel con estado `READY`.
+
+
 
 
 
