@@ -257,6 +257,24 @@
   - Almacenamiento seguro y duradero de credenciales en el cliente con autenticación persistente ante recargas de página y cambios de pestaña sin cierres inesperados.
 - **Despliegue a Producción**: Actualizados y operativos los proyectos `fydry` y `fydry-api` en Vercel.
 
+### 2026-08-26 - Persistencia y Carga de Configuraciones de Usuario, Preferencias y Reseteo Seguro
+- **Persistencia de Configuraciones en PostgreSQL**:
+  - Extendida la tabla `user_profiles` en Supabase con las columnas: `language`, `notifications_enabled`, `email_notifications`, `budget_alerts`, `weekly_digest`.
+  - Creados endpoints en FastAPI:
+    - `GET /api/v1/auth/settings`: Recupera el perfil consolidado del usuario autenticado (nombre, email, teléfono, ciudad, moneda preferida, idioma y configuración de notificaciones).
+    - `PUT /api/v1/auth/settings`: Actualiza datos de perfil y preferencias del usuario en base de datos.
+    - `POST /api/v1/financial/reset-data`: Borrado selectivo y seguro de transacciones, cuentas, presupuestos y deudas exclusivamente pertenecientes al usuario actual.
+- **Sincronización en el Frontend**:
+  - Modal de Ajustes ([`SettingsModal.tsx`](file:///c:/Users/daryf/Documents/PORTAFOLIO/FyDry/frontend/components/dashboard/SettingsModal.tsx)):
+    - Carga en tiempo real las preferencias del usuario al abrirse.
+    - Sincronización inmediata al cambiar de idioma (Español / Inglés) y moneda principal.
+    - Almacenamiento instantáneo de preferencias de notificaciones (alertas de presupuesto, resúmenes por correo).
+    - Conexión del botón de "Restablecer Datos" de la Zona de Peligro al endpoint seguro del backend.
+  - Layout del Dashboard ([`DashboardLayout.tsx`](file:///c:/Users/daryf/Documents/PORTAFOLIO/FyDry/frontend/components/dashboard/DashboardLayout.tsx)):
+    - Carga automática del nombre y credenciales del usuario al iniciar sesión y mantener activa la sesión.
+- **Despliegue a Producción**: Actualizados y verificados los servicios `fydry` y `fydry-api` en Vercel con `npx tsc --noEmit` completado sin errores.
+
+
 
 
 
