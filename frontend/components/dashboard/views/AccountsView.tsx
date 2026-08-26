@@ -3,98 +3,57 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
-  CreditCard,
-  Building2,
-  Wallet,
-  Coins,
   Plus,
+  Building2,
+  CreditCard,
+  Banknote,
   X,
+  Wallet,
 } from "lucide-react";
 import { AccountItem } from "../types";
 import { useLanguage } from "@/context/LanguageContext";
 
-const initialAccounts: AccountItem[] = [
-  {
-    id: "acc-1",
-    name: "BBVA Principal",
-    type: "bank",
-    balance: 3420.5,
-    currency: "USD",
-    accountNumber: "ES48 •••• 4821",
-  },
-  {
-    id: "acc-2",
-    name: "Santander Nómina & Ahorro",
-    type: "bank",
-    balance: 1450.0,
-    currency: "USD",
-    accountNumber: "ES12 •••• 9920",
-  },
-  {
-    id: "acc-3",
-    name: "Revolut Tarjeta Débito",
-    type: "card",
-    balance: 892.3,
-    currency: "USD",
-    accountNumber: "•••• 9102",
-  },
-  {
-    id: "acc-4",
-    name: "Efectivo Físico",
-    type: "cash",
-    balance: 230.0,
-    currency: "USD",
-  },
-];
-
 export default function AccountsView() {
   const { t } = useLanguage();
-  const [accounts, setAccounts] = useState<AccountItem[]>(initialAccounts);
+  const [accounts, setAccounts] = useState<AccountItem[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newAccName, setNewAccName] = useState("");
-  const [newAccType, setNewAccType] = useState<AccountItem["type"]>("bank");
-  const [newAccBalance, setNewAccBalance] = useState("");
 
-  const bankBalance = accounts
+  // Form states
+  const [name, setName] = useState("");
+  const [type, setType] = useState<"bank" | "card" | "wallet" | "cash">("bank");
+  const [balance, setBalance] = useState("");
+  const [accountNum, setAccountNum] = useState("");
+
+  const bankTotal = accounts
     .filter((a) => a.type === "bank")
     .reduce((acc, curr) => acc + curr.balance, 0);
-  const cardBalance = accounts
-    .filter((a) => a.type === "card")
+
+  const cardTotal = accounts
+    .filter((a) => a.type === "card" || a.type === "wallet")
     .reduce((acc, curr) => acc + curr.balance, 0);
-  const cashBalance = accounts
+
+  const cashTotal = accounts
     .filter((a) => a.type === "cash")
     .reduce((acc, curr) => acc + curr.balance, 0);
 
   const handleAddAccount = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newAccName || !newAccBalance) return;
+    if (!name) return;
 
     const newAcc: AccountItem = {
       id: `acc-${Date.now()}`,
-      name: newAccName,
-      type: newAccType,
-      balance: parseFloat(newAccBalance) || 0,
+      name,
+      type,
+      balance: parseFloat(balance) || 0,
       currency: "USD",
-      accountNumber: newAccType === "bank" ? "ES•• •••• " + Math.floor(1000 + Math.random() * 9000) : "•••• " + Math.floor(1000 + Math.random() * 9000),
+      accountNumber: accountNum || undefined,
     };
 
     setAccounts([...accounts, newAcc]);
-    setNewAccName("");
-    setNewAccBalance("");
+    setName("");
+    setBalance("");
+    setAccountNum("");
     setIsModalOpen(false);
-  };
-
-  const getIcon = (type: AccountItem["type"]) => {
-    switch (type) {
-      case "bank":
-        return <Building2 className="w-5 h-5" />;
-      case "card":
-        return <CreditCard className="w-5 h-5" />;
-      case "cash":
-        return <Coins className="w-5 h-5" />;
-      default:
-        return <Wallet className="w-5 h-5" />;
-    }
   };
 
   return (
@@ -120,39 +79,51 @@ export default function AccountsView() {
         </button>
       </div>
 
-      {/* Overview Stat Cards */}
+      {/* Summary Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {/* Bank Total */}
         <div className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs space-y-2">
-          <span className="text-xs font-semibold text-zinc-500">{t.accounts.bankBalance}</span>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-zinc-500">{t.accounts.bankBalance}</span>
+            <Building2 className="w-4 h-4 text-zinc-400" />
+          </div>
           <div className="text-2xl font-bold tracking-tight text-zinc-950">
-            ${bankBalance.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+            ${bankTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}
           </div>
           <div className="text-[11px] text-zinc-400">
             {accounts.filter((a) => a.type === "bank").length} {t.accounts.activeAccounts}
           </div>
         </div>
 
+        {/* Cards & Wallets */}
         <div className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs space-y-2">
-          <span className="text-xs font-semibold text-zinc-500">{t.accounts.cardBalance}</span>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-zinc-500">{t.accounts.cardBalance}</span>
+            <CreditCard className="w-4 h-4 text-zinc-400" />
+          </div>
           <div className="text-2xl font-bold tracking-tight text-zinc-950">
-            ${cardBalance.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+            ${cardTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}
           </div>
           <div className="text-[11px] text-zinc-400">
-            {accounts.filter((a) => a.type === "card").length} {t.accounts.registeredCards}
+            {accounts.filter((a) => a.type === "card" || a.type === "wallet").length} {t.accounts.registeredCards}
           </div>
         </div>
 
+        {/* Cash */}
         <div className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs space-y-2">
-          <span className="text-xs font-semibold text-zinc-500">{t.accounts.cashBalance}</span>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-zinc-500">{t.accounts.cashBalance}</span>
+            <Banknote className="w-4 h-4 text-zinc-400" />
+          </div>
           <div className="text-2xl font-bold tracking-tight text-zinc-950">
-            ${cashBalance.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+            ${cashTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}
           </div>
           <div className="text-[11px] text-zinc-400">{t.accounts.walletPhysical}</div>
         </div>
       </div>
 
-      {/* Accounts Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Account Items List */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {accounts.map((acc) => (
           <motion.div
             key={acc.id}
@@ -161,37 +132,58 @@ export default function AccountsView() {
           >
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-zinc-100 text-zinc-800 flex items-center justify-center">
-                  {getIcon(acc.type)}
+                <div className="w-10 h-10 rounded-2xl bg-zinc-100 flex items-center justify-center font-bold text-xs text-zinc-800">
+                  {acc.type === "bank" ? (
+                    <Building2 className="w-5 h-5 text-zinc-800" />
+                  ) : acc.type === "cash" ? (
+                    <Banknote className="w-5 h-5 text-zinc-800" />
+                  ) : (
+                    <CreditCard className="w-5 h-5 text-zinc-800" />
+                  )}
                 </div>
                 <div>
-                  <h2 className="text-sm font-bold text-zinc-950">{acc.name}</h2>
-                  <div className="text-[11px] text-zinc-400 font-mono">
-                    {acc.accountNumber || "Efectivo"}
-                  </div>
+                  <h3 className="text-sm font-bold text-zinc-950">{acc.name}</h3>
+                  <p className="text-[11px] text-zinc-400">
+                    {acc.accountNumber || (acc.type === "cash" ? "Billetera" : "Cuenta Principal")}
+                  </p>
                 </div>
               </div>
-              <span className="px-2 py-0.5 rounded-md bg-zinc-100 text-zinc-700 text-[10px] font-semibold uppercase">
+
+              <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md bg-zinc-100 text-zinc-700">
                 {acc.type}
               </span>
             </div>
 
-            <div className="flex items-end justify-between pt-2 border-t border-zinc-100">
-              <div>
-                <span className="text-[10px] text-zinc-400 block">{t.accounts.availableBalance}</span>
-                <div className="text-xl font-bold text-zinc-950">
-                  ${acc.balance.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-                </div>
-              </div>
-              <button
-                type="button"
-                className="text-xs font-semibold text-zinc-700 hover:text-zinc-950 underline cursor-pointer"
-              >
-                {t.accounts.movements}
-              </button>
+            <div className="pt-2 border-t border-zinc-100 flex items-baseline justify-between">
+              <span className="text-[11px] text-zinc-400 font-medium">
+                {t.accounts.availableBalance}
+              </span>
+              <span className="text-xl font-bold text-zinc-950">
+                ${acc.balance.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+              </span>
             </div>
           </motion.div>
         ))}
+
+        {accounts.length === 0 && (
+          <div className="col-span-full py-16 text-center bg-white rounded-3xl border border-zinc-200/80 p-8 space-y-3">
+            <div className="w-12 h-12 rounded-2xl bg-zinc-100 text-zinc-400 flex items-center justify-center mx-auto">
+              <Wallet className="w-6 h-6" />
+            </div>
+            <div className="text-sm font-bold text-zinc-900">No tienes cuentas registradas aún</div>
+            <p className="text-xs text-zinc-400 max-w-sm mx-auto">
+              Añade tus cuentas de banco, tarjetas de débito o billeteras para empezar a visualizar tu saldo total y liquidez disponible.
+            </p>
+            <button
+              type="button"
+              onClick={() => setIsModalOpen(true)}
+              className="inline-flex items-center gap-1.5 py-2.5 px-4 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer mt-2"
+            >
+              <Plus className="w-4 h-4" />
+              <span>{t.accounts.addAccount}</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Add Account Modal */}
@@ -223,50 +215,55 @@ export default function AccountsView() {
                   <input
                     type="text"
                     required
-                    value={newAccName}
-                    onChange={(e) => setNewAccName(e.target.value)}
-                    placeholder="Ej. Santander Nómina, Revolut..."
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Ej. BBVA Principal, Santander Nómina..."
                     className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 bg-white text-zinc-900 text-xs placeholder:text-zinc-400 focus:outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 transition-colors shadow-2xs"
                   />
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
-                    {t.accounts.accountType}
-                  </label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {[
-                      { id: "bank", label: t.accounts.bank },
-                      { id: "card", label: t.accounts.card },
-                      { id: "cash", label: t.accounts.cash },
-                    ].map((tItem) => (
-                      <button
-                        key={tItem.id}
-                        type="button"
-                        onClick={() => setNewAccType(tItem.id as any)}
-                        className={`py-2 px-3 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
-                          newAccType === tItem.id
-                            ? "bg-zinc-950 text-white border-zinc-950"
-                            : "bg-white text-zinc-700 border-zinc-200 hover:border-zinc-300"
-                        }`}
-                      >
-                        {tItem.label}
-                      </button>
-                    ))}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
+                      {t.accounts.accountType}
+                    </label>
+                    <select
+                      value={type}
+                      onChange={(e) =>
+                        setType(e.target.value as "bank" | "card" | "wallet" | "cash")
+                      }
+                      className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 bg-white text-zinc-900 text-xs focus:outline-none focus:border-zinc-900 transition-colors shadow-2xs cursor-pointer"
+                    >
+                      <option value="bank">{t.accounts.bank}</option>
+                      <option value="card">{t.accounts.card}</option>
+                      <option value="cash">{t.accounts.cash}</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
+                      {t.accounts.initialBalance}
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={balance}
+                      onChange={(e) => setBalance(e.target.value)}
+                      placeholder="0.00"
+                      className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 bg-white text-zinc-900 text-xs placeholder:text-zinc-400 focus:outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 transition-colors shadow-2xs"
+                    />
                   </div>
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
-                    {t.accounts.initialBalance}
+                    Número de Cuenta / IBAN (Opcional)
                   </label>
                   <input
-                    type="number"
-                    step="0.01"
-                    required
-                    value={newAccBalance}
-                    onChange={(e) => setNewAccBalance(e.target.value)}
-                    placeholder="0.00"
+                    type="text"
+                    value={accountNum}
+                    onChange={(e) => setAccountNum(e.target.value)}
+                    placeholder="Ej. ES48 •••• 4821"
                     className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 bg-white text-zinc-900 text-xs placeholder:text-zinc-400 focus:outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 transition-colors shadow-2xs"
                   />
                 </div>
@@ -275,13 +272,13 @@ export default function AccountsView() {
                   <button
                     type="button"
                     onClick={() => setIsModalOpen(false)}
-                    className="py-2.5 px-4 rounded-xl border border-zinc-200 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
+                    className="py-2.5 px-4 rounded-xl border border-zinc-200 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 cursor-pointer"
                   >
                     {t.accounts.cancel}
                   </button>
                   <button
                     type="submit"
-                    className="py-2.5 px-4 rounded-xl bg-zinc-950 text-xs font-semibold text-white hover:bg-zinc-800"
+                    className="py-2.5 px-4 rounded-xl bg-zinc-950 text-xs font-semibold text-white hover:bg-zinc-800 cursor-pointer"
                   >
                     {t.accounts.saveAccount}
                   </button>

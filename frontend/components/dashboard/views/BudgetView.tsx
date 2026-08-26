@@ -5,59 +5,22 @@ import { motion, AnimatePresence } from "motion/react";
 import {
   Plus,
   X,
+  PieChart,
 } from "lucide-react";
 import { BudgetItem } from "../types";
 import { useLanguage } from "@/context/LanguageContext";
 
-const initialBudgets: BudgetItem[] = [
-  {
-    id: "b-1",
-    category: "Vivienda & Servicios",
-    allocated: 800,
-    spent: 732,
-    color: "bg-zinc-900",
-  },
-  {
-    id: "b-2",
-    category: "Alimentación & Supermercado",
-    allocated: 450,
-    spent: 320,
-    color: "bg-zinc-700",
-  },
-  {
-    id: "b-3",
-    category: "Transporte & Gasolina",
-    allocated: 200,
-    spent: 145,
-    color: "bg-zinc-500",
-  },
-  {
-    id: "b-4",
-    category: "Ocio & Restaurantes",
-    allocated: 200,
-    spent: 180,
-    color: "bg-amber-500",
-  },
-  {
-    id: "b-5",
-    category: "Suscripciones Digitales",
-    allocated: 50,
-    spent: 48,
-    color: "bg-rose-500",
-  },
-];
-
 export default function BudgetView() {
   const { t } = useLanguage();
-  const [budgets, setBudgets] = useState<BudgetItem[]>(initialBudgets);
+  const [budgets, setBudgets] = useState<BudgetItem[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newCat, setNewCat] = useState("");
   const [newAllocated, setNewAllocated] = useState("");
 
   const totalAllocated = budgets.reduce((acc, curr) => acc + curr.allocated, 0);
   const totalSpent = budgets.reduce((acc, curr) => acc + curr.spent, 0);
-  const remainingBudget = totalAllocated - totalSpent;
-  const overallPercentage = Math.round((totalSpent / totalAllocated) * 100);
+  const remainingBudget = Math.max(totalAllocated - totalSpent, 0);
+  const overallPercentage = totalAllocated > 0 ? Math.round((totalSpent / totalAllocated) * 100) : 0;
 
   const handleAddBudget = (e: React.FormEvent) => {
     e.preventDefault();
@@ -136,7 +99,7 @@ export default function BudgetView() {
       {/* Budget Categories Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {budgets.map((b) => {
-          const percent = Math.round((b.spent / b.allocated) * 100);
+          const percent = b.allocated > 0 ? Math.round((b.spent / b.allocated) * 100) : 0;
           const isWarning = percent >= 85 && percent < 100;
           const isExceeded = percent >= 100;
 
@@ -196,6 +159,26 @@ export default function BudgetView() {
             </motion.div>
           );
         })}
+
+        {budgets.length === 0 && (
+          <div className="col-span-full py-16 text-center bg-white rounded-3xl border border-zinc-200/80 p-8 space-y-3">
+            <div className="w-12 h-12 rounded-2xl bg-zinc-100 text-zinc-400 flex items-center justify-center mx-auto">
+              <PieChart className="w-6 h-6" />
+            </div>
+            <div className="text-sm font-bold text-zinc-900">Sin límites presupuestarios definidos</div>
+            <p className="text-xs text-zinc-400 max-w-sm mx-auto">
+              Define topes de gasto por categoría (Vivienda, Alimentación, Ocio) para recibir alertas antes de sobrepasar tu presupuesto.
+            </p>
+            <button
+              type="button"
+              onClick={() => setIsModalOpen(true)}
+              className="inline-flex items-center gap-1.5 py-2.5 px-4 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer mt-2"
+            >
+              <Plus className="w-4 h-4" />
+              <span>{t.budget.adjustLimit}</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Add / Adjust Budget Modal */}

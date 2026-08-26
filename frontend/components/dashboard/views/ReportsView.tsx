@@ -5,6 +5,7 @@ import { motion } from "motion/react";
 import {
   Printer,
   FileText,
+  ShieldCheck,
 } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
 
@@ -108,7 +109,7 @@ export default function ReportsView() {
             </div>
             <div>
               <span className="font-semibold text-zinc-900">{t.reports.accountHolder}</span>{" "}
-              Fernando Gómez
+              Usuario FyDry
             </div>
           </div>
         </div>
@@ -125,26 +126,26 @@ export default function ReportsView() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200/80 space-y-1">
               <span className="text-[11px] font-semibold text-zinc-500">{t.reports.totalIncomes}</span>
-              <div className="text-lg font-bold text-zinc-950">+$3,100.00</div>
-              <div className="text-[10px] text-emerald-600 font-semibold">100% Recaudado</div>
+              <div className="text-lg font-bold text-zinc-950">$0.00</div>
+              <div className="text-[10px] text-zinc-500 font-medium">0 fuentes registradas</div>
             </div>
 
             <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200/80 space-y-1">
               <span className="text-[11px] font-semibold text-zinc-500">{t.reports.totalExpenses}</span>
-              <div className="text-lg font-bold text-zinc-950">-$1,342.68</div>
-              <div className="text-[10px] text-zinc-500">43.3% del total ingresado</div>
+              <div className="text-lg font-bold text-zinc-950">$0.00</div>
+              <div className="text-[10px] text-zinc-500">0% del total ingresado</div>
             </div>
 
             <div className="p-4 rounded-2xl bg-emerald-50/50 border border-emerald-200/80 space-y-1">
               <span className="text-[11px] font-semibold text-emerald-800">{t.reports.netOperatingFlow}</span>
-              <div className="text-lg font-bold text-emerald-700">+$1,757.32</div>
-              <div className="text-[10px] text-emerald-600 font-semibold">Superávit Mensual</div>
+              <div className="text-lg font-bold text-emerald-700">$0.00</div>
+              <div className="text-[10px] text-emerald-600 font-semibold">Balance Equilibrado</div>
             </div>
 
             <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200/80 space-y-1">
               <span className="text-[11px] font-semibold text-zinc-500">{t.reports.savingsRate}</span>
-              <div className="text-lg font-bold text-zinc-950">56.68%</div>
-              <div className="text-[10px] text-emerald-600 font-semibold">Grado Excelente</div>
+              <div className="text-lg font-bold text-zinc-950">0%</div>
+              <div className="text-[10px] text-zinc-500 font-medium">Sin movimientos</div>
             </div>
           </div>
         </div>
@@ -170,28 +171,9 @@ export default function ReportsView() {
               </thead>
               <tbody className="divide-y divide-zinc-100">
                 <tr>
-                  <td className="py-2.5 px-3 font-bold text-zinc-900">BBVA Cuenta Principal</td>
-                  <td className="py-2.5 px-3 text-zinc-600">Banco / Corriente</td>
-                  <td className="py-2.5 px-3 text-zinc-400 font-mono">ES48 •••• 4821</td>
-                  <td className="py-2.5 px-3 font-bold text-zinc-950 text-right">$3,420.50</td>
-                </tr>
-                <tr>
-                  <td className="py-2.5 px-3 font-bold text-zinc-900">Santander Nómina & Ahorro</td>
-                  <td className="py-2.5 px-3 text-zinc-600">Banco / Nómina</td>
-                  <td className="py-2.5 px-3 text-zinc-400 font-mono">ES12 •••• 9920</td>
-                  <td className="py-2.5 px-3 font-bold text-zinc-950 text-right">$1,450.00</td>
-                </tr>
-                <tr>
-                  <td className="py-2.5 px-3 font-bold text-zinc-900">Revolut Tarjeta Débito</td>
-                  <td className="py-2.5 px-3 text-zinc-600">Fintech / Tarjeta</td>
-                  <td className="py-2.5 px-3 text-zinc-400 font-mono">•••• 9102</td>
-                  <td className="py-2.5 px-3 font-bold text-zinc-950 text-right">$892.30</td>
-                </tr>
-                <tr>
-                  <td className="py-2.5 px-3 font-bold text-zinc-900">Efectivo en Billetera</td>
-                  <td className="py-2.5 px-3 text-zinc-600">Efectivo Físico</td>
-                  <td className="py-2.5 px-3 text-zinc-400 font-mono">N/A</td>
-                  <td className="py-2.5 px-3 font-bold text-zinc-950 text-right">$230.00</td>
+                  <td colSpan={4} className="py-6 text-center text-zinc-400 text-xs">
+                    No hay cuentas bancarias registradas en este período contable.
+                  </td>
                 </tr>
               </tbody>
               <tfoot>
@@ -200,7 +182,7 @@ export default function ReportsView() {
                     {t.reports.totalCustody}
                   </td>
                   <td className="py-2.5 px-3 text-right text-sm text-zinc-950">
-                    $5,992.80
+                    $0.00
                   </td>
                 </tr>
               </tfoot>
@@ -229,34 +211,9 @@ export default function ReportsView() {
               </thead>
               <tbody className="divide-y divide-zinc-100">
                 <tr>
-                  <td className="py-2.5 px-3 font-bold text-zinc-900">Vivienda & Servicios (Alquiler, Luz)</td>
-                  <td className="py-2.5 px-3"><span className="px-2 py-0.5 rounded bg-zinc-100 font-semibold">{t.reports.fixedNature}</span></td>
-                  <td className="py-2.5 px-3 font-bold text-zinc-950 text-right">$732.00</td>
-                  <td className="py-2.5 px-3 text-zinc-600 text-right">54.5%</td>
-                </tr>
-                <tr>
-                  <td className="py-2.5 px-3 font-bold text-zinc-900">Alimentación & Supermercado</td>
-                  <td className="py-2.5 px-3"><span className="px-2 py-0.5 rounded bg-zinc-100 font-semibold">{t.reports.fixedNature}</span></td>
-                  <td className="py-2.5 px-3 font-bold text-zinc-950 text-right">$320.00</td>
-                  <td className="py-2.5 px-3 text-zinc-600 text-right">23.8%</td>
-                </tr>
-                <tr>
-                  <td className="py-2.5 px-3 font-bold text-zinc-900">Transporte & Gasolina</td>
-                  <td className="py-2.5 px-3"><span className="px-2 py-0.5 rounded bg-zinc-100 font-semibold">{t.reports.fixedNature}</span></td>
-                  <td className="py-2.5 px-3 font-bold text-zinc-950 text-right">$145.00</td>
-                  <td className="py-2.5 px-3 text-zinc-600 text-right">10.8%</td>
-                </tr>
-                <tr>
-                  <td className="py-2.5 px-3 font-bold text-zinc-900">Ocio & Restaurantes</td>
-                  <td className="py-2.5 px-3"><span className="px-2 py-0.5 rounded bg-amber-50 text-amber-800 font-semibold">{t.reports.variableNature}</span></td>
-                  <td className="py-2.5 px-3 font-bold text-zinc-950 text-right">$180.00</td>
-                  <td className="py-2.5 px-3 text-zinc-600 text-right">13.4%</td>
-                </tr>
-                <tr>
-                  <td className="py-2.5 px-3 font-bold text-zinc-900">Suscripciones Digitales</td>
-                  <td className="py-2.5 px-3"><span className="px-2 py-0.5 rounded bg-amber-50 text-amber-800 font-semibold">{t.reports.variableNature}</span></td>
-                  <td className="py-2.5 px-3 font-bold text-zinc-950 text-right">$48.00</td>
-                  <td className="py-2.5 px-3 text-zinc-600 text-right">3.5%</td>
+                  <td colSpan={4} className="py-6 text-center text-zinc-400 text-xs">
+                    Sin gastos categorizados en este período contable.
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -285,18 +242,9 @@ export default function ReportsView() {
               </thead>
               <tbody className="divide-y divide-zinc-100">
                 <tr>
-                  <td className="py-2.5 px-3 font-bold text-zinc-900">Préstamo Coche (Santander Consumer)</td>
-                  <td className="py-2.5 px-3 text-zinc-600 text-right">$12,000.00</td>
-                  <td className="py-2.5 px-3 font-bold text-rose-600 text-right">$4,800.00</td>
-                  <td className="py-2.5 px-3 text-zinc-950 text-right">$260/mes</td>
-                  <td className="py-2.5 px-3 text-emerald-600 font-bold text-right">60.0%</td>
-                </tr>
-                <tr>
-                  <td className="py-2.5 px-3 font-bold text-zinc-900">Tarjeta Crédito BBVA</td>
-                  <td className="py-2.5 px-3 text-zinc-600 text-right">$1,500.00</td>
-                  <td className="py-2.5 px-3 font-bold text-rose-600 text-right">$450.00</td>
-                  <td className="py-2.5 px-3 text-zinc-950 text-right">$150/mes</td>
-                  <td className="py-2.5 px-3 text-emerald-600 font-bold text-right">70.0%</td>
+                  <td colSpan={5} className="py-6 text-center text-zinc-400 text-xs">
+                    Cero pasivos o deudas registradas.
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -314,15 +262,11 @@ export default function ReportsView() {
           <div className="recommendations-box p-4 rounded-2xl bg-zinc-50 border border-zinc-200/80 space-y-2 text-xs text-zinc-700">
             <div className="flex items-start gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 mt-1.5 shrink-0" />
-              <span>{t.reports.recommendation1}</span>
+              <span>Espacio de trabajo financiero limpio y listo para el registro de movimientos reales.</span>
             </div>
             <div className="flex items-start gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 mt-1.5 shrink-0" />
-              <span>{t.reports.recommendation2}</span>
-            </div>
-            <div className="flex items-start gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 mt-1.5 shrink-0" />
-              <span>{t.reports.recommendation3}</span>
+              <span>Comienza registrando tus cuentas principales para visualizar la distribución del patrimonio.</span>
             </div>
           </div>
         </div>

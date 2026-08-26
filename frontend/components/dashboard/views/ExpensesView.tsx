@@ -7,70 +7,14 @@ import {
   Plus,
   Search,
   X,
+  Receipt,
 } from "lucide-react";
 import { TransactionItem } from "../types";
 import { useLanguage } from "@/context/LanguageContext";
 
-const initialExpenses: TransactionItem[] = [
-  {
-    id: "exp-1",
-    description: "Alquiler Piso Centro",
-    category: "Vivienda",
-    account: "BBVA Principal",
-    amount: 650.0,
-    type: "expense",
-    date: "01 Ago 2026",
-  },
-  {
-    id: "exp-2",
-    description: "Supermercado Mercadona",
-    category: "Alimentación",
-    account: "BBVA Principal",
-    amount: 74.5,
-    type: "expense",
-    date: "26 Ago 2026",
-  },
-  {
-    id: "exp-3",
-    description: "Suscripción Netflix & Spotify",
-    category: "Suscripciones",
-    account: "Revolut Tarjeta",
-    amount: 22.98,
-    type: "expense",
-    date: "24 Ago 2026",
-  },
-  {
-    id: "exp-4",
-    description: "Gasolina Repsol",
-    category: "Transporte",
-    account: "BBVA Principal",
-    amount: 55.2,
-    type: "expense",
-    date: "20 Ago 2026",
-  },
-  {
-    id: "exp-5",
-    description: "Cena Restaurante Italiano",
-    category: "Ocio",
-    account: "Revolut Tarjeta",
-    amount: 48.0,
-    type: "expense",
-    date: "18 Ago 2026",
-  },
-  {
-    id: "exp-6",
-    description: "Factura Luz & Gas",
-    category: "Vivienda",
-    account: "BBVA Principal",
-    amount: 82.0,
-    type: "expense",
-    date: "10 Ago 2026",
-  },
-];
-
 export default function ExpensesView() {
   const { t, language } = useLanguage();
-  const [expenses, setExpenses] = useState<TransactionItem[]>(initialExpenses);
+  const [expenses, setExpenses] = useState<TransactionItem[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("Todos");
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -158,19 +102,19 @@ export default function ExpensesView() {
 
         <div className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs space-y-2">
           <span className="text-xs font-semibold text-zinc-500">{t.expenses.fixedExpenses}</span>
-          <div className="text-2xl font-bold tracking-tight text-zinc-950">$732.00</div>
+          <div className="text-2xl font-bold tracking-tight text-zinc-950">$0.00</div>
           <div className="text-[11px] text-zinc-400">{t.expenses.fixedSubtitle}</div>
         </div>
 
         <div className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs space-y-2">
           <span className="text-xs font-semibold text-zinc-500">{t.expenses.variableExpenses}</span>
-          <div className="text-2xl font-bold tracking-tight text-zinc-950">$200.68</div>
+          <div className="text-2xl font-bold tracking-tight text-zinc-950">$0.00</div>
           <div className="text-[11px] text-zinc-400">{t.expenses.variableSubtitle}</div>
         </div>
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="bg-white p-4 rounded-3xl border border-zinc-200/80 shadow-xs space-y-3">
+      <div className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="relative flex-1 max-w-sm">
             <input
@@ -233,8 +177,14 @@ export default function ExpensesView() {
           ))}
 
           {filteredExpenses.length === 0 && (
-            <div className="py-12 text-center text-xs text-zinc-400">
-              {t.expenses.noExpensesFound}
+            <div className="py-12 text-center space-y-2">
+              <div className="w-10 h-10 rounded-2xl bg-zinc-100 text-zinc-400 flex items-center justify-center mx-auto">
+                <Receipt className="w-5 h-5" />
+              </div>
+              <div className="text-xs font-semibold text-zinc-700">Sin gastos registrados</div>
+              <p className="text-[11px] text-zinc-400 max-w-xs mx-auto">
+                Registra tu primer gasto diario para comenzar a detectar fugas y categorizar tus consumos.
+              </p>
             </div>
           )}
         </div>
@@ -271,7 +221,7 @@ export default function ExpensesView() {
                     required
                     value={desc}
                     onChange={(e) => setDesc(e.target.value)}
-                    placeholder="Ej. Supermercado, Alquiler, Gasolina"
+                    placeholder="Ej. Supermercado, Alquiler, Gasolina..."
                     className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 bg-white text-zinc-900 text-xs placeholder:text-zinc-400 focus:outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 transition-colors shadow-2xs"
                   />
                 </div>
@@ -314,16 +264,13 @@ export default function ExpensesView() {
                   <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
                     {t.expenses.debitedAccount}
                   </label>
-                  <select
+                  <input
+                    type="text"
                     value={acc}
                     onChange={(e) => setAcc(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 bg-white text-zinc-900 text-xs focus:outline-none focus:border-zinc-900 transition-colors shadow-2xs cursor-pointer"
-                  >
-                    <option value="BBVA Principal">BBVA Principal</option>
-                    <option value="Santander Nómina">Santander Nómina</option>
-                    <option value="Revolut Tarjeta">Revolut Tarjeta</option>
-                    <option value="Efectivo">Efectivo</option>
-                  </select>
+                    placeholder="Ej. BBVA Principal, Efectivo..."
+                    className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 bg-white text-zinc-900 text-xs placeholder:text-zinc-400 focus:outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 transition-colors shadow-2xs"
+                  />
                 </div>
 
                 <div className="flex justify-end gap-2.5 pt-3 border-t border-zinc-100">

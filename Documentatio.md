@@ -203,14 +203,20 @@
   - URL del Repositorio: [https://github.com/DryFernand/FyDry](https://github.com/DryFernand/FyDry)
   - Rama Principal: `main` (código completo y sincronizado de Frontend, Backend, Onboarding, Dashboard, Reportes e i18n).
 - **Despliegue y Hosting en Vercel**:
-  - Proyecto Vercel: `fydry` (ID: `prj_I8IQ70NsKllDhxmwpGvrHZQrW8KK`)
-  - Framework: `Next.js 16 (App Router + Turbopack)`
-  - URL de Producción: [https://fydry-dary.vercel.app](https://fydry-dary.vercel.app)
-  - Aliases de Producción: `https://fydry.vercel.app` / `https://fydry-dary.vercel.app`
-- **Variables de Entorno Inyectadas en Vercel (`production`, `preview`, `development`)**:
-  - `NEXT_PUBLIC_GOOGLE_CLIENT_ID`: `810195441268-g4omp08tl1eekburuf3m5hpvbnkorduo.apps.googleusercontent.com`
-  - `NEXT_PUBLIC_GITHUB_CLIENT_ID`: `Ov23lifwQxx3ZuxlGNvB`
-  - `NEXT_PUBLIC_API_URL`: `http://localhost:8000/api/v1` (o URL del backend cloud)
+  - **Frontend (Next.js 16)**:
+    - Proyecto Vercel: `fydry` (ID: `prj_I8IQ70NsKllDhxmwpGvrHZQrW8KK`)
+    - URL de Producción: [https://fydry-dary.vercel.app](https://fydry-dary.vercel.app)
+    - Aliases: `https://fydry.vercel.app` / `https://fydry-dary.vercel.app`
+  - **Backend API (FastAPI Python Serverless)**:
+    - Proyecto Vercel: `fydry-api` (ID: `prj_NyHVYOnGKO6ownwGHWPFcm6Dki0g`)
+    - URL de Producción API: [https://fydry-api-dary.vercel.app](https://fydry-api-dary.vercel.app)
+    - Health Check: [https://fydry-api-dary.vercel.app/api/v1/health](https://fydry-api-dary.vercel.app/api/v1/health)
+    - Documentación OpenAPI / Swagger: [https://fydry-api-dary.vercel.app/api/v1/docs](https://fydry-api-dary.vercel.app/api/v1/docs)
+- **Vinculación Completa Frontend & Backend en Producción**:
+  - `NEXT_PUBLIC_API_URL` configurada en el frontend apuntando a `https://fydry-api-dary.vercel.app/api/v1`.
+  - CORS configurado en FastAPI para autorizar `https://.*\.vercel\.app` con credenciales y cabeceras completas.
+  - 27 variables de entorno inyectadas en el backend (PostgreSQL Supabase Pooler, Google SMTP, OAuth Google/GitHub y claves criptográficas JWT).
+
 
 
 

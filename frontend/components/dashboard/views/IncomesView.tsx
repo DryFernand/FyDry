@@ -6,43 +6,14 @@ import {
   ArrowUpRight,
   Plus,
   X,
+  PiggyBank,
 } from "lucide-react";
 import { TransactionItem } from "../types";
 import { useLanguage } from "@/context/LanguageContext";
 
-const initialIncomes: TransactionItem[] = [
-  {
-    id: "inc-1",
-    description: "Nómina Mensual Empresa",
-    category: "Salario Fijo",
-    account: "Santander Nómina",
-    amount: 2450.0,
-    type: "income",
-    date: "25 Ago",
-  },
-  {
-    id: "inc-2",
-    description: "Pago Proyecto Web Freelance",
-    category: "Servicios Freelance",
-    account: "Revolut Tarjeta",
-    amount: 650.0,
-    type: "income",
-    date: "22 Ago",
-  },
-  {
-    id: "inc-3",
-    description: "Dividendos Cartera Indexada",
-    category: "Inversiones",
-    account: "BBVA Principal",
-    amount: 124.5,
-    type: "income",
-    date: "15 Ago",
-  },
-];
-
 export default function IncomesView() {
   const { t, language } = useLanguage();
-  const [incomes, setIncomes] = useState<TransactionItem[]>(initialIncomes);
+  const [incomes, setIncomes] = useState<TransactionItem[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const [desc, setDesc] = useState("");
@@ -109,14 +80,14 @@ export default function IncomesView() {
 
         <div className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs space-y-2">
           <span className="text-xs font-semibold text-zinc-500">{t.incomes.mainSalary}</span>
-          <div className="text-2xl font-bold tracking-tight text-zinc-950">$2,450.00</div>
-          <div className="text-[11px] text-zinc-400">{t.incomes.salaryPercent}</div>
+          <div className="text-2xl font-bold tracking-tight text-zinc-950">$0.00</div>
+          <div className="text-[11px] text-zinc-400">0% del total mensual</div>
         </div>
 
         <div className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs space-y-2">
           <span className="text-xs font-semibold text-zinc-500">{t.incomes.extraIncomes}</span>
-          <div className="text-2xl font-bold tracking-tight text-zinc-950">$774.50</div>
-          <div className="text-[11px] text-zinc-400">{t.incomes.extraPercent}</div>
+          <div className="text-2xl font-bold tracking-tight text-zinc-950">$0.00</div>
+          <div className="text-[11px] text-zinc-400">0% del total mensual</div>
         </div>
       </div>
 
@@ -155,6 +126,18 @@ export default function IncomesView() {
               </div>
             </div>
           ))}
+
+          {incomes.length === 0 && (
+            <div className="py-12 text-center space-y-2">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
+                <PiggyBank className="w-5 h-5" />
+              </div>
+              <div className="text-xs font-semibold text-zinc-700">Sin ingresos registrados</div>
+              <p className="text-[11px] text-zinc-400 max-w-xs mx-auto">
+                Registra tu nómina, proyectos freelance o rendimientos para ver tu flujo mensual.
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -232,16 +215,13 @@ export default function IncomesView() {
                   <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
                     {t.incomes.receivingAccount}
                   </label>
-                  <select
+                  <input
+                    type="text"
                     value={acc}
                     onChange={(e) => setAcc(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 bg-white text-zinc-900 text-xs focus:outline-none focus:border-zinc-900 transition-colors shadow-2xs cursor-pointer"
-                  >
-                    <option value="Santander Nómina">Santander Nómina</option>
-                    <option value="BBVA Principal">BBVA Principal</option>
-                    <option value="Revolut Tarjeta">Revolut Tarjeta</option>
-                    <option value="Efectivo">Efectivo</option>
-                  </select>
+                    placeholder="Ej. Santander Nómina, Efectivo..."
+                    className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 bg-white text-zinc-900 text-xs placeholder:text-zinc-400 focus:outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 transition-colors shadow-2xs"
+                  />
                 </div>
 
                 <div className="flex justify-end gap-2.5 pt-3 border-t border-zinc-100">

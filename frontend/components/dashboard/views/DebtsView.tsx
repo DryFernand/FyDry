@@ -7,36 +7,14 @@ import {
   X,
   CreditCard,
   Building2,
+  ShieldCheck,
 } from "lucide-react";
 import { DebtItem } from "../types";
 import { useLanguage } from "@/context/LanguageContext";
 
-const initialDebts: DebtItem[] = [
-  {
-    id: "debt-1",
-    creditor: "Préstamo Coche (Santander)",
-    type: "Préstamo Personal",
-    totalAmount: 12000,
-    remainingAmount: 4800,
-    monthlyPayment: 260,
-    interestRate: 6.5,
-    dueDate: "Día 5 de cada mes",
-  },
-  {
-    id: "debt-2",
-    creditor: "Tarjeta Crédito BBVA",
-    type: "Línea de Crédito",
-    totalAmount: 1500,
-    remainingAmount: 450,
-    monthlyPayment: 150,
-    interestRate: 18.2,
-    dueDate: "Día 28 de cada mes",
-  },
-];
-
 export default function DebtsView() {
   const { t } = useLanguage();
-  const [debts, setDebts] = useState<DebtItem[]>(initialDebts);
+  const [debts, setDebts] = useState<DebtItem[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const [creditor, setCreditor] = useState("");
@@ -48,6 +26,10 @@ export default function DebtsView() {
 
   const totalRemaining = debts.reduce((acc, curr) => acc + curr.remainingAmount, 0);
   const totalMonthlyCommitment = debts.reduce((acc, curr) => acc + curr.monthlyPayment, 0);
+  const totalOriginalPrincipal = debts.reduce((acc, curr) => acc + curr.totalAmount, 0);
+  const totalAmortized = Math.max(totalOriginalPrincipal - totalRemaining, 0);
+  const liquidationPercent =
+    totalOriginalPrincipal > 0 ? Math.round((totalAmortized / totalOriginalPrincipal) * 100) : 100;
 
   const handleAddDebt = (e: React.FormEvent) => {
     e.preventDefault();
@@ -118,7 +100,9 @@ export default function DebtsView() {
 
         <div className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs space-y-2">
           <span className="text-xs font-semibold text-zinc-500">{t.debts.liquidationProgress}</span>
-          <div className="text-2xl font-bold tracking-tight text-emerald-600">61.1% {t.debts.paidTag}</div>
+          <div className="text-2xl font-bold tracking-tight text-emerald-600">
+            {liquidationPercent}% {t.debts.paidTag}
+          </div>
           <div className="text-[11px] text-zinc-400">{t.debts.goodPace}</div>
         </div>
       </div>
@@ -127,7 +111,7 @@ export default function DebtsView() {
       <div className="space-y-4">
         {debts.map((d) => {
           const paidAmount = d.totalAmount - d.remainingAmount;
-          const percentPaid = Math.round((paidAmount / d.totalAmount) * 100);
+          const percentPaid = d.totalAmount > 0 ? Math.round((paidAmount / d.totalAmount) * 100) : 0;
 
           return (
             <motion.div
@@ -187,6 +171,26 @@ export default function DebtsView() {
             </motion.div>
           );
         })}
+
+        {debts.length === 0 && (
+          <div className="py-16 text-center bg-white rounded-3xl border border-zinc-200/80 p-8 space-y-3">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto border border-emerald-100">
+              <ShieldCheck className="w-6 h-6" />
+            </div>
+            <div className="text-sm font-bold text-zinc-900">¡Libre de deudas! Cero compromisos pendientes</div>
+            <p className="text-xs text-zinc-400 max-w-sm mx-auto">
+              No tienes préstamos ni deudas registradas. Si tienes compromisos bancarios o tarjetas de crédito a plazo, regístralas para monitorear su amortización.
+            </p>
+            <button
+              type="button"
+              onClick={() => setIsModalOpen(true)}
+              className="inline-flex items-center gap-1.5 py-2.5 px-4 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer mt-2"
+            >
+              <Plus className="w-4 h-4" />
+              <span>{t.debts.addDebt}</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Add Debt Modal */}
