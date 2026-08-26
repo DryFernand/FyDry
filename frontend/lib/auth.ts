@@ -71,10 +71,13 @@ export async function apiResetPassword(email: string, code: string, newPassword:
   });
 }
 
-export async function apiGoogleAuth(idToken: string) {
+export async function apiGoogleAuth(idToken: string, redirectUri?: string) {
   return apiRequest("/auth/google", {
     method: "POST",
-    body: JSON.stringify({ id_token: idToken }),
+    body: JSON.stringify({
+      id_token: idToken,
+      redirect_uri: redirectUri,
+    }),
   });
 }
 

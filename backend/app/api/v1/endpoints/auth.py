@@ -490,11 +490,11 @@ async def google_auth(
     payload: GoogleAuthRequest,
     db: Session = Depends(get_db),
 ) -> Any:
-    profile = await exchange_google_code_or_token(payload.id_token)
+    profile = await exchange_google_code_or_token(payload.id_token, payload.redirect_uri)
     if not profile or not profile.get("email"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No se pudo validar la autenticación con Google. Verifica las credenciales.",
+            detail="No se pudo validar la autenticación con Google. Verifica que el redireccionamiento esté autorizado.",
         )
 
     email = profile["email"].lower()

@@ -10,40 +10,59 @@ async def exchange_google_code_or_token(code_or_token: str, redirect_uri: Option
     """
     async with httpx.AsyncClient() as client:
         # If it looks like an authorization code and we have client credentials
-        if (len(code_or_token) < 100 or code_or_token.startswith("4/")) and settings.GOOGLE_CLIENT_ID and settings.GOOGLE_CLIENT_SECRET:
+        if (len(code_or_token) < 150 or code_or_token.startswith("4/")) and settings.GOOGLE_CLIENT_ID and settings.GOOGLE_CLIENT_SECRET:
             token_url = "https://oauth2.googleapis.com/token"
-            data = {
-                "code": code_or_token,
-                "client_id": settings.GOOGLE_CLIENT_ID,
-                "client_secret": settings.GOOGLE_CLIENT_SECRET,
-                "redirect_uri": redirect_uri or f"{settings.FRONTEND_URL}/auth/callback/google",
-                "grant_type": "authorization_code",
-            }
-            try:
-                res = await client.post(token_url, data=data, timeout=10.0)
-                if res.status_code == 200:
-                    token_data = res.json()
-                    id_token = token_data.get("id_token")
-                    if id_token:
-                        return await verify_google_id_token(id_token)
-                    access_token = token_data.get("access_token")
-                    if access_token:
-                        user_info_res = await client.get(
-                            "https://www.googleapis.com/oauth2/v3/userinfo",
-                            headers={"Authorization": f"Bearer {access_token}"},
-                            timeout=10.0,
-                        )
-                        if user_info_res.status_code == 200:
-                            u_data = user_info_res.json()
-                            return {
-                                "provider_id": u_data.get("sub"),
-                                "email": u_data.get("email"),
-                                "full_name": u_data.get("name", "Usuario Google"),
-                                "avatar_url": u_data.get("picture"),
-                                "email_verified": u_data.get("email_verified", True),
-                            }
-            except Exception as e:
-                print(f"[GOOGLE OAUTH ERROR]: {e}")
+            
+            # List of possible redirect URIs to try if first one gets a mismatch
+            candidate_redirect_uris = []
+            if redirect_uri:
+                candidate_redirect_uris.append(redirect_uri)
+            candidate_redirect_uris.extend([
+                f"{settings.FRONTEND_URL}/auth/callback/google",
+                "https://fydry-dary.vercel.app/auth/callback/google",
+                "https://fydry.vercel.app/auth/callback/google",
+                "http://localhost:3000/auth/callback/google",
+            ])
+            # Deduplicate while preserving order
+            candidate_redirect_uris = list(dict.fromkeys(candidate_redirect_uris))
+
+            for uri in candidate_redirect_uris:
+                data = {
+                    "code": code_or_token,
+                    "client_id": settings.GOOGLE_CLIENT_ID,
+                    "client_secret": settings.GOOGLE_CLIENT_SECRET,
+                    "redirect_uri": uri,
+                    "grant_type": "authorization_code",
+                }
+                try:
+                    res = await client.post(token_url, data=data, timeout=12.0)
+                    if res.status_code == 200:
+                        token_data = res.json()
+                        id_token = token_data.get("id_token")
+                        if id_token:
+                            verified = await verify_google_id_token(id_token)
+                            if verified:
+                                return verified
+                        access_token = token_data.get("access_token")
+                        if access_token:
+                            user_info_res = await client.get(
+                                "https://www.googleapis.com/oauth2/v3/userinfo",
+                                headers={"Authorization": f"Bearer {access_token}"},
+                                timeout=10.0,
+                            )
+                            if user_info_res.status_code == 200:
+                                u_data = user_info_res.json()
+                                return {
+                                    "provider_id": u_data.get("sub"),
+                                    "email": u_data.get("email"),
+                                    "full_name": u_data.get("name", "Usuario Google"),
+                                    "avatar_url": u_data.get("picture"),
+                                    "email_verified": u_data.get("email_verified", True),
+                                }
+                    else:
+                        print(f"[GOOGLE TOKEN EXCHANGE] Status {res.status_code} for uri {uri}: {res.text}")
+                except Exception as e:
+                    print(f"[GOOGLE OAUTH ERROR] {uri}: {e}")
 
         # Fallback to direct ID token verification
         return await verify_google_id_token(code_or_token)
@@ -64,9 +83,10 @@ async def verify_google_id_token(id_token: str) -> Optional[Dict[str, Any]]:
                     "avatar_url": data.get("picture"),
                     "email_verified": data.get("email_verified", True),
                 }
+            print(f"[GOOGLE TOKENINFO FAIL]: {response.status_code} {response.text}")
             return None
         except Exception as exc:
-            print(f"[GOOGLE TOKEN ERROR]: {exc}")
+            print(f"[GOOGLE TOKENINFO ERROR]: {exc}")
             return None
 
 
@@ -78,50 +98,66 @@ async def get_github_user_profile(token_or_code: str) -> Optional[Dict[str, Any]
         access_token = token_or_code
 
         # If it's an authorization code, exchange it for access token
-        if not token_or_code.startswith("gho_") and not token_or_code.startswith("ghp_") and settings.GITHUB_CLIENT_ID and settings.GITHUB_CLIENT_SECRET:
+        if len(token_or_code) < 50 and settings.GITHUB_CLIENT_ID and settings.GITHUB_CLIENT_SECRET:
             token_url = "https://github.com/login/oauth/access_token"
             headers = {"Accept": "application/json"}
-            payload = {
+            data = {
                 "client_id": settings.GITHUB_CLIENT_ID,
                 "client_secret": settings.GITHUB_CLIENT_SECRET,
                 "code": token_or_code,
             }
             try:
-                res = await client.post(token_url, json=payload, headers=headers, timeout=10.0)
+                res = await client.post(token_url, headers=headers, json=data, timeout=10.0)
                 if res.status_code == 200:
-                    res_data = res.json()
-                    access_token = res_data.get("access_token", token_or_code)
+                    token_data = res.json()
+                    access_token = token_data.get("access_token", token_or_code)
             except Exception as e:
-                print(f"[GITHUB TOKEN EXCHANGE ERROR]: {e}")
+                print(f"[GITHUB OAUTH ERROR]: {e}")
 
-        # Query GitHub user API
-        headers = {
-            "Authorization": f"Bearer {access_token}",
-            "Accept": "application/vnd.github.v3+json",
-            "User-Agent": "FyDry-OAuth",
-        }
+        # Fetch user profile using access token
         try:
-            user_res = await client.get("https://api.github.com/user", headers=headers, timeout=10.0)
-            if user_res.status_code == 200:
-                user_data = user_res.json()
-                email = user_data.get("email")
+            user_res = await client.get(
+                "https://api.github.com/user",
+                headers={
+                    "Authorization": f"Bearer {access_token}",
+                    "Accept": "application/vnd.github.v3+json",
+                },
+                timeout=10.0,
+            )
+            if user_res.status_code != 200:
+                return None
 
-                # If primary email is private in GitHub, query user/emails endpoint
-                if not email:
-                    email_res = await client.get("https://api.github.com/user/emails", headers=headers, timeout=10.0)
-                    if email_res.status_code == 200:
-                        emails_list = email_res.json()
-                        primary_email = next((e["email"] for e in emails_list if e.get("primary")), None)
-                        email = primary_email or (emails_list[0]["email"] if emails_list else None)
+            user_data = user_res.json()
+            email = user_data.get("email")
 
-                return {
-                    "provider_id": str(user_data.get("id")),
-                    "email": email or f"{user_data.get('login')}@github.local",
-                    "full_name": user_data.get("name") or user_data.get("login") or "Usuario GitHub",
-                    "avatar_url": user_data.get("avatar_url"),
-                    "email_verified": True,
-                }
-            return None
+            # If email is private in profile, fetch primary verified email from emails endpoint
+            if not email:
+                emails_res = await client.get(
+                    "https://api.github.com/user/emails",
+                    headers={
+                        "Authorization": f"Bearer {access_token}",
+                        "Accept": "application/vnd.github.v3+json",
+                    },
+                    timeout=10.0,
+                )
+                if emails_res.status_code == 200:
+                    emails_data = emails_res.json()
+                    primary_email = next(
+                        (e["email"] for e in emails_data if e.get("primary") and e.get("verified")),
+                        None,
+                    )
+                    email = primary_email or (emails_data[0]["email"] if emails_data else None)
+
+            if not email:
+                email = f"{user_data.get('login')}@users.noreply.github.com"
+
+            return {
+                "provider_id": str(user_data.get("id")),
+                "email": email,
+                "full_name": user_data.get("name") or user_data.get("login", "Usuario GitHub"),
+                "avatar_url": user_data.get("avatar_url"),
+                "email_verified": True,
+            }
         except Exception as exc:
             print(f"[GITHUB PROFILE ERROR]: {exc}")
             return None

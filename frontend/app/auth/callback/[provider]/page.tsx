@@ -38,8 +38,11 @@ export default function AuthCallbackPage({ params }: CallbackProps) {
     async function completeOAuth() {
       try {
         let res;
+        const currentOrigin = typeof window !== "undefined" ? window.location.origin : "";
+        const currentRedirectUri = `${currentOrigin}/auth/callback/${provider}`;
+
         if (provider === "google") {
-          res = await apiGoogleAuth(code as string);
+          res = await apiGoogleAuth(code as string, currentRedirectUri);
         } else if (provider === "github") {
           res = await apiGitHubAuth(code as string);
         } else {
@@ -49,10 +52,20 @@ export default function AuthCallbackPage({ params }: CallbackProps) {
         }
 
         if (res.data?.access_token) {
-          localStorage.setItem("fydry_token", res.data.access_token);
+          if (typeof window !== "undefined") {
+            localStorage.setItem("fydry_access_token", res.data.access_token);
+            localStorage.setItem("fydry_token", res.data.access_token);
+            if (res.data.user) {
+              localStorage.setItem("fydry_user", JSON.stringify(res.data.user));
+            }
+          }
           setStatus("success");
           setTimeout(() => {
-            router.push("/onboarding");
+            if (res.data.user && res.data.user.onboarding_completed === false) {
+              router.push("/onboarding");
+            } else {
+              router.push("/dashboard");
+            }
           }, 1000);
         } else {
           setStatus("error");
@@ -60,7 +73,7 @@ export default function AuthCallbackPage({ params }: CallbackProps) {
         }
       } catch (err: any) {
         setStatus("error");
-        setErrorMsg("Error al conectar con el servidor.");
+        setErrorMsg(err?.message || "Error al conectar con el servidor.");
       }
     }
 

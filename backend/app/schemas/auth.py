@@ -54,6 +54,8 @@ class ResetPasswordRequest(BaseModel):
 # --- OAuth Requests ---
 class GoogleAuthRequest(BaseModel):
     id_token: str
+    redirect_uri: Optional[str] = None
+
 
 
 class GitHubAuthRequest(BaseModel):
