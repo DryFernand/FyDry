@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   ArrowDownRight,
@@ -8,61 +8,147 @@ import {
   Search,
   X,
   Receipt,
+  Filter,
+  Trash2,
+  Edit3,
 } from "lucide-react";
-import { TransactionItem } from "../types";
+import { TransactionItem, AccountItem } from "../types";
+import { EXPENSE_CATEGORIES } from "@/lib/categories";
 import { useLanguage } from "@/context/LanguageContext";
 
 export default function ExpensesView() {
   const { t, language } = useLanguage();
   const [expenses, setExpenses] = useState<TransactionItem[]>([]);
+  const [accounts, setAccounts] = useState<AccountItem[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("Todos");
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<TransactionItem | null>(null);
 
   // Form states
   const [desc, setDesc] = useState("");
   const [amount, setAmount] = useState("");
-  const [cat, setCat] = useState("Alimentación");
-  const [acc, setAcc] = useState("BBVA Principal");
+  const [cat, setCat] = useState<string>(EXPENSE_CATEGORIES[0]);
+  const [selectedAccountId, setSelectedAccountId] = useState("");
 
-  const categories = [
-    language === "es" ? "Todos" : "All",
-    language === "es" ? "Vivienda" : "Housing",
-    language === "es" ? "Alimentación" : "Food",
-    language === "es" ? "Transporte" : "Transport",
-    language === "es" ? "Suscripciones" : "Subscriptions",
-    language === "es" ? "Ocio" : "Leisure",
-  ];
+  // Load from localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const storedExp = localStorage.getItem("fydry_expenses");
+      if (storedExp) {
+        try {
+          setExpenses(JSON.parse(storedExp));
+        } catch {
+          setExpenses([]);
+        }
+      }
+
+      const storedAcc = localStorage.getItem("fydry_accounts");
+      if (storedAcc) {
+        try {
+          const parsed = JSON.parse(storedAcc);
+          setAccounts(parsed);
+          if (parsed.length > 0) {
+            setSelectedAccountId(parsed[0].name);
+          }
+        } catch {
+          setAccounts([]);
+        }
+      }
+    }
+  }, []);
+
+  const saveExpenses = (newExpenses: TransactionItem[]) => {
+    setExpenses(newExpenses);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("fydry_expenses", JSON.stringify(newExpenses));
+      window.dispatchEvent(new Event("fydry_storage_updated"));
+    }
+  };
+
+  // Dinámicamente obtener SOLO las categorías en las que realmente se ha consumido
+  const activeExpenseCategories = useMemo(() => {
+    const consumedCategories = Array.from(new Set(expenses.map((e) => e.category)));
+    return [language === "es" ? "Todos" : "All", ...consumedCategories];
+  }, [expenses, language]);
 
   const filteredExpenses = expenses.filter((e) => {
     const isAll = selectedCategory === "Todos" || selectedCategory === "All";
-    const matchesCat = isAll || e.category.toLowerCase().includes(selectedCategory.toLowerCase());
+    const matchesCat = isAll || e.category.toLowerCase() === selectedCategory.toLowerCase();
     const matchesSearch =
       e.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      e.category.toLowerCase().includes(searchTerm.toLowerCase());
+      e.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      e.account.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesCat && matchesSearch;
   });
 
   const totalSpent = filteredExpenses.reduce((acc, curr) => acc + curr.amount, 0);
 
-  const handleAddExpense = (e: React.FormEvent) => {
+  const openCreateModal = () => {
+    setEditingExpense(null);
+    setDesc("");
+    setAmount("");
+    setCat(EXPENSE_CATEGORIES[0]);
+    setSelectedAccountId(accounts.length > 0 ? accounts[0].name : "Efectivo");
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (exp: TransactionItem) => {
+    setEditingExpense(exp);
+    setDesc(exp.description);
+    setAmount(exp.amount.toString());
+    setCat(exp.category);
+    setSelectedAccountId(exp.account);
+    setIsModalOpen(true);
+  };
+
+  const handleSaveExpense = (e: React.FormEvent) => {
     e.preventDefault();
     if (!desc || !amount) return;
 
-    const newExp: TransactionItem = {
-      id: `exp-${Date.now()}`,
-      description: desc,
-      category: cat,
-      account: acc,
-      amount: parseFloat(amount) || 0,
-      type: "expense",
-      date: language === "es" ? "Hoy" : "Today",
-    };
+    const parsedAmount = parseFloat(amount) || 0;
+    const accountName = selectedAccountId || "Efectivo";
 
-    setExpenses([newExp, ...expenses]);
-    setDesc("");
-    setAmount("");
+    if (editingExpense) {
+      const updated = expenses.map((item) =>
+        item.id === editingExpense.id
+          ? {
+              ...item,
+              description: desc,
+              amount: parsedAmount,
+              category: cat,
+              account: accountName,
+            }
+          : item
+      );
+      saveExpenses(updated);
+    } else {
+      const newExp: TransactionItem = {
+        id: `exp-${Date.now()}`,
+        description: desc,
+        category: cat,
+        account: accountName,
+        amount: parsedAmount,
+        type: "expense",
+        date: new Date().toLocaleDateString(language === "es" ? "es-ES" : "en-US", {
+          day: "numeric",
+          month: "short",
+        }),
+      };
+      saveExpenses([newExp, ...expenses]);
+    }
+
     setIsModalOpen(false);
+    setEditingExpense(null);
+  };
+
+  const handleDeleteExpense = (id: string) => {
+    if (confirm("¿Deseas eliminar este gasto?")) {
+      const updated = expenses.filter((e) => e.id !== id);
+      saveExpenses(updated);
+      setIsModalOpen(false);
+      setEditingExpense(null);
+    }
   };
 
   return (
@@ -80,7 +166,7 @@ export default function ExpensesView() {
 
         <button
           type="button"
-          onClick={() => setIsModalOpen(true)}
+          onClick={openCreateModal}
           className="flex items-center gap-1.5 py-2 px-3.5 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
         >
           <Plus className="w-3.5 h-3.5" />
@@ -113,7 +199,7 @@ export default function ExpensesView() {
         </div>
       </div>
 
-      {/* Filter and Search Bar */}
+      {/* Filter and Search Bar con Filtro Inteligente de Categorías Consumidas */}
       <div className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="relative flex-1 max-w-sm">
@@ -127,8 +213,13 @@ export default function ExpensesView() {
             <Search className="w-4 h-4 text-zinc-400 absolute left-3 top-2.5 pointer-events-none" />
           </div>
 
+          {/* Selector de Filtros por Categoría (Solo muestra categorías consumidas) */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
-            {categories.map((c) => (
+            <div className="flex items-center gap-1 text-xs text-zinc-400 mr-1 shrink-0">
+              <Filter className="w-3.5 h-3.5" />
+              <span>Filtro:</span>
+            </div>
+            {activeExpenseCategories.map((c) => (
               <button
                 key={c}
                 type="button"
@@ -148,15 +239,24 @@ export default function ExpensesView() {
         {/* Expenses List */}
         <div className="divide-y divide-zinc-100 pt-2">
           {filteredExpenses.map((exp) => (
-            <div key={exp.id} className="py-3.5 flex items-center justify-between">
+            <div
+              key={exp.id}
+              onClick={() => openEditModal(exp)}
+              className="py-3.5 flex items-center justify-between hover:bg-zinc-50/80 rounded-2xl px-3 -mx-3 transition-colors cursor-pointer group"
+            >
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-zinc-100 text-zinc-700 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-2xl bg-zinc-100 text-zinc-700 flex items-center justify-center group-hover:bg-zinc-200 transition-colors">
                   <ArrowDownRight className="w-5 h-5" />
                 </div>
                 <div>
-                  <div className="text-xs font-bold text-zinc-950">{exp.description}</div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-zinc-950 group-hover:text-zinc-700">
+                      {exp.description}
+                    </span>
+                    <Edit3 className="w-3 h-3 text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
                   <div className="text-[11px] text-zinc-400 flex items-center gap-1.5">
-                    <span>{exp.category}</span>
+                    <span className="font-medium text-zinc-600">{exp.category}</span>
                     <span>•</span>
                     <span>{exp.account}</span>
                     <span>•</span>
@@ -169,7 +269,7 @@ export default function ExpensesView() {
                 <div className="text-xs font-bold text-zinc-950">
                   -${exp.amount.toFixed(2)}
                 </div>
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-600 font-medium">
+                <span className="text-[10px] px-2 py-0.5 rounded-md bg-zinc-100 text-zinc-600 font-medium">
                   {exp.category}
                 </span>
               </div>
@@ -181,16 +281,20 @@ export default function ExpensesView() {
               <div className="w-10 h-10 rounded-2xl bg-zinc-100 text-zinc-400 flex items-center justify-center mx-auto">
                 <Receipt className="w-5 h-5" />
               </div>
-              <div className="text-xs font-semibold text-zinc-700">Sin gastos registrados</div>
+              <div className="text-xs font-semibold text-zinc-700">
+                {expenses.length === 0 ? "Sin gastos registrados" : "No hay gastos con este filtro"}
+              </div>
               <p className="text-[11px] text-zinc-400 max-w-xs mx-auto">
-                Registra tu primer gasto diario para comenzar a detectar fugas y categorizar tus consumos.
+                {expenses.length === 0
+                  ? "Registra tu primer gasto para comenzar a monitorear tus consumos por categoría."
+                  : "Prueba seleccionando otra categoría o borrando el término de búsqueda."}
               </p>
             </div>
           )}
         </div>
       </div>
 
-      {/* Add Expense Modal */}
+      {/* Add / Edit Expense Modal */}
       <AnimatePresence>
         {isModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
@@ -198,20 +302,22 @@ export default function ExpensesView() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-md bg-white rounded-3xl border border-zinc-200 p-6 shadow-xl space-y-4"
+              className="w-full max-w-md bg-white rounded-3xl border border-zinc-200 p-6 shadow-xl space-y-4 max-h-[90vh] overflow-y-auto"
             >
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-bold text-zinc-950">{t.expenses.modalTitle}</h3>
+                <h3 className="text-lg font-bold text-zinc-950">
+                  {editingExpense ? "Editar Gasto" : t.expenses.modalTitle}
+                </h3>
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="p-1 rounded-lg text-zinc-400 hover:text-zinc-700"
+                  className="p-1 rounded-lg text-zinc-400 hover:text-zinc-700 cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <form onSubmit={handleAddExpense} className="space-y-4">
+              <form onSubmit={handleSaveExpense} className="space-y-4">
                 <div>
                   <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
                     {t.expenses.concept}
@@ -221,7 +327,7 @@ export default function ExpensesView() {
                     required
                     value={desc}
                     onChange={(e) => setDesc(e.target.value)}
-                    placeholder="Ej. Supermercado, Alquiler, Gasolina..."
+                    placeholder="Ej. Supermercado, Alquiler, Gasolina, Netflix..."
                     className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 bg-white text-zinc-900 text-xs placeholder:text-zinc-400 focus:outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 transition-colors shadow-2xs"
                   />
                 </div>
@@ -244,49 +350,75 @@ export default function ExpensesView() {
 
                   <div>
                     <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
-                      {t.expenses.category}
+                      {t.expenses.category} (25 Opciones)
                     </label>
                     <select
                       value={cat}
                       onChange={(e) => setCat(e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 bg-white text-zinc-900 text-xs focus:outline-none focus:border-zinc-900 transition-colors shadow-2xs cursor-pointer"
+                      className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 bg-white text-zinc-900 text-xs focus:outline-none focus:border-zinc-900 transition-colors shadow-2xs cursor-pointer truncate"
                     >
-                      <option value="Alimentación">Alimentación</option>
-                      <option value="Vivienda">Vivienda</option>
-                      <option value="Transporte">Transporte</option>
-                      <option value="Suscripciones">Suscripciones</option>
-                      <option value="Ocio">Ocio</option>
+                      {EXPENSE_CATEGORIES.map((categoryName) => (
+                        <option key={categoryName} value={categoryName}>
+                          {categoryName}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
-                    {t.expenses.debitedAccount}
+                    {t.expenses.debitedAccount} (Tus Cuentas Creadas)
                   </label>
-                  <input
-                    type="text"
-                    value={acc}
-                    onChange={(e) => setAcc(e.target.value)}
-                    placeholder="Ej. BBVA Principal, Efectivo..."
-                    className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 bg-white text-zinc-900 text-xs placeholder:text-zinc-400 focus:outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 transition-colors shadow-2xs"
-                  />
+                  <select
+                    value={selectedAccountId}
+                    onChange={(e) => setSelectedAccountId(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 bg-white text-zinc-900 text-xs focus:outline-none focus:border-zinc-900 transition-colors shadow-2xs cursor-pointer"
+                  >
+                    {accounts.length > 0 ? (
+                      accounts.map((a) => (
+                        <option key={a.id} value={a.name}>
+                          {a.name} (${a.balance.toFixed(2)} {a.type})
+                        </option>
+                      ))
+                    ) : (
+                      <>
+                        <option value="Efectivo Principal">Efectivo Principal</option>
+                        <option value="Cuenta Bancaria">Cuenta Bancaria</option>
+                      </>
+                    )}
+                  </select>
                 </div>
 
-                <div className="flex justify-end gap-2.5 pt-3 border-t border-zinc-100">
-                  <button
-                    type="button"
-                    onClick={() => setIsModalOpen(false)}
-                    className="py-2.5 px-4 rounded-xl border border-zinc-200 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
-                  >
-                    {t.accounts.cancel}
-                  </button>
-                  <button
-                    type="submit"
-                    className="py-2.5 px-4 rounded-xl bg-zinc-950 text-xs font-semibold text-white hover:bg-zinc-800"
-                  >
-                    {t.expenses.saveExpense}
-                  </button>
+                <div className="flex items-center justify-between gap-2.5 pt-3 border-t border-zinc-100">
+                  {editingExpense ? (
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteExpense(editingExpense.id)}
+                      className="flex items-center gap-1 py-2.5 px-3 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs font-semibold transition-colors cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Eliminar</span>
+                    </button>
+                  ) : (
+                    <div />
+                  )}
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsModalOpen(false)}
+                      className="py-2.5 px-4 rounded-xl border border-zinc-200 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 cursor-pointer"
+                    >
+                      {t.accounts.cancel}
+                    </button>
+                    <button
+                      type="submit"
+                      className="py-2.5 px-4 rounded-xl bg-zinc-950 text-xs font-semibold text-white hover:bg-zinc-800 cursor-pointer"
+                    >
+                      {editingExpense ? "Guardar Cambios" : t.expenses.saveExpense}
+                    </button>
+                  </div>
                 </div>
               </form>
             </motion.div>

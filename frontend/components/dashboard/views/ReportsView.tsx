@@ -1,17 +1,48 @@
 "use client";
 
-import { useState } from "react";
-import { motion } from "motion/react";
+import { useState, useEffect } from "react";
 import {
   Printer,
   FileText,
-  ShieldCheck,
 } from "lucide-react";
+import { AccountItem, TransactionItem, DebtItem } from "../types";
 import { useLanguage } from "@/context/LanguageContext";
 
 export default function ReportsView() {
   const { t, language } = useLanguage();
   const [isExporting, setIsExporting] = useState(false);
+  const [accounts, setAccounts] = useState<AccountItem[]>([]);
+  const [expenses, setExpenses] = useState<TransactionItem[]>([]);
+  const [incomes, setIncomes] = useState<TransactionItem[]>([]);
+  const [debts, setDebts] = useState<DebtItem[]>([]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const storedAcc = localStorage.getItem("fydry_accounts");
+        const storedExp = localStorage.getItem("fydry_expenses");
+        const storedInc = localStorage.getItem("fydry_incomes");
+        const storedDeb = localStorage.getItem("fydry_debts");
+
+        if (storedAcc) setAccounts(JSON.parse(storedAcc));
+        if (storedExp) setExpenses(JSON.parse(storedExp));
+        if (storedInc) setIncomes(JSON.parse(storedInc));
+        if (storedDeb) setDebts(JSON.parse(storedDeb));
+      } catch {}
+    }
+  }, []);
+
+  const totalIncomes = incomes.reduce((acc, curr) => acc + curr.amount, 0);
+  const totalExpenses = expenses.reduce((acc, curr) => acc + curr.amount, 0);
+  const netFlow = totalIncomes - totalExpenses;
+  const savingsRate = totalIncomes > 0 ? Math.round((Math.max(netFlow, 0) / totalIncomes) * 100) : 0;
+  const totalCustody = accounts.reduce((acc, curr) => acc + curr.balance, 0);
+
+  // Desglose de gastos por categoría
+  const expensesByCategory: { [cat: string]: number } = {};
+  expenses.forEach((e) => {
+    expensesByCategory[e.category] = (expensesByCategory[e.category] || 0) + e.amount;
+  });
 
   const handleExportPDF = () => {
     setIsExporting(true);
@@ -126,26 +157,40 @@ export default function ReportsView() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200/80 space-y-1">
               <span className="text-[11px] font-semibold text-zinc-500">{t.reports.totalIncomes}</span>
-              <div className="text-lg font-bold text-zinc-950">$0.00</div>
-              <div className="text-[10px] text-zinc-500 font-medium">0 fuentes registradas</div>
+              <div className="text-lg font-bold text-zinc-950">
+                ${totalIncomes.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+              </div>
+              <div className="text-[10px] text-zinc-500 font-medium">{incomes.length} fuentes registradas</div>
             </div>
 
             <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200/80 space-y-1">
               <span className="text-[11px] font-semibold text-zinc-500">{t.reports.totalExpenses}</span>
-              <div className="text-lg font-bold text-zinc-950">$0.00</div>
-              <div className="text-[10px] text-zinc-500">0% del total ingresado</div>
+              <div className="text-lg font-bold text-zinc-950">
+                ${totalExpenses.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+              </div>
+              <div className="text-[10px] text-zinc-500">
+                {totalIncomes > 0 ? Math.round((totalExpenses / totalIncomes) * 100) : 0}% del ingreso
+              </div>
             </div>
 
             <div className="p-4 rounded-2xl bg-emerald-50/50 border border-emerald-200/80 space-y-1">
               <span className="text-[11px] font-semibold text-emerald-800">{t.reports.netOperatingFlow}</span>
-              <div className="text-lg font-bold text-emerald-700">$0.00</div>
-              <div className="text-[10px] text-emerald-600 font-semibold">Balance Equilibrado</div>
+              <div
+                className={`text-lg font-bold ${
+                  netFlow >= 0 ? "text-emerald-700" : "text-rose-700"
+                }`}
+              >
+                ${netFlow.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+              </div>
+              <div className="text-[10px] text-emerald-600 font-semibold">
+                {netFlow >= 0 ? "Superávit Positivo" : "Déficit Operativo"}
+              </div>
             </div>
 
             <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200/80 space-y-1">
               <span className="text-[11px] font-semibold text-zinc-500">{t.reports.savingsRate}</span>
-              <div className="text-lg font-bold text-zinc-950">0%</div>
-              <div className="text-[10px] text-zinc-500 font-medium">Sin movimientos</div>
+              <div className="text-lg font-bold text-zinc-950">{savingsRate}%</div>
+              <div className="text-[10px] text-zinc-500 font-medium">Margen neto</div>
             </div>
           </div>
         </div>
@@ -170,11 +215,27 @@ export default function ReportsView() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
-                <tr>
-                  <td colSpan={4} className="py-6 text-center text-zinc-400 text-xs">
-                    No hay cuentas bancarias registradas en este período contable.
-                  </td>
-                </tr>
+                {accounts.map((acc) => (
+                  <tr key={acc.id}>
+                    <td className="py-2.5 px-3 font-bold text-zinc-900">{acc.name}</td>
+                    <td className="py-2.5 px-3 text-zinc-600 uppercase text-[10px] font-semibold">
+                      {acc.type}
+                    </td>
+                    <td className="py-2.5 px-3 text-zinc-500 font-mono text-[11px]">
+                      {acc.accountNumber || "—"}
+                    </td>
+                    <td className="py-2.5 px-3 text-right font-bold text-zinc-900">
+                      ${acc.balance.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                    </td>
+                  </tr>
+                ))}
+                {accounts.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="py-6 text-center text-zinc-400 text-xs">
+                      No hay cuentas bancarias registradas en este período contable.
+                    </td>
+                  </tr>
+                )}
               </tbody>
               <tfoot>
                 <tr className="border-t-2 border-zinc-900 font-bold bg-zinc-50">
@@ -182,7 +243,7 @@ export default function ReportsView() {
                     {t.reports.totalCustody}
                   </td>
                   <td className="py-2.5 px-3 text-right text-sm text-zinc-950">
-                    $0.00
+                    ${totalCustody.toLocaleString("en-US", { minimumFractionDigits: 2 })}
                   </td>
                 </tr>
               </tfoot>
@@ -204,17 +265,30 @@ export default function ReportsView() {
               <thead>
                 <tr className="border-b border-zinc-200 bg-zinc-50 text-zinc-700">
                   <th className="py-2.5 px-3 font-semibold">{t.reports.categoryCol}</th>
-                  <th className="py-2.5 px-3 font-semibold">{t.reports.natureCol}</th>
                   <th className="py-2.5 px-3 font-semibold text-right">{t.reports.spentCol}</th>
                   <th className="py-2.5 px-3 font-semibold text-right">{t.reports.percentCol}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
-                <tr>
-                  <td colSpan={4} className="py-6 text-center text-zinc-400 text-xs">
-                    Sin gastos categorizados en este período contable.
-                  </td>
-                </tr>
+                {Object.entries(expensesByCategory).map(([category, amount]) => {
+                  const percent = totalExpenses > 0 ? Math.round((amount / totalExpenses) * 100) : 0;
+                  return (
+                    <tr key={category}>
+                      <td className="py-2.5 px-3 font-bold text-zinc-900">{category}</td>
+                      <td className="py-2.5 px-3 text-right font-semibold text-zinc-900">
+                        ${amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-medium text-zinc-500">{percent}%</td>
+                    </tr>
+                  );
+                })}
+                {Object.keys(expensesByCategory).length === 0 && (
+                  <tr>
+                    <td colSpan={3} className="py-6 text-center text-zinc-400 text-xs">
+                      Sin gastos categorizados en este período contable.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -241,11 +315,32 @@ export default function ReportsView() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
-                <tr>
-                  <td colSpan={5} className="py-6 text-center text-zinc-400 text-xs">
-                    Cero pasivos o deudas registradas.
-                  </td>
-                </tr>
+                {debts.map((d) => {
+                  const paid = d.totalAmount - d.remainingAmount;
+                  const percent = d.totalAmount > 0 ? Math.round((paid / d.totalAmount) * 100) : 0;
+                  return (
+                    <tr key={d.id}>
+                      <td className="py-2.5 px-3 font-bold text-zinc-900">{d.creditor}</td>
+                      <td className="py-2.5 px-3 text-right font-medium text-zinc-600">
+                        ${d.totalAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-bold text-rose-600">
+                        ${d.remainingAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-semibold text-zinc-800">
+                        ${d.monthlyPayment}/mes
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-bold text-emerald-600">{percent}%</td>
+                    </tr>
+                  );
+                })}
+                {debts.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="py-6 text-center text-zinc-400 text-xs">
+                      Cero pasivos o deudas registradas.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -262,11 +357,17 @@ export default function ReportsView() {
           <div className="recommendations-box p-4 rounded-2xl bg-zinc-50 border border-zinc-200/80 space-y-2 text-xs text-zinc-700">
             <div className="flex items-start gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 mt-1.5 shrink-0" />
-              <span>Espacio de trabajo financiero limpio y listo para el registro de movimientos reales.</span>
+              <span>
+                {netFlow >= 0
+                  ? `Superávit operativo mensual positivo de $${netFlow.toFixed(2)}. Excelente control presupuestario.`
+                  : `Atención: Déficit mensual de -$${Math.abs(netFlow).toFixed(2)}. Revisa las categorías con mayor consumo.`}
+              </span>
             </div>
             <div className="flex items-start gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 mt-1.5 shrink-0" />
-              <span>Comienza registrando tus cuentas principales para visualizar la distribución del patrimonio.</span>
+              <span>
+                Tasa de ahorro actual del {savingsRate}%. Mantén la disciplina financiera para robustecer tu fondo de emergencia.
+              </span>
             </div>
           </div>
         </div>

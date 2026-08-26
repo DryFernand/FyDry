@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Plus,
@@ -9,6 +9,8 @@ import {
   Banknote,
   X,
   Wallet,
+  Trash2,
+  Edit3,
 } from "lucide-react";
 import { AccountItem } from "../types";
 import { useLanguage } from "@/context/LanguageContext";
@@ -17,12 +19,36 @@ export default function AccountsView() {
   const { t } = useLanguage();
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingAccount, setEditingAccount] = useState<AccountItem | null>(null);
 
   // Form states
   const [name, setName] = useState("");
   const [type, setType] = useState<"bank" | "card" | "wallet" | "cash">("bank");
   const [balance, setBalance] = useState("");
   const [accountNum, setAccountNum] = useState("");
+
+  // Load from localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("fydry_accounts");
+      if (stored) {
+        try {
+          setAccounts(JSON.parse(stored));
+        } catch {
+          setAccounts([]);
+        }
+      }
+    }
+  }, []);
+
+  // Save helper
+  const saveAccounts = (newAccounts: AccountItem[]) => {
+    setAccounts(newAccounts);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("fydry_accounts", JSON.stringify(newAccounts));
+      window.dispatchEvent(new Event("fydry_storage_updated"));
+    }
+  };
 
   const bankTotal = accounts
     .filter((a) => a.type === "bank")
@@ -36,24 +62,66 @@ export default function AccountsView() {
     .filter((a) => a.type === "cash")
     .reduce((acc, curr) => acc + curr.balance, 0);
 
-  const handleAddAccount = (e: React.FormEvent) => {
+  const openCreateModal = () => {
+    setEditingAccount(null);
+    setName("");
+    setType("bank");
+    setBalance("");
+    setAccountNum("");
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (acc: AccountItem) => {
+    setEditingAccount(acc);
+    setName(acc.name);
+    setType(acc.type);
+    setBalance(acc.balance.toString());
+    setAccountNum(acc.accountNumber || "");
+    setIsModalOpen(true);
+  };
+
+  const handleSaveAccount = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name) return;
 
-    const newAcc: AccountItem = {
-      id: `acc-${Date.now()}`,
-      name,
-      type,
-      balance: parseFloat(balance) || 0,
-      currency: "USD",
-      accountNumber: accountNum || undefined,
-    };
+    const parsedBalance = parseFloat(balance) || 0;
 
-    setAccounts([...accounts, newAcc]);
-    setName("");
-    setBalance("");
-    setAccountNum("");
+    if (editingAccount) {
+      const updated = accounts.map((a) =>
+        a.id === editingAccount.id
+          ? {
+              ...a,
+              name,
+              type,
+              balance: parsedBalance,
+              accountNumber: accountNum || undefined,
+            }
+          : a
+      );
+      saveAccounts(updated);
+    } else {
+      const newAcc: AccountItem = {
+        id: `acc-${Date.now()}`,
+        name,
+        type,
+        balance: parsedBalance,
+        currency: "USD",
+        accountNumber: accountNum || undefined,
+      };
+      saveAccounts([...accounts, newAcc]);
+    }
+
     setIsModalOpen(false);
+    setEditingAccount(null);
+  };
+
+  const handleDeleteAccount = (id: string) => {
+    if (confirm("¿Estás seguro de eliminar esta cuenta?")) {
+      const updated = accounts.filter((a) => a.id !== id);
+      saveAccounts(updated);
+      setIsModalOpen(false);
+      setEditingAccount(null);
+    }
   };
 
   return (
@@ -71,7 +139,7 @@ export default function AccountsView() {
 
         <button
           type="button"
-          onClick={() => setIsModalOpen(true)}
+          onClick={openCreateModal}
           className="flex items-center gap-1.5 py-2 px-3.5 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
         >
           <Plus className="w-3.5 h-3.5" />
@@ -128,7 +196,8 @@ export default function AccountsView() {
           <motion.div
             key={acc.id}
             whileHover={{ y: -2 }}
-            className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs flex flex-col justify-between space-y-4"
+            onClick={() => openEditModal(acc)}
+            className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs flex flex-col justify-between space-y-4 cursor-pointer hover:border-zinc-400 transition-all group"
           >
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
@@ -142,9 +211,14 @@ export default function AccountsView() {
                   )}
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-zinc-950">{acc.name}</h3>
+                  <div className="flex items-center gap-1.5">
+                    <h3 className="text-sm font-bold text-zinc-950 group-hover:text-zinc-700">
+                      {acc.name}
+                    </h3>
+                    <Edit3 className="w-3 h-3 text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
                   <p className="text-[11px] text-zinc-400">
-                    {acc.accountNumber || (acc.type === "cash" ? "Billetera" : "Cuenta Principal")}
+                    {acc.accountNumber || (acc.type === "cash" ? "Billetera" : "Cuenta")}
                   </p>
                 </div>
               </div>
@@ -172,11 +246,11 @@ export default function AccountsView() {
             </div>
             <div className="text-sm font-bold text-zinc-900">No tienes cuentas registradas aún</div>
             <p className="text-xs text-zinc-400 max-w-sm mx-auto">
-              Añade tus cuentas de banco, tarjetas de débito o billeteras para empezar a visualizar tu saldo total y liquidez disponible.
+              Añade tus cuentas de banco, tarjetas o efectivo para vincularlas a tus gastos e ingresos.
             </p>
             <button
               type="button"
-              onClick={() => setIsModalOpen(true)}
+              onClick={openCreateModal}
               className="inline-flex items-center gap-1.5 py-2.5 px-4 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer mt-2"
             >
               <Plus className="w-4 h-4" />
@@ -186,7 +260,7 @@ export default function AccountsView() {
         )}
       </div>
 
-      {/* Add Account Modal */}
+      {/* Add / Edit Account Modal */}
       <AnimatePresence>
         {isModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
@@ -197,17 +271,19 @@ export default function AccountsView() {
               className="w-full max-w-md bg-white rounded-3xl border border-zinc-200 p-6 shadow-xl space-y-4"
             >
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-bold text-zinc-950">{t.accounts.modalTitle}</h3>
+                <h3 className="text-lg font-bold text-zinc-950">
+                  {editingAccount ? "Editar Cuenta" : t.accounts.modalTitle}
+                </h3>
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="p-1 rounded-lg text-zinc-400 hover:text-zinc-700"
+                  className="p-1 rounded-lg text-zinc-400 hover:text-zinc-700 cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <form onSubmit={handleAddAccount} className="space-y-4">
+              <form onSubmit={handleSaveAccount} className="space-y-4">
                 <div>
                   <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
                     {t.accounts.accountName}
@@ -236,6 +312,7 @@ export default function AccountsView() {
                     >
                       <option value="bank">{t.accounts.bank}</option>
                       <option value="card">{t.accounts.card}</option>
+                      <option value="wallet">Billetera Digital</option>
                       <option value="cash">{t.accounts.cash}</option>
                     </select>
                   </div>
@@ -268,20 +345,35 @@ export default function AccountsView() {
                   />
                 </div>
 
-                <div className="flex justify-end gap-2.5 pt-3 border-t border-zinc-100">
-                  <button
-                    type="button"
-                    onClick={() => setIsModalOpen(false)}
-                    className="py-2.5 px-4 rounded-xl border border-zinc-200 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 cursor-pointer"
-                  >
-                    {t.accounts.cancel}
-                  </button>
-                  <button
-                    type="submit"
-                    className="py-2.5 px-4 rounded-xl bg-zinc-950 text-xs font-semibold text-white hover:bg-zinc-800 cursor-pointer"
-                  >
-                    {t.accounts.saveAccount}
-                  </button>
+                <div className="flex items-center justify-between gap-2.5 pt-3 border-t border-zinc-100">
+                  {editingAccount ? (
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteAccount(editingAccount.id)}
+                      className="flex items-center gap-1 py-2.5 px-3 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs font-semibold transition-colors cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Eliminar</span>
+                    </button>
+                  ) : (
+                    <div />
+                  )}
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsModalOpen(false)}
+                      className="py-2.5 px-4 rounded-xl border border-zinc-200 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 cursor-pointer"
+                    >
+                      {t.accounts.cancel}
+                    </button>
+                    <button
+                      type="submit"
+                      className="py-2.5 px-4 rounded-xl bg-zinc-950 text-xs font-semibold text-white hover:bg-zinc-800 cursor-pointer"
+                    >
+                      {editingAccount ? "Guardar Cambios" : t.accounts.saveAccount}
+                    </button>
+                  </div>
                 </div>
               </form>
             </motion.div>

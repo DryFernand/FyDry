@@ -1,17 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import {
   TrendingUp,
   ArrowDownRight,
   ArrowUpRight,
   Wallet,
-  PieChart,
   ShieldCheck,
   Plus,
   ArrowRight,
-  Sparkles,
   Layers,
 } from "lucide-react";
 import { DashboardTab, TransactionItem, AccountItem } from "../types";
@@ -25,6 +23,46 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
   const { t } = useLanguage();
   const [transactions, setTransactions] = useState<TransactionItem[]>([]);
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
+
+  // Sincronizar datos reales de localStorage
+  const loadData = () => {
+    if (typeof window !== "undefined") {
+      const storedAcc = localStorage.getItem("fydry_accounts");
+      const storedExp = localStorage.getItem("fydry_expenses");
+      const storedInc = localStorage.getItem("fydry_incomes");
+
+      let accList: AccountItem[] = [];
+      let expList: TransactionItem[] = [];
+      let incList: TransactionItem[] = [];
+
+      if (storedAcc) {
+        try {
+          accList = JSON.parse(storedAcc);
+        } catch {}
+      }
+      if (storedExp) {
+        try {
+          expList = JSON.parse(storedExp);
+        } catch {}
+      }
+      if (storedInc) {
+        try {
+          incList = JSON.parse(storedInc);
+        } catch {}
+      }
+
+      setAccounts(accList);
+      // Combinar movimientos ordenados cronológicamente
+      const combined = [...incList, ...expList].sort((a, b) => b.id.localeCompare(a.id));
+      setTransactions(combined);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+    window.addEventListener("fydry_storage_updated", loadData);
+    return () => window.removeEventListener("fydry_storage_updated", loadData);
+  }, []);
 
   const totalBalance = accounts.reduce((acc, a) => acc + a.balance, 0);
   const totalIncomes = transactions
@@ -178,10 +216,11 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
           </div>
 
           <div className="divide-y divide-zinc-100">
-            {transactions.map((item) => (
+            {transactions.slice(0, 6).map((item) => (
               <div
                 key={item.id}
-                className="py-3 flex items-center justify-between hover:bg-zinc-50/50 rounded-2xl px-2 -mx-2 transition-colors"
+                onClick={() => onNavigate(item.type === "income" ? "incomes" : "expenses")}
+                className="py-3 flex items-center justify-between hover:bg-zinc-50/80 rounded-2xl px-3 -mx-3 transition-colors cursor-pointer"
               >
                 <div className="flex items-center gap-3">
                   <div
@@ -254,7 +293,8 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
               {accounts.map((acc) => (
                 <div
                   key={acc.id}
-                  className="p-3.5 rounded-2xl border border-zinc-100 bg-zinc-50/50 flex items-center justify-between"
+                  onClick={() => onNavigate("accounts")}
+                  className="p-3.5 rounded-2xl border border-zinc-100 bg-zinc-50/50 flex items-center justify-between cursor-pointer hover:bg-zinc-100/70 transition-colors"
                 >
                   <div className="flex items-center gap-2.5">
                     <div className="w-8 h-8 rounded-xl bg-white border border-zinc-200 flex items-center justify-center font-bold text-[10px] text-zinc-700">

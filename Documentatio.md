@@ -217,6 +217,12 @@
   - CORS configurado en FastAPI para autorizar `https://.*\.vercel\.app` con credenciales y cabeceras completas.
   - 27 variables de entorno inyectadas en el backend (PostgreSQL Supabase Pooler, Google SMTP, OAuth Google/GitHub y claves criptográficas JWT).
 
+### Limpieza de Datos Simulados y Estado Inicial Limpio
+- **Base de Datos Supabase PostgreSQL**: Vaciadas y reiniciadas a 0 registros las tablas `users`, `user_profiles` y `otp_codes` para garantizar un entorno virgen listo para el registro real del usuario.
+- **Frontend Empty States**: Eliminados los arrays de prueba hardcodeados en `DashboardHome.tsx`, `AccountsView.tsx`, `ExpensesView.tsx`, `IncomesView.tsx`, `BudgetView.tsx`, `DebtsView.tsx` y `ReportsView.tsx`, inicializando todos los balances en `$0.00` con mensajes de bienvenida y estados vacíos intuitivos.
+- **Despliegue Sincronizado**: Cambios empujados a la rama `main` de GitHub y desplegados a los proyectos `fydry` y `fydry-api` en Vercel.
+
+
 
 
 

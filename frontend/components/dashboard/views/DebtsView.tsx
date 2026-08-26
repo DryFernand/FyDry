@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Plus,
@@ -8,6 +8,8 @@ import {
   CreditCard,
   Building2,
   ShieldCheck,
+  Trash2,
+  Edit3,
 } from "lucide-react";
 import { DebtItem } from "../types";
 import { useLanguage } from "@/context/LanguageContext";
@@ -16,6 +18,7 @@ export default function DebtsView() {
   const { t } = useLanguage();
   const [debts, setDebts] = useState<DebtItem[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingDebt, setEditingDebt] = useState<DebtItem | null>(null);
 
   const [creditor, setCreditor] = useState("");
   const [type, setType] = useState("Préstamo Personal");
@@ -24,6 +27,28 @@ export default function DebtsView() {
   const [monthly, setMonthly] = useState("");
   const [rate, setRate] = useState("");
 
+  // Load from localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("fydry_debts");
+      if (stored) {
+        try {
+          setDebts(JSON.parse(stored));
+        } catch {
+          setDebts([]);
+        }
+      }
+    }
+  }, []);
+
+  const saveDebts = (newDebts: DebtItem[]) => {
+    setDebts(newDebts);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("fydry_debts", JSON.stringify(newDebts));
+      window.dispatchEvent(new Event("fydry_storage_updated"));
+    }
+  };
+
   const totalRemaining = debts.reduce((acc, curr) => acc + curr.remainingAmount, 0);
   const totalMonthlyCommitment = debts.reduce((acc, curr) => acc + curr.monthlyPayment, 0);
   const totalOriginalPrincipal = debts.reduce((acc, curr) => acc + curr.totalAmount, 0);
@@ -31,28 +56,77 @@ export default function DebtsView() {
   const liquidationPercent =
     totalOriginalPrincipal > 0 ? Math.round((totalAmortized / totalOriginalPrincipal) * 100) : 100;
 
-  const handleAddDebt = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!creditor || !remaining) return;
-
-    const newD: DebtItem = {
-      id: `debt-${Date.now()}`,
-      creditor,
-      type,
-      totalAmount: parseFloat(total) || parseFloat(remaining),
-      remainingAmount: parseFloat(remaining) || 0,
-      monthlyPayment: parseFloat(monthly) || 0,
-      interestRate: parseFloat(rate) || 0,
-      dueDate: "Fin de mes",
-    };
-
-    setDebts([...debts, newD]);
+  const openCreateModal = () => {
+    setEditingDebt(null);
     setCreditor("");
+    setType("Préstamo Personal");
     setTotal("");
     setRemaining("");
     setMonthly("");
     setRate("");
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (d: DebtItem) => {
+    setEditingDebt(d);
+    setCreditor(d.creditor);
+    setType(d.type);
+    setTotal(d.totalAmount.toString());
+    setRemaining(d.remainingAmount.toString());
+    setMonthly(d.monthlyPayment.toString());
+    setRate(d.interestRate.toString());
+    setIsModalOpen(true);
+  };
+
+  const handleSaveDebt = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!creditor || !remaining) return;
+
+    const parsedTotal = parseFloat(total) || parseFloat(remaining);
+    const parsedRemaining = parseFloat(remaining) || 0;
+    const parsedMonthly = parseFloat(monthly) || 0;
+    const parsedRate = parseFloat(rate) || 0;
+
+    if (editingDebt) {
+      const updated = debts.map((item) =>
+        item.id === editingDebt.id
+          ? {
+              ...item,
+              creditor,
+              type,
+              totalAmount: parsedTotal,
+              remainingAmount: parsedRemaining,
+              monthlyPayment: parsedMonthly,
+              interestRate: parsedRate,
+            }
+          : item
+      );
+      saveDebts(updated);
+    } else {
+      const newD: DebtItem = {
+        id: `debt-${Date.now()}`,
+        creditor,
+        type,
+        totalAmount: parsedTotal,
+        remainingAmount: parsedRemaining,
+        monthlyPayment: parsedMonthly,
+        interestRate: parsedRate,
+        dueDate: "Fin de mes",
+      };
+      saveDebts([...debts, newD]);
+    }
+
     setIsModalOpen(false);
+    setEditingDebt(null);
+  };
+
+  const handleDeleteDebt = (id: string) => {
+    if (confirm("¿Deseas eliminar este registro de deuda?")) {
+      const updated = debts.filter((d) => d.id !== id);
+      saveDebts(updated);
+      setIsModalOpen(false);
+      setEditingDebt(null);
+    }
   };
 
   return (
@@ -70,7 +144,7 @@ export default function DebtsView() {
 
         <button
           type="button"
-          onClick={() => setIsModalOpen(true)}
+          onClick={openCreateModal}
           className="flex items-center gap-1.5 py-2 px-3.5 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
         >
           <Plus className="w-3.5 h-3.5" />
@@ -117,7 +191,8 @@ export default function DebtsView() {
             <motion.div
               key={d.id}
               whileHover={{ y: -2 }}
-              className="bg-white p-5 sm:p-6 rounded-3xl border border-zinc-200/80 shadow-xs space-y-4"
+              onClick={() => openEditModal(d)}
+              className="bg-white p-5 sm:p-6 rounded-3xl border border-zinc-200/80 shadow-xs space-y-4 cursor-pointer hover:border-zinc-400 transition-all group"
             >
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div className="flex items-center gap-3">
@@ -129,7 +204,12 @@ export default function DebtsView() {
                     )}
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-zinc-950">{d.creditor}</h3>
+                    <div className="flex items-center gap-1.5">
+                      <h3 className="text-sm font-bold text-zinc-950 group-hover:text-zinc-700">
+                        {d.creditor}
+                      </h3>
+                      <Edit3 className="w-3 h-3 text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
                     <div className="text-[11px] text-zinc-400 flex items-center gap-2">
                       <span>{d.type}</span>
                       <span>•</span>
@@ -179,11 +259,11 @@ export default function DebtsView() {
             </div>
             <div className="text-sm font-bold text-zinc-900">¡Libre de deudas! Cero compromisos pendientes</div>
             <p className="text-xs text-zinc-400 max-w-sm mx-auto">
-              No tienes préstamos ni deudas registradas. Si tienes compromisos bancarios o tarjetas de crédito a plazo, regístralas para monitorear su amortización.
+              No tienes préstamos ni pasivos registrados. Si tienes compromisos bancarios o tarjetas a plazo, regístralas para monitorear su amortización.
             </p>
             <button
               type="button"
-              onClick={() => setIsModalOpen(true)}
+              onClick={openCreateModal}
               className="inline-flex items-center gap-1.5 py-2.5 px-4 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer mt-2"
             >
               <Plus className="w-4 h-4" />
@@ -193,7 +273,7 @@ export default function DebtsView() {
         )}
       </div>
 
-      {/* Add Debt Modal */}
+      {/* Add / Edit Debt Modal */}
       <AnimatePresence>
         {isModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
@@ -201,20 +281,22 @@ export default function DebtsView() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-md bg-white rounded-3xl border border-zinc-200 p-6 shadow-xl space-y-4"
+              className="w-full max-w-md bg-white rounded-3xl border border-zinc-200 p-6 shadow-xl space-y-4 max-h-[90vh] overflow-y-auto"
             >
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-bold text-zinc-950">{t.debts.modalTitle}</h3>
+                <h3 className="text-lg font-bold text-zinc-950">
+                  {editingDebt ? "Editar Compromiso de Deuda" : t.debts.modalTitle}
+                </h3>
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="p-1 rounded-lg text-zinc-400 hover:text-zinc-700"
+                  className="p-1 rounded-lg text-zinc-400 hover:text-zinc-700 cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <form onSubmit={handleAddDebt} className="space-y-4">
+              <form onSubmit={handleSaveDebt} className="space-y-4">
                 <div>
                   <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
                     {t.debts.creditor}
@@ -290,20 +372,35 @@ export default function DebtsView() {
                   </div>
                 </div>
 
-                <div className="flex justify-end gap-2.5 pt-3 border-t border-zinc-100">
-                  <button
-                    type="button"
-                    onClick={() => setIsModalOpen(false)}
-                    className="py-2.5 px-4 rounded-xl border border-zinc-200 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
-                  >
-                    {t.accounts.cancel}
-                  </button>
-                  <button
-                    type="submit"
-                    className="py-2.5 px-4 rounded-xl bg-zinc-950 text-xs font-semibold text-white hover:bg-zinc-800"
-                  >
-                    {t.debts.saveDebt}
-                  </button>
+                <div className="flex items-center justify-between gap-2.5 pt-3 border-t border-zinc-100">
+                  {editingDebt ? (
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteDebt(editingDebt.id)}
+                      className="flex items-center gap-1 py-2.5 px-3 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs font-semibold transition-colors cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Eliminar</span>
+                    </button>
+                  ) : (
+                    <div />
+                  )}
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsModalOpen(false)}
+                      className="py-2.5 px-4 rounded-xl border border-zinc-200 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 cursor-pointer"
+                    >
+                      {t.accounts.cancel}
+                    </button>
+                    <button
+                      type="submit"
+                      className="py-2.5 px-4 rounded-xl bg-zinc-950 text-xs font-semibold text-white hover:bg-zinc-800 cursor-pointer"
+                    >
+                      {editingDebt ? "Guardar Cambios" : t.debts.saveDebt}
+                    </button>
+                  </div>
                 </div>
               </form>
             </motion.div>
