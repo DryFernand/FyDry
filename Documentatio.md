@@ -198,6 +198,21 @@
   - `frontend/components/dashboard/DashboardLayout.tsx`: Actualizado el menú lateral a `h-screen sticky top-0 overflow-y-auto` para que permanezca anclado y visible en el 100% de la ventana durante scrolls extensos en cualquier pantalla.
   - Integrado botón de colapso/expansión animado con `motion` (`w-64` <-> `w-20`) para optimizar el espacio de trabajo en pantallas medianas y grandes.
 
+### Lanzamiento V1 en Producción: Repositorio GitHub y Despliegue en Vercel
+- **Repositorio Oficial en GitHub**:
+  - URL del Repositorio: [https://github.com/DryFernand/FyDry](https://github.com/DryFernand/FyDry)
+  - Rama Principal: `main` (código completo y sincronizado de Frontend, Backend, Onboarding, Dashboard, Reportes e i18n).
+- **Despliegue y Hosting en Vercel**:
+  - Proyecto Vercel: `fydry` (ID: `prj_I8IQ70NsKllDhxmwpGvrHZQrW8KK`)
+  - Framework: `Next.js 16 (App Router + Turbopack)`
+  - URL de Producción: [https://fydry-dary.vercel.app](https://fydry-dary.vercel.app)
+  - Aliases de Producción: `https://fydry.vercel.app` / `https://fydry-dary.vercel.app`
+- **Variables de Entorno Inyectadas en Vercel (`production`, `preview`, `development`)**:
+  - `NEXT_PUBLIC_GOOGLE_CLIENT_ID`: `810195441268-g4omp08tl1eekburuf3m5hpvbnkorduo.apps.googleusercontent.com`
+  - `NEXT_PUBLIC_GITHUB_CLIENT_ID`: `Ov23lifwQxx3ZuxlGNvB`
+  - `NEXT_PUBLIC_API_URL`: `http://localhost:8000/api/v1` (o URL del backend cloud)
+
+
 
 
 
