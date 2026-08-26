@@ -238,6 +238,26 @@
   - Los selectores de filtros en Gastos e Ingresos ahora despliegan exclusivamente las categorías en las que el usuario **realmente ha registrado movimientos**, evitando saturar con categorías vacías.
 - **Persistencia Reactiva Local**: Sincronización continua de `localStorage` con eventos entre pestañas (`fydry_storage_updated`) para alimentar en tiempo real el Dashboard Home, las Cuentas y los Reportes auditados.
 
+### 2026-08-26 - Persistencia Total en Base de Datos por Usuario, Gating de Onboarding y Sesión de 30 Días
+- **Persistencia en PostgreSQL Supabase por `user_id`**:
+  - Creados modelos SQLAlchemy y tablas: `accounts`, `transactions`, `budgets`, `debts` con claves foráneas asociadas al `user_id` del usuario autenticado.
+  - Creados endpoints CRUD completos en FastAPI:
+    - `/api/v1/accounts` (GET, POST, PUT, DELETE)
+    - `/api/v1/transactions` (GET, POST, PUT, DELETE con filtro por tipo de transacción)
+    - `/api/v1/budgets` (GET, POST, PUT, DELETE)
+    - `/api/v1/debts` (GET, POST, PUT, DELETE)
+  - Conectadas todas las vistas del Frontend (`AccountsView`, `ExpensesView`, `IncomesView`, `BudgetView`, `DebtsView`, `DashboardHome`, `ReportsView`) a la API de PostgreSQL del backend a través de [`frontend/lib/api.ts`](file:///c:/Users/daryf/Documents/PORTAFOLIO/FyDry/frontend/lib/api.ts).
+- **Gating de Onboarding Exclusivo Post-Registro**:
+  - Añadido campo `onboarding_completed: bool` en el modelo `User`.
+  - El flujo de onboarding (`/onboarding`) solo se activa una única vez tras el registro inicial y validación OTP.
+  - Al iniciar sesión con un usuario existente (`/login`), el sistema detecta `onboarding_completed == true` y redirige inmediatamente a `/dashboard` sin volver a pedir las preguntas de configuración.
+  - Endpoint `/api/v1/auth/complete-onboarding` que marca el estado en BD al culminar el asistente.
+- **Sesión Permanente de Larga Duración (30 Días)**:
+  - Token JWT extendido a 30 días de validez (`ACCESS_TOKEN_EXPIRE_MINUTES = 43200`).
+  - Almacenamiento seguro y duradero de credenciales en el cliente con autenticación persistente ante recargas de página y cambios de pestaña sin cierres inesperados.
+- **Despliegue a Producción**: Actualizados y operativos los proyectos `fydry` y `fydry-api` en Vercel.
+
+
 
 
 
