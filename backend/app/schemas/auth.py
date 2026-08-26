@@ -11,7 +11,9 @@ class UserOut(CoreSchema):
     avatar_url: Optional[str] = None
     is_active: bool
     is_verified: bool
+    onboarding_completed: bool = False
     auth_provider: str
+
 
 
 # --- Registration & Login ---

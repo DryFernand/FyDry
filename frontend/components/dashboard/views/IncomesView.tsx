@@ -15,6 +15,13 @@ import {
 import { TransactionItem, AccountItem } from "../types";
 import { INCOME_CATEGORIES } from "@/lib/categories";
 import { useLanguage } from "@/context/LanguageContext";
+import {
+  fetchTransactionsApi,
+  createTransactionApi,
+  updateTransactionApi,
+  deleteTransactionApi,
+  fetchAccountsApi,
+} from "@/lib/api";
 
 export default function IncomesView() {
   const { t, language } = useLanguage();
@@ -30,40 +37,23 @@ export default function IncomesView() {
   const [cat, setCat] = useState<string>(INCOME_CATEGORIES[0]);
   const [selectedAccountId, setSelectedAccountId] = useState("");
 
-  // Load from localStorage
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const storedInc = localStorage.getItem("fydry_incomes");
-      if (storedInc) {
-        try {
-          setIncomes(JSON.parse(storedInc));
-        } catch {
-          setIncomes([]);
-        }
-      }
-
-      const storedAcc = localStorage.getItem("fydry_accounts");
-      if (storedAcc) {
-        try {
-          const parsed = JSON.parse(storedAcc);
-          setAccounts(parsed);
-          if (parsed.length > 0) {
-            setSelectedAccountId(parsed[0].name);
-          }
-        } catch {
-          setAccounts([]);
-        }
-      }
-    }
-  }, []);
-
-  const saveIncomes = (newIncomes: TransactionItem[]) => {
-    setIncomes(newIncomes);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("fydry_incomes", JSON.stringify(newIncomes));
-      window.dispatchEvent(new Event("fydry_storage_updated"));
+  const loadData = async () => {
+    const [incData, accData] = await Promise.all([
+      fetchTransactionsApi("income"),
+      fetchAccountsApi(),
+    ]);
+    setIncomes(incData);
+    setAccounts(accData);
+    if (accData.length > 0 && !selectedAccountId) {
+      setSelectedAccountId(accData[0].name);
     }
   };
+
+  useEffect(() => {
+    loadData();
+    window.addEventListener("fydry_storage_updated", loadData);
+    return () => window.removeEventListener("fydry_storage_updated", loadData);
+  }, []);
 
   // Dinámicamente obtener SOLO las categorías en las que realmente se han registrado ingresos
   const activeIncomeCategories = useMemo(() => {
@@ -101,29 +91,26 @@ export default function IncomesView() {
     setIsModalOpen(true);
   };
 
-  const handleSaveIncome = (e: React.FormEvent) => {
+  const handleSaveIncome = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!desc || !amount) return;
 
     const parsedAmount = parseFloat(amount) || 0;
-    const accountName = selectedAccountId || "Efectivo";
+    const accountName = selectedAccountId || (accounts.length > 0 ? accounts[0].name : "Efectivo");
 
     if (editingIncome) {
-      const updated = incomes.map((item) =>
-        item.id === editingIncome.id
-          ? {
-              ...item,
-              description: desc,
-              amount: parsedAmount,
-              category: cat,
-              account: accountName,
-            }
-          : item
+      const updatedItem = {
+        description: desc,
+        amount: parsedAmount,
+        category: cat,
+        account: accountName,
+      };
+      setIncomes((prev) =>
+        prev.map((item) => (item.id === editingIncome.id ? { ...item, ...updatedItem } : item))
       );
-      saveIncomes(updated);
+      await updateTransactionApi(editingIncome.id, updatedItem);
     } else {
-      const newInc: TransactionItem = {
-        id: `inc-${Date.now()}`,
+      const created = await createTransactionApi({
         description: desc,
         category: cat,
         account: accountName,
@@ -133,18 +120,24 @@ export default function IncomesView() {
           day: "numeric",
           month: "short",
         }),
-      };
-      saveIncomes([newInc, ...incomes]);
+      });
+      setIncomes((prev) => [created, ...prev]);
     }
 
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("fydry_storage_updated"));
+    }
     setIsModalOpen(false);
     setEditingIncome(null);
   };
 
-  const handleDeleteIncome = (id: string) => {
+  const handleDeleteIncome = async (id: string) => {
     if (confirm("¿Deseas eliminar este ingreso?")) {
-      const updated = incomes.filter((i) => i.id !== id);
-      saveIncomes(updated);
+      setIncomes((prev) => prev.filter((i) => i.id !== id));
+      await deleteTransactionApi(id);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("fydry_storage_updated"));
+      }
       setIsModalOpen(false);
       setEditingIncome(null);
     }
@@ -198,7 +191,7 @@ export default function IncomesView() {
         </div>
       </div>
 
-      {/* Filter and Search Bar con Filtro Inteligente */}
+      {/* Filter and Search Bar */}
       <div className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="relative flex-1 max-w-sm">
@@ -212,7 +205,6 @@ export default function IncomesView() {
             <Search className="w-4 h-4 text-zinc-400 absolute left-3 top-2.5 pointer-events-none" />
           </div>
 
-          {/* Selector de Filtros por Categoría */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
             <div className="flex items-center gap-1 text-xs text-zinc-400 mr-1 shrink-0">
               <Filter className="w-3.5 h-3.5" />

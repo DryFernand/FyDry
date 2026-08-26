@@ -576,7 +576,7 @@ async def github_auth(
 
 
 # ============================================================================
-# 5. PERFIL DE USUARIO ACTUAL
+# 5. PERFIL DE USUARIO ACTUAL & ONBOARDING
 # ============================================================================
 @router.get(
     "/me",
@@ -585,3 +585,19 @@ async def github_auth(
 )
 def get_me(current_user: User = Depends(get_current_user)) -> Any:
     return current_user
+
+
+@router.post(
+    "/complete-onboarding",
+    response_model=UserOut,
+    summary="Marcar onboarding como completado",
+)
+def complete_onboarding(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Any:
+    current_user.onboarding_completed = True
+    db.commit()
+    db.refresh(current_user)
+    return current_user
+

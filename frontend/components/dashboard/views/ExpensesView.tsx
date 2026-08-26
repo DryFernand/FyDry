@@ -15,6 +15,13 @@ import {
 import { TransactionItem, AccountItem } from "../types";
 import { EXPENSE_CATEGORIES } from "@/lib/categories";
 import { useLanguage } from "@/context/LanguageContext";
+import {
+  fetchTransactionsApi,
+  createTransactionApi,
+  updateTransactionApi,
+  deleteTransactionApi,
+  fetchAccountsApi,
+} from "@/lib/api";
 
 export default function ExpensesView() {
   const { t, language } = useLanguage();
@@ -31,40 +38,23 @@ export default function ExpensesView() {
   const [cat, setCat] = useState<string>(EXPENSE_CATEGORIES[0]);
   const [selectedAccountId, setSelectedAccountId] = useState("");
 
-  // Load from localStorage
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const storedExp = localStorage.getItem("fydry_expenses");
-      if (storedExp) {
-        try {
-          setExpenses(JSON.parse(storedExp));
-        } catch {
-          setExpenses([]);
-        }
-      }
-
-      const storedAcc = localStorage.getItem("fydry_accounts");
-      if (storedAcc) {
-        try {
-          const parsed = JSON.parse(storedAcc);
-          setAccounts(parsed);
-          if (parsed.length > 0) {
-            setSelectedAccountId(parsed[0].name);
-          }
-        } catch {
-          setAccounts([]);
-        }
-      }
-    }
-  }, []);
-
-  const saveExpenses = (newExpenses: TransactionItem[]) => {
-    setExpenses(newExpenses);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("fydry_expenses", JSON.stringify(newExpenses));
-      window.dispatchEvent(new Event("fydry_storage_updated"));
+  const loadData = async () => {
+    const [expData, accData] = await Promise.all([
+      fetchTransactionsApi("expense"),
+      fetchAccountsApi(),
+    ]);
+    setExpenses(expData);
+    setAccounts(accData);
+    if (accData.length > 0 && !selectedAccountId) {
+      setSelectedAccountId(accData[0].name);
     }
   };
+
+  useEffect(() => {
+    loadData();
+    window.addEventListener("fydry_storage_updated", loadData);
+    return () => window.removeEventListener("fydry_storage_updated", loadData);
+  }, []);
 
   // Dinámicamente obtener SOLO las categorías en las que realmente se ha consumido
   const activeExpenseCategories = useMemo(() => {
@@ -102,29 +92,26 @@ export default function ExpensesView() {
     setIsModalOpen(true);
   };
 
-  const handleSaveExpense = (e: React.FormEvent) => {
+  const handleSaveExpense = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!desc || !amount) return;
 
     const parsedAmount = parseFloat(amount) || 0;
-    const accountName = selectedAccountId || "Efectivo";
+    const accountName = selectedAccountId || (accounts.length > 0 ? accounts[0].name : "Efectivo");
 
     if (editingExpense) {
-      const updated = expenses.map((item) =>
-        item.id === editingExpense.id
-          ? {
-              ...item,
-              description: desc,
-              amount: parsedAmount,
-              category: cat,
-              account: accountName,
-            }
-          : item
+      const updatedItem = {
+        description: desc,
+        amount: parsedAmount,
+        category: cat,
+        account: accountName,
+      };
+      setExpenses((prev) =>
+        prev.map((item) => (item.id === editingExpense.id ? { ...item, ...updatedItem } : item))
       );
-      saveExpenses(updated);
+      await updateTransactionApi(editingExpense.id, updatedItem);
     } else {
-      const newExp: TransactionItem = {
-        id: `exp-${Date.now()}`,
+      const created = await createTransactionApi({
         description: desc,
         category: cat,
         account: accountName,
@@ -134,18 +121,24 @@ export default function ExpensesView() {
           day: "numeric",
           month: "short",
         }),
-      };
-      saveExpenses([newExp, ...expenses]);
+      });
+      setExpenses((prev) => [created, ...prev]);
     }
 
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("fydry_storage_updated"));
+    }
     setIsModalOpen(false);
     setEditingExpense(null);
   };
 
-  const handleDeleteExpense = (id: string) => {
+  const handleDeleteExpense = async (id: string) => {
     if (confirm("¿Deseas eliminar este gasto?")) {
-      const updated = expenses.filter((e) => e.id !== id);
-      saveExpenses(updated);
+      setExpenses((prev) => prev.filter((e) => e.id !== id));
+      await deleteTransactionApi(id);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("fydry_storage_updated"));
+      }
       setIsModalOpen(false);
       setEditingExpense(null);
     }
@@ -199,7 +192,7 @@ export default function ExpensesView() {
         </div>
       </div>
 
-      {/* Filter and Search Bar con Filtro Inteligente de Categorías Consumidas */}
+      {/* Filter and Search Bar */}
       <div className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="relative flex-1 max-w-sm">
@@ -213,7 +206,6 @@ export default function ExpensesView() {
             <Search className="w-4 h-4 text-zinc-400 absolute left-3 top-2.5 pointer-events-none" />
           </div>
 
-          {/* Selector de Filtros por Categoría (Solo muestra categorías consumidas) */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
             <div className="flex items-center gap-1 text-xs text-zinc-400 mr-1 shrink-0">
               <Filter className="w-3.5 h-3.5" />

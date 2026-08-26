@@ -85,7 +85,11 @@ export default function VerifyOtpView({
       const res = await apiVerifyEmailOtp(email, code);
       if (res.data?.access_token) {
         if (typeof window !== "undefined") {
+          localStorage.setItem("fydry_access_token", res.data.access_token);
           localStorage.setItem("fydry_token", res.data.access_token);
+          if (res.data.user) {
+            localStorage.setItem("fydry_user", JSON.stringify(res.data.user));
+          }
         }
         setIsSuccess(true);
         setTimeout(() => {

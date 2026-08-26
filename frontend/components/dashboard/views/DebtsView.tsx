@@ -13,6 +13,12 @@ import {
 } from "lucide-react";
 import { DebtItem } from "../types";
 import { useLanguage } from "@/context/LanguageContext";
+import {
+  fetchDebtsApi,
+  createDebtApi,
+  updateDebtApi,
+  deleteDebtApi,
+} from "@/lib/api";
 
 export default function DebtsView() {
   const { t } = useLanguage();
@@ -27,27 +33,16 @@ export default function DebtsView() {
   const [monthly, setMonthly] = useState("");
   const [rate, setRate] = useState("");
 
-  // Load from localStorage
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("fydry_debts");
-      if (stored) {
-        try {
-          setDebts(JSON.parse(stored));
-        } catch {
-          setDebts([]);
-        }
-      }
-    }
-  }, []);
-
-  const saveDebts = (newDebts: DebtItem[]) => {
-    setDebts(newDebts);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("fydry_debts", JSON.stringify(newDebts));
-      window.dispatchEvent(new Event("fydry_storage_updated"));
-    }
+  const loadDebts = async () => {
+    const data = await fetchDebtsApi();
+    setDebts(data);
   };
+
+  useEffect(() => {
+    loadDebts();
+    window.addEventListener("fydry_storage_updated", loadDebts);
+    return () => window.removeEventListener("fydry_storage_updated", loadDebts);
+  }, []);
 
   const totalRemaining = debts.reduce((acc, curr) => acc + curr.remainingAmount, 0);
   const totalMonthlyCommitment = debts.reduce((acc, curr) => acc + curr.monthlyPayment, 0);
@@ -78,7 +73,7 @@ export default function DebtsView() {
     setIsModalOpen(true);
   };
 
-  const handleSaveDebt = (e: React.FormEvent) => {
+  const handleSaveDebt = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!creditor || !remaining) return;
 
@@ -88,23 +83,20 @@ export default function DebtsView() {
     const parsedRate = parseFloat(rate) || 0;
 
     if (editingDebt) {
-      const updated = debts.map((item) =>
-        item.id === editingDebt.id
-          ? {
-              ...item,
-              creditor,
-              type,
-              totalAmount: parsedTotal,
-              remainingAmount: parsedRemaining,
-              monthlyPayment: parsedMonthly,
-              interestRate: parsedRate,
-            }
-          : item
+      const updatedItem = {
+        creditor,
+        type,
+        totalAmount: parsedTotal,
+        remainingAmount: parsedRemaining,
+        monthlyPayment: parsedMonthly,
+        interestRate: parsedRate,
+      };
+      setDebts((prev) =>
+        prev.map((item) => (item.id === editingDebt.id ? { ...item, ...updatedItem } : item))
       );
-      saveDebts(updated);
+      await updateDebtApi(editingDebt.id, updatedItem);
     } else {
-      const newD: DebtItem = {
-        id: `debt-${Date.now()}`,
+      const created = await createDebtApi({
         creditor,
         type,
         totalAmount: parsedTotal,
@@ -112,18 +104,24 @@ export default function DebtsView() {
         monthlyPayment: parsedMonthly,
         interestRate: parsedRate,
         dueDate: "Fin de mes",
-      };
-      saveDebts([...debts, newD]);
+      });
+      setDebts((prev) => [...prev, created]);
     }
 
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("fydry_storage_updated"));
+    }
     setIsModalOpen(false);
     setEditingDebt(null);
   };
 
-  const handleDeleteDebt = (id: string) => {
+  const handleDeleteDebt = async (id: string) => {
     if (confirm("¿Deseas eliminar este registro de deuda?")) {
-      const updated = debts.filter((d) => d.id !== id);
-      saveDebts(updated);
+      setDebts((prev) => prev.filter((d) => d.id !== id));
+      await deleteDebtApi(id);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("fydry_storage_updated"));
+      }
       setIsModalOpen(false);
       setEditingDebt(null);
     }

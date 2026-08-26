@@ -53,20 +53,35 @@ export default function OnboardingWizard() {
 
     try {
       const res = await apiCompleteOnboarding(formData);
-      if (res.data?.onboarding_completed || res.status === 200) {
-        setIsFinished(true);
-        setTimeout(() => {
-          router.push("/dashboard");
-        }, 1500);
-      } else {
-        setErrorMsg(res.error || "No se pudo guardar la información.");
+      if (typeof window !== "undefined") {
+        const userStr = localStorage.getItem("fydry_user");
+        if (userStr) {
+          try {
+            const u = JSON.parse(userStr);
+            u.onboarding_completed = true;
+            localStorage.setItem("fydry_user", JSON.stringify(u));
+          } catch {}
+        }
       }
-    } catch {
-      // Fallback
       setIsFinished(true);
       setTimeout(() => {
         router.push("/dashboard");
-      }, 1500);
+      }, 1200);
+    } catch {
+      if (typeof window !== "undefined") {
+        const userStr = localStorage.getItem("fydry_user");
+        if (userStr) {
+          try {
+            const u = JSON.parse(userStr);
+            u.onboarding_completed = true;
+            localStorage.setItem("fydry_user", JSON.stringify(u));
+          } catch {}
+        }
+      }
+      setIsFinished(true);
+      setTimeout(() => {
+        router.push("/dashboard");
+      }, 1200);
     } finally {
       setIsLoading(false);
     }

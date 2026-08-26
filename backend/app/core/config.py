@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     # JWT & Security
     JWT_SECRET_KEY: str = "fydry_super_secret_jwt_key_cambiar_en_produccion_12345"
     JWT_ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 30  # 30 days session
     MAX_LOGIN_ATTEMPTS: int = 5
     LOCKOUT_DURATION_MINUTES: int = 5
     OTP_EXPIRE_MINUTES: int = 10

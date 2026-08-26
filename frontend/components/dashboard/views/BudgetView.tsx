@@ -12,6 +12,13 @@ import {
 import { BudgetItem, TransactionItem } from "../types";
 import { EXPENSE_CATEGORIES } from "@/lib/categories";
 import { useLanguage } from "@/context/LanguageContext";
+import {
+  fetchBudgetsApi,
+  createBudgetApi,
+  updateBudgetApi,
+  deleteBudgetApi,
+  fetchTransactionsApi,
+} from "@/lib/api";
 
 export default function BudgetView() {
   const { t } = useLanguage();
@@ -23,36 +30,20 @@ export default function BudgetView() {
   const [newCat, setNewCat] = useState<string>(EXPENSE_CATEGORIES[0]);
   const [newAllocated, setNewAllocated] = useState("");
 
-  // Load from localStorage
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const storedBudgets = localStorage.getItem("fydry_budgets");
-      if (storedBudgets) {
-        try {
-          setBudgets(JSON.parse(storedBudgets));
-        } catch {
-          setBudgets([]);
-        }
-      }
-
-      const storedExp = localStorage.getItem("fydry_expenses");
-      if (storedExp) {
-        try {
-          setExpenses(JSON.parse(storedExp));
-        } catch {
-          setExpenses([]);
-        }
-      }
-    }
-  }, []);
-
-  const saveBudgets = (newBudgets: BudgetItem[]) => {
-    setBudgets(newBudgets);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("fydry_budgets", JSON.stringify(newBudgets));
-      window.dispatchEvent(new Event("fydry_storage_updated"));
-    }
+  const loadData = async () => {
+    const [budData, expData] = await Promise.all([
+      fetchBudgetsApi(),
+      fetchTransactionsApi("expense"),
+    ]);
+    setBudgets(budData);
+    setExpenses(expData);
   };
+
+  useEffect(() => {
+    loadData();
+    window.addEventListener("fydry_storage_updated", loadData);
+    return () => window.removeEventListener("fydry_storage_updated", loadData);
+  }, []);
 
   // Calcular gasto real acumulado por cada categoría presupuestada
   const budgetsWithSpent = budgets.map((b) => {
@@ -84,42 +75,44 @@ export default function BudgetView() {
     setIsModalOpen(true);
   };
 
-  const handleSaveBudget = (e: React.FormEvent) => {
+  const handleSaveBudget = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCat || !newAllocated) return;
 
     const parsedAllocated = parseFloat(newAllocated) || 0;
 
     if (editingBudget) {
-      const updated = budgets.map((item) =>
-        item.id === editingBudget.id
-          ? {
-              ...item,
-              category: newCat,
-              allocated: parsedAllocated,
-            }
-          : item
-      );
-      saveBudgets(updated);
-    } else {
-      const newB: BudgetItem = {
-        id: `b-${Date.now()}`,
+      const updatedItem = {
         category: newCat,
         allocated: parsedAllocated,
-        spent: 0,
-        color: "bg-zinc-900",
       };
-      saveBudgets([...budgets, newB]);
+      setBudgets((prev) =>
+        prev.map((item) => (item.id === editingBudget.id ? { ...item, ...updatedItem } : item))
+      );
+      await updateBudgetApi(editingBudget.id, updatedItem);
+    } else {
+      const created = await createBudgetApi({
+        category: newCat,
+        allocated: parsedAllocated,
+        color: "bg-zinc-900",
+      });
+      setBudgets((prev) => [...prev, created]);
     }
 
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("fydry_storage_updated"));
+    }
     setIsModalOpen(false);
     setEditingBudget(null);
   };
 
-  const handleDeleteBudget = (id: string) => {
+  const handleDeleteBudget = async (id: string) => {
     if (confirm("¿Deseas eliminar esta meta de presupuesto?")) {
-      const updated = budgets.filter((b) => b.id !== id);
-      saveBudgets(updated);
+      setBudgets((prev) => prev.filter((b) => b.id !== id));
+      await deleteBudgetApi(id);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("fydry_storage_updated"));
+      }
       setIsModalOpen(false);
       setEditingBudget(null);
     }
@@ -258,7 +251,7 @@ export default function BudgetView() {
             </div>
             <div className="text-sm font-bold text-zinc-900">Sin límites presupuestarios definidos</div>
             <p className="text-xs text-zinc-400 max-w-sm mx-auto">
-              Define topes de gasto por categoría (Vivienda, Alimentación, Ocio, Transporte...) para recibir alertas antes de sobrepasar tu presupuesto.
+              Define topes de gasto por categoría para recibir alertas antes de sobrepasar tu presupuesto.
             </p>
             <button
               type="button"

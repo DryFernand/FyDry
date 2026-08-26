@@ -14,6 +14,12 @@ import {
 } from "lucide-react";
 import { AccountItem } from "../types";
 import { useLanguage } from "@/context/LanguageContext";
+import {
+  fetchAccountsApi,
+  createAccountApi,
+  updateAccountApi,
+  deleteAccountApi,
+} from "@/lib/api";
 
 export default function AccountsView() {
   const { t } = useLanguage();
@@ -27,28 +33,16 @@ export default function AccountsView() {
   const [balance, setBalance] = useState("");
   const [accountNum, setAccountNum] = useState("");
 
-  // Load from localStorage
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("fydry_accounts");
-      if (stored) {
-        try {
-          setAccounts(JSON.parse(stored));
-        } catch {
-          setAccounts([]);
-        }
-      }
-    }
-  }, []);
-
-  // Save helper
-  const saveAccounts = (newAccounts: AccountItem[]) => {
-    setAccounts(newAccounts);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("fydry_accounts", JSON.stringify(newAccounts));
-      window.dispatchEvent(new Event("fydry_storage_updated"));
-    }
+  const loadAccounts = async () => {
+    const data = await fetchAccountsApi();
+    setAccounts(data);
   };
+
+  useEffect(() => {
+    loadAccounts();
+    window.addEventListener("fydry_storage_updated", loadAccounts);
+    return () => window.removeEventListener("fydry_storage_updated", loadAccounts);
+  }, []);
 
   const bankTotal = accounts
     .filter((a) => a.type === "bank")
@@ -80,45 +74,49 @@ export default function AccountsView() {
     setIsModalOpen(true);
   };
 
-  const handleSaveAccount = (e: React.FormEvent) => {
+  const handleSaveAccount = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name) return;
 
     const parsedBalance = parseFloat(balance) || 0;
 
     if (editingAccount) {
-      const updated = accounts.map((a) =>
-        a.id === editingAccount.id
-          ? {
-              ...a,
-              name,
-              type,
-              balance: parsedBalance,
-              accountNumber: accountNum || undefined,
-            }
-          : a
+      const updatedItem = {
+        name,
+        type,
+        balance: parsedBalance,
+        accountNumber: accountNum || undefined,
+      };
+      // Actualización optimista
+      setAccounts((prev) =>
+        prev.map((a) => (a.id === editingAccount.id ? { ...a, ...updatedItem } : a))
       );
-      saveAccounts(updated);
+      await updateAccountApi(editingAccount.id, updatedItem);
     } else {
-      const newAcc: AccountItem = {
-        id: `acc-${Date.now()}`,
+      const created = await createAccountApi({
         name,
         type,
         balance: parsedBalance,
         currency: "USD",
         accountNumber: accountNum || undefined,
-      };
-      saveAccounts([...accounts, newAcc]);
+      });
+      setAccounts((prev) => [...prev, created]);
     }
 
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("fydry_storage_updated"));
+    }
     setIsModalOpen(false);
     setEditingAccount(null);
   };
 
-  const handleDeleteAccount = (id: string) => {
+  const handleDeleteAccount = async (id: string) => {
     if (confirm("¿Estás seguro de eliminar esta cuenta?")) {
-      const updated = accounts.filter((a) => a.id !== id);
-      saveAccounts(updated);
+      setAccounts((prev) => prev.filter((a) => a.id !== id));
+      await deleteAccountApi(id);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("fydry_storage_updated"));
+      }
       setIsModalOpen(false);
       setEditingAccount(null);
     }

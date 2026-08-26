@@ -7,6 +7,11 @@ import {
 } from "lucide-react";
 import { AccountItem, TransactionItem, DebtItem } from "../types";
 import { useLanguage } from "@/context/LanguageContext";
+import {
+  fetchAccountsApi,
+  fetchTransactionsApi,
+  fetchDebtsApi,
+} from "@/lib/api";
 
 export default function ReportsView() {
   const { t, language } = useLanguage();
@@ -16,20 +21,23 @@ export default function ReportsView() {
   const [incomes, setIncomes] = useState<TransactionItem[]>([]);
   const [debts, setDebts] = useState<DebtItem[]>([]);
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const storedAcc = localStorage.getItem("fydry_accounts");
-        const storedExp = localStorage.getItem("fydry_expenses");
-        const storedInc = localStorage.getItem("fydry_incomes");
-        const storedDeb = localStorage.getItem("fydry_debts");
+  const loadData = async () => {
+    const [accData, expData, incData, debData] = await Promise.all([
+      fetchAccountsApi(),
+      fetchTransactionsApi("expense"),
+      fetchTransactionsApi("income"),
+      fetchDebtsApi(),
+    ]);
+    setAccounts(accData);
+    setExpenses(expData);
+    setIncomes(incData);
+    setDebts(debData);
+  };
 
-        if (storedAcc) setAccounts(JSON.parse(storedAcc));
-        if (storedExp) setExpenses(JSON.parse(storedExp));
-        if (storedInc) setIncomes(JSON.parse(storedInc));
-        if (storedDeb) setDebts(JSON.parse(storedDeb));
-      } catch {}
-    }
+  useEffect(() => {
+    loadData();
+    window.addEventListener("fydry_storage_updated", loadData);
+    return () => window.removeEventListener("fydry_storage_updated", loadData);
   }, []);
 
   const totalIncomes = incomes.reduce((acc, curr) => acc + curr.amount, 0);

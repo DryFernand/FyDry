@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { DashboardTab, TransactionItem, AccountItem } from "../types";
 import { useLanguage } from "@/context/LanguageContext";
+import { fetchAccountsApi, fetchTransactionsApi } from "@/lib/api";
 
 interface DashboardHomeProps {
   onNavigate: (tab: DashboardTab) => void;
@@ -24,38 +25,13 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
   const [transactions, setTransactions] = useState<TransactionItem[]>([]);
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
 
-  // Sincronizar datos reales de localStorage
-  const loadData = () => {
-    if (typeof window !== "undefined") {
-      const storedAcc = localStorage.getItem("fydry_accounts");
-      const storedExp = localStorage.getItem("fydry_expenses");
-      const storedInc = localStorage.getItem("fydry_incomes");
-
-      let accList: AccountItem[] = [];
-      let expList: TransactionItem[] = [];
-      let incList: TransactionItem[] = [];
-
-      if (storedAcc) {
-        try {
-          accList = JSON.parse(storedAcc);
-        } catch {}
-      }
-      if (storedExp) {
-        try {
-          expList = JSON.parse(storedExp);
-        } catch {}
-      }
-      if (storedInc) {
-        try {
-          incList = JSON.parse(storedInc);
-        } catch {}
-      }
-
-      setAccounts(accList);
-      // Combinar movimientos ordenados cronológicamente
-      const combined = [...incList, ...expList].sort((a, b) => b.id.localeCompare(a.id));
-      setTransactions(combined);
-    }
+  const loadData = async () => {
+    const [accData, txData] = await Promise.all([
+      fetchAccountsApi(),
+      fetchTransactionsApi(),
+    ]);
+    setAccounts(accData);
+    setTransactions(txData);
   };
 
   useEffect(() => {
