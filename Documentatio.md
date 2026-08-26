@@ -222,6 +222,23 @@
 - **Frontend Empty States**: Eliminados los arrays de prueba hardcodeados en `DashboardHome.tsx`, `AccountsView.tsx`, `ExpensesView.tsx`, `IncomesView.tsx`, `BudgetView.tsx`, `DebtsView.tsx` y `ReportsView.tsx`, inicializando todos los balances en `$0.00` con mensajes de bienvenida y estados vacíos intuitivos.
 - **Despliegue Sincronizado**: Cambios empujados a la rama `main` de GitHub y desplegados a los proyectos `fydry` y `fydry-api` en Vercel.
 
+### 2026-08-26 - Edición Universal, Catálogos Ampliados x5 y Filtros Inteligentes
+- **Edición y Eliminación Universal en Cards y Filas**:
+  - **Cuentas (`AccountsView.tsx`)**: Modal interactivo al hacer clic en cualquier tarjeta de cuenta para modificar nombre, tipo, saldo o eliminarla con confirmación.
+  - **Gastos (`ExpensesView.tsx`)**: Modal interactivo al tocar cualquier fila de gasto para editar concepto, monto, categoría, cuenta debitada o borrar el registro.
+  - **Ingresos (`IncomesView.tsx`)**: Modal interactivo al tocar cualquier fila de ingreso para modificar cliente/concepto, monto, categoría, cuenta receptora o eliminarlo.
+  - **Presupuestos (`BudgetView.tsx`)**: Modal interactivo al hacer clic en cualquier tarjeta de presupuesto para ajustar el límite mensual o eliminar la meta.
+  - **Deudas (`DebtsView.tsx`)**: Modal interactivo al tocar cualquier pasivo para editar saldo pendiente, cuota mensual, TIN o darlo de baja.
+- **Catálogo de Categorías x5**:
+  - Implementado archivo centralizado [`frontend/lib/categories.ts`](file:///c:/Users/daryf/Documents/PORTAFOLIO/FyDry/frontend/lib/categories.ts) con 25 categorías exhaustivas de gastos y 15 categorías de ingresos.
+  - Sincronizado el catálogo de 25 categorías de gastos dentro de la creación y ajuste de presupuestos (`BudgetView.tsx`).
+- **Selector de Cuentas Reales Creadas**:
+  - Los formularios de Gastos e Ingresos ahora disponen de un menú desplegable `<select>` alimentado directamente por las cuentas creadas por el usuario.
+- **Filtros Dinámicos Inteligentes**:
+  - Los selectores de filtros en Gastos e Ingresos ahora despliegan exclusivamente las categorías en las que el usuario **realmente ha registrado movimientos**, evitando saturar con categorías vacías.
+- **Persistencia Reactiva Local**: Sincronización continua de `localStorage` con eventos entre pestañas (`fydry_storage_updated`) para alimentar en tiempo real el Dashboard Home, las Cuentas y los Reportes auditados.
+
+
 
 
 
