@@ -16,8 +16,6 @@ import {
   Menu,
   X,
   Loader2,
-  ChevronLeft,
-  ChevronRight,
   ArrowLeftRight,
 } from "lucide-react";
 import { DashboardTab, NotificationItem } from "./types";
@@ -41,7 +39,6 @@ export default function DashboardLayout() {
   const [activeTab, setActiveTab] = useState<DashboardTab>("home");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [currentUser, setCurrentUser] = useState<{
@@ -91,50 +88,59 @@ export default function DashboardLayout() {
     return () => window.removeEventListener("fydry_storage_updated", loadGlobalNotifications);
   }, []);
 
-  // Auth Guard
+  // Auth Guard con Carga Optimista Instantánea (Cero bloqueos al refrescar)
   useEffect(() => {
     async function verifyAuth() {
-      if (typeof window !== "undefined") {
-        const token = localStorage.getItem("fydry_token");
-        if (!token) {
-          router.push("/login");
-          return;
-        }
+      if (typeof window === "undefined") return;
 
+      const token = localStorage.getItem("fydry_token") || localStorage.getItem("fydry_access_token");
+      if (!token) {
+        setIsLoadingAuth(false);
+        router.push("/login");
+        return;
+      }
+
+      // 1. Carga optimista inmediata desde localStorage para desbloquear UI en 0ms
+      const cachedUserRaw = localStorage.getItem("fydry_user");
+      if (cachedUserRaw) {
         try {
-          const res = await apiRequest("/auth/me", {
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
+          setCurrentUser(JSON.parse(cachedUserRaw));
+        } catch {}
+      } else {
+        setCurrentUser({
+          full_name: "Usuario FyDry",
+          email: "usuario@fydry.io",
+        });
+      }
+      setIsLoadingAuth(false);
 
-          if (res.data?.id) {
-            setCurrentUser(res.data);
-            if (typeof window !== "undefined") {
-              localStorage.setItem("fydry_user", JSON.stringify(res.data));
-            }
-          } else {
-            localStorage.removeItem("fydry_token");
-            localStorage.removeItem("fydry_access_token");
-            router.push("/login");
-            return;
-          }
-        } catch {
-          const cachedUser = typeof window !== "undefined" ? localStorage.getItem("fydry_user") : null;
-          if (cachedUser) {
-            try {
-              setCurrentUser(JSON.parse(cachedUser));
-            } catch {}
-          } else {
-            setCurrentUser({
-              full_name: "Usuario FyDry",
-              email: "usuario@fydry.io",
-            });
-          }
-        } finally {
-          setIsLoadingAuth(false);
+      // 2. Revalidación en segundo plano con timeout de 3.5s
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3500);
+
+      try {
+        const res = await apiRequest("/auth/me", {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (res.data?.id) {
+          setCurrentUser(res.data);
+          localStorage.setItem("fydry_user", JSON.stringify(res.data));
+        } else if (res.status === 401) {
+          localStorage.removeItem("fydry_token");
+          localStorage.removeItem("fydry_access_token");
+          localStorage.removeItem("fydry_user");
+          router.push("/login");
         }
+      } catch (err) {
+        clearTimeout(timeoutId);
+        console.warn("Background auth revalidation skipped (using cached session):", err);
       }
     }
 
@@ -145,6 +151,7 @@ export default function DashboardLayout() {
     if (typeof window !== "undefined") {
       localStorage.removeItem("fydry_token");
       localStorage.removeItem("fydry_access_token");
+      localStorage.removeItem("fydry_user");
     }
     router.push("/login");
   };
@@ -186,41 +193,21 @@ export default function DashboardLayout() {
 
   return (
     <div className="min-h-screen bg-zinc-50/60 flex flex-col md:flex-row antialiased font-sans text-zinc-900">
-      {/* Desktop Left Sidebar */}
-      <motion.aside
-        animate={{ width: isSidebarCollapsed ? 80 : 256 }}
-        transition={{ duration: 0.2, ease: "easeInOut" }}
-        className="hidden md:flex flex-col border-r border-zinc-200/80 bg-white min-h-screen p-4 sticky top-0 z-20 print:hidden relative"
-      >
-        {/* Toggle Collapse Button */}
-        <button
-          type="button"
-          onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-          className="absolute -right-3 top-7 w-6 h-6 rounded-full bg-white border border-zinc-200 shadow-xs flex items-center justify-center text-zinc-500 hover:text-zinc-950 hover:border-zinc-300 transition-colors z-30 cursor-pointer"
-          title={isSidebarCollapsed ? "Expandir menú" : "Colapsar menú"}
-        >
-          {isSidebarCollapsed ? (
-            <ChevronRight className="w-3.5 h-3.5" />
-          ) : (
-            <ChevronLeft className="w-3.5 h-3.5" />
-          )}
-        </button>
-
+      {/* Desktop Left Sidebar Estático y Fijo */}
+      <aside className="hidden md:flex flex-col w-64 min-w-[256px] max-w-[256px] border-r border-zinc-200/80 bg-white min-h-screen p-4 sticky top-0 z-20 print:hidden shrink-0">
         {/* Brand Header */}
-        <div className={`flex items-center gap-3 px-2 py-4 mb-6 ${isSidebarCollapsed ? "justify-center" : ""}`}>
+        <div className="flex items-center gap-3 px-2 py-4 mb-6">
           <div className="w-9 h-9 rounded-2xl bg-zinc-950 text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
             FD
           </div>
-          {!isSidebarCollapsed && (
-            <div className="flex flex-col min-w-0">
-              <span className="font-bold text-sm tracking-tight text-zinc-950 truncate">
-                {t.brand.name}
-              </span>
-              <span className="text-[10px] text-zinc-400 font-medium">
-                {t.brand.tagline}
-              </span>
-            </div>
-          )}
+          <div className="flex flex-col min-w-0">
+            <span className="font-bold text-sm tracking-tight text-zinc-950 truncate">
+              {t.brand.name}
+            </span>
+            <span className="text-[10px] text-zinc-400 font-medium">
+              {t.brand.tagline}
+            </span>
+          </div>
         </div>
 
         {/* Navigation Items */}
@@ -237,20 +224,17 @@ export default function DashboardLayout() {
                   setActiveDraft(null);
                 }}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-xs font-semibold transition-all group cursor-pointer ${
-                  isSidebarCollapsed ? "justify-center px-0" : ""
-                } ${
                   isActive
                     ? "bg-zinc-950 text-white shadow-xs"
                     : "text-zinc-500 hover:text-zinc-950 hover:bg-zinc-100/70"
                 }`}
-                title={isSidebarCollapsed ? item.label : undefined}
               >
                 <Icon
                   className={`w-4 h-4 shrink-0 transition-transform group-hover:scale-105 ${
                     isActive ? "text-white" : "text-zinc-400 group-hover:text-zinc-950"
                   }`}
                 />
-                {!isSidebarCollapsed && <span className="truncate">{item.label}</span>}
+                <span className="truncate">{item.label}</span>
               </button>
             );
           })}
@@ -262,22 +246,15 @@ export default function DashboardLayout() {
           <button
             type="button"
             onClick={() => setIsSettingsOpen(true)}
-            className={`w-full flex items-center gap-3 px-3 py-2 rounded-2xl text-xs font-semibold text-zinc-500 hover:text-zinc-950 hover:bg-zinc-100/70 transition-all cursor-pointer ${
-              isSidebarCollapsed ? "justify-center px-0" : ""
-            }`}
-            title={isSidebarCollapsed ? t.nav.settings : undefined}
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-2xl text-xs font-semibold text-zinc-500 hover:text-zinc-950 hover:bg-zinc-100/70 transition-all cursor-pointer"
           >
             <Settings className="w-4 h-4 shrink-0 text-zinc-400" />
-            {!isSidebarCollapsed && <span className="truncate">{t.nav.settings}</span>}
+            <span className="truncate">{t.nav.settings}</span>
           </button>
 
           {/* User Profile Mini */}
-          <div
-            className={`p-2.5 rounded-2xl bg-zinc-50 border border-zinc-200/50 flex items-center gap-3 ${
-              isSidebarCollapsed ? "justify-center" : "justify-between"
-            }`}
-          >
-            <div className={`flex items-center gap-2.5 min-w-0 ${isSidebarCollapsed ? "hidden" : ""}`}>
+          <div className="p-2.5 rounded-2xl bg-zinc-50 border border-zinc-200/50 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 min-w-0">
               <div className="w-7 h-7 rounded-xl bg-zinc-200 text-zinc-700 flex items-center justify-center font-bold text-[11px] shrink-0">
                 {currentUser?.full_name ? currentUser.full_name.charAt(0).toUpperCase() : "U"}
               </div>
@@ -301,7 +278,7 @@ export default function DashboardLayout() {
             </button>
           </div>
         </div>
-      </motion.aside>
+      </aside>
 
       {/* Mobile Top Header */}
       <header className="md:hidden bg-white border-b border-zinc-200 p-4 flex items-center justify-between sticky top-0 z-30 print:hidden">

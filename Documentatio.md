@@ -461,6 +461,16 @@
   - Añadida la categoría oficial **`"Pago de Deudas & Préstamos"`** a las categorías de gastos y presupuestos.
 - **Despliegue a Producción**: Verificado con `npx tsc --noEmit` (0 errores) y desplegado en Vercel (`READY`).
 
+### 2026-08-27 - Menú Lateral Estático y Optimización de Carga Instantánea al Refrescar
+- **Menú Lateral Estático (`DashboardLayout.tsx`)**:
+  - Convertido el sidebar de escritorio en un elemento estático y fijo de ancho completo (`w-64`), removiendo botones de colapso y asegurando una vista uniforme, limpia y firme.
+- **Carga Optimista Instantánea (0ms de espera)**:
+  - Eliminado el bloqueo en la pantalla de carga durante los refrescos de página (`F5`).
+  - La sesión del usuario se inicializa de inmediato desde `localStorage` permitiendo interactuar con el Dashboard al instante.
+  - La revalidación con el servidor se realiza en segundo plano protegida con un timeout de 3.5 segundos (`AbortController`), impidiendo que caídas de red o demoras atrapen al usuario en el spinner de carga.
+- **Despliegue a Producción**: Verificado con `npx tsc --noEmit` (0 errores) y desplegado en Vercel (`READY`).
+
+
 
 
 
