@@ -340,6 +340,16 @@
   - Badge visual en `BudgetView.tsx`: `• Incluye impuestos de transferencias` para total claridad contable.
 - **Despliegue a Producción**: Compilado con `npx tsc --noEmit` (0 errores) y desplegado en Vercel (`READY`).
 
+### 2026-08-27 - Bloqueo de Zoom Móvil y Aislamiento Estricto de Categoría de Impuestos
+- **Corrección de Viewport & Zoom en Móviles**:
+  - Configuración de Next.js `Viewport` con `userScalable: false`, `maximumScale: 1`, `width: 'device-width'` y `viewportFit: 'cover'`.
+  - En `globals.css`: `touch-action: pan-y`, `max-width: 100vw`, `overflow-x: hidden` y tamaño mínimo de fuente de 16px en inputs para dispositivos móviles, impidiendo que iOS/Android hagan zoom automático involuntario o desplacen la vista lateralmente.
+- **Aislamiento Estricto de Categorías de Presupuesto**:
+  - Corregido el filtro de coincidencia para que las categorías que contienen `"Taxi"` o `"Transporte"` (ej. `"Transporte Público & Taxi"`) no sean tomadas erróneamente como categorías de impuesto.
+  - Normalizada la base de datos de PostgreSQL para asegurar que los asientos de impuestos pertenezcan únicamente a `"Impuestos & Tasas"`.
+- **Despliegue a Producción**: Verificado con `npx tsc --noEmit` (0 errores) y desplegado en Vercel (`READY`).
+
+
 
 
 
