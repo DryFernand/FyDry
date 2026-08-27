@@ -455,26 +455,26 @@ def check_financial_alerts(
                     db.add(notif)
                     new_alerts.append(notif)
 
-        # c) Tarjeta de crédito: Sobregiro
-        if acc.type == "credit_card" and (acc.credit_limit or 0) > 0:
-            limit = acc.credit_limit or 0.0
-            # Si el saldo es negativo (consumo) y excede el límite
-            if acc.balance < 0 and abs(acc.balance) > limit:
-                alert_key = f"alert-overdraft-{acc.id}-{today_str}"
-                if alert_key not in existing_alert_ids:
-                    notif = PendingNotification(
-                        user_id=current_user.id,
-                        title=f"🚨 Alerta de Sobregiro: {acc.name}",
-                        message=f"Has sobregirado tu tarjeta. Consumo: ${abs(acc.balance):.2f} (Límite: ${limit:.2f}).",
-                        source="system",
-                        target_type="account",
-                        draft_data=json.dumps({"account_id": acc.id, "account_name": acc.name, "type": "credit_card"}),
-                        is_read="false",
-                        is_processed="false",
-                        email_message_id=alert_key,
-                    )
-                    db.add(notif)
-                    new_alerts.append(notif)
+        # c) Tarjeta de crédito: Sobregiro (cuando el saldo baja de 0)
+        if acc.type == "credit_card" and acc.balance < 0:
+            overdraft_used = abs(acc.balance)
+            overdraft_max = acc.overdraft_limit or 0.0
+            overdraft_remaining = max(0.0, overdraft_max - overdraft_used)
+            alert_key = f"alert-overdraft-{acc.id}-{today_str}"
+            if alert_key not in existing_alert_ids:
+                notif = PendingNotification(
+                    user_id=current_user.id,
+                    title=f"🚨 Alerta de Sobregiro: {acc.name}",
+                    message=f"Tu tarjeta ha entrado en sobregiro por -${overdraft_used:.2f}. Margen de sobregiro restante: ${overdraft_remaining:.2f}.",
+                    source="system",
+                    target_type="account",
+                    draft_data=json.dumps({"account_id": acc.id, "account_name": acc.name, "type": "credit_card", "balance": acc.balance}),
+                    is_read="false",
+                    is_processed="false",
+                    email_message_id=alert_key,
+                )
+                db.add(notif)
+                new_alerts.append(notif)
 
         # d) Saldo mínimo de cuenta (Cualquier tipo de cuenta)
         if (acc.min_balance or 0) > 0:

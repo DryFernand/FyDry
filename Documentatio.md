@@ -417,6 +417,17 @@
   - El evaluador de alertas (`check_financial_alerts`) verifica los identificadores descartados para que al refrescar la página o volver a cargar el Dashboard **no se vuelvan a generar ni reaparecer** en la bandeja.
 - **Despliegue a Producción**: Verificado con `npx tsc --noEmit` (0 errores) y desplegado en Vercel (`READY`).
 
+### 2026-08-27 - Reglas Estrictas de Sobregiro y Bloqueo de Límite en Tarjetas de Crédito
+- **Disparo de Alerta de Sobregiro al bajar de $0 (`notifications.py`)**:
+  - Configurada la alerta automática para que se emita en el instante en que el saldo de una tarjeta de crédito es negativo (`balance < 0`), informando el monto del sobregiro y el margen restante.
+- **Bloqueo Estricto de Transacciones que Excedan el Límite + Sobregiro (`financial.py`, `ExpensesView.tsx`, `MovementsView.tsx`)**:
+  - En gastos y traspasos, se calcula el cupo total disponible: `Disponible = Saldo + Margen de Sobregiro Autorizado`.
+  - Si una compra, gasto o traspaso supera este monto total (cuando el cupo incluyendo el sobregiro llega a 0 o se intenta gastar por debajo del sobregiro permitido), la transacción se **bloquea inmediatamente**:
+    - **Frontend**: Validación preventiva que detiene el envío y muestra un mensaje explicativo con los fondos disponibles.
+    - **Backend**: Rechazo de seguridad con código `HTTP 400 Bad Request`.
+- **Despliegue a Producción**: Verificado con `npx tsc --noEmit` (0 errores) y desplegado en Vercel (`READY`).
+
+
 
 
 

@@ -147,6 +147,16 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
     const fromAccObj = accounts.find((a) => a.name === fromAccount);
     const toAccObj = accounts.find((a) => a.name === toAccount);
 
+    if (fromAccObj && fromAccObj.type === "credit_card") {
+      const availableFunds = fromAccObj.balance + (fromAccObj.overdraftLimit || 0);
+      if (parsedAmount + parsedTax > availableFunds) {
+        setFormError(
+          `Traspaso rechazado: El monto total con impuestos ($${(parsedAmount + parsedTax).toFixed(2)}) supera el saldo disponible más el sobregiro permitido ($${availableFunds.toFixed(2)}) de la tarjeta "${fromAccObj.name}".`
+        );
+        return;
+      }
+    }
+
     if (editingMovement) {
       const updated: Partial<MovementItem> = {
         fromAccount,

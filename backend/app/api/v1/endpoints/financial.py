@@ -148,6 +148,15 @@ def create_expense(
     account_id = account.id if account else exp_in.account_id
     account_name = account.name if account else (exp_in.account_name or "Efectivo Principal")
 
+    # Validar cupo y límite de sobregiro si es tarjeta de crédito
+    if account and account.type == "credit_card":
+        available_funds = account.balance + (account.overdraft_limit or 0.0)
+        if exp_in.amount > available_funds:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Transacción rechazada: El monto (${exp_in.amount:.2f}) supera el cupo disponible más el límite de sobregiro (${available_funds:.2f}) de la tarjeta '{account.name}'.",
+            )
+
     # Debit balance from account
     if account:
         account.balance -= exp_in.amount
@@ -448,6 +457,15 @@ def create_movement(
 
     tax_val = max(0.0, float(mov_in.tax_amount or 0.0))
     total_debited = mov_in.amount + tax_val
+
+    # Validar cupo y sobregiro si la cuenta origen es tarjeta de crédito
+    if from_acc and from_acc.type == "credit_card":
+        available_funds = from_acc.balance + (from_acc.overdraft_limit or 0.0)
+        if total_debited > available_funds:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Traspaso rechazado: El monto total (${total_debited:.2f}) supera el cupo disponible más el límite de sobregiro (${available_funds:.2f}) de la tarjeta '{from_acc.name}'.",
+            )
 
     # Apply double accounting transfer (Origin pays amount + tax; Destination receives exact amount)
     if from_acc:

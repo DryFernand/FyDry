@@ -124,6 +124,17 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
     const parsedAmount = parseFloat(amount) || 0;
     const accountName = selectedAccountId || (accounts.length > 0 ? accounts[0].name : "Efectivo");
 
+    const targetAcc = accounts.find((a) => a.name === accountName || a.id === selectedAccountId);
+    if (targetAcc && targetAcc.type === "credit_card") {
+      const availableFunds = targetAcc.balance + (targetAcc.overdraftLimit || 0);
+      if (parsedAmount > availableFunds) {
+        alert(
+          `Transacción rechazada: El monto ($${parsedAmount.toFixed(2)}) supera el saldo disponible más el sobregiro permitido ($${availableFunds.toFixed(2)}) de la tarjeta "${targetAcc.name}".`
+        );
+        return;
+      }
+    }
+
     if (editingExpense) {
       const updatedItem = {
         description: desc,
