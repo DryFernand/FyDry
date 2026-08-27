@@ -12,7 +12,7 @@ class Account(Base, TimestampMixin):
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), index=True)
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     name = Column(String(255), nullable=False)
-    type = Column(String(50), default="bank", nullable=False)  # "bank", "card", "wallet", "cash"
+    type = Column(String(50), default="bank", nullable=False)  # "bank", "card", "wallet", "cash", "savings"
     balance = Column(Float, default=0.0, nullable=False)
     currency = Column(String(10), default="USD", nullable=False)
     account_number = Column(String(100), nullable=True)
@@ -53,7 +53,7 @@ class Income(Base, TimestampMixin):
 
 
 class Movement(Base, TimestampMixin):
-    """Transferencia de dinero entre dos cuentas (traspasos/movimientos internos)."""
+    """Transferencia de dinero entre dos cuentas (traspasos/movimientos internos) con soporte de impuesto/comisión."""
     __tablename__ = "movements"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), index=True)
@@ -63,6 +63,8 @@ class Movement(Base, TimestampMixin):
     to_account_id = Column(String(36), ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True, index=True)
     to_account_name = Column(String(255), nullable=False)
     amount = Column(Float, nullable=False)
+    tax_amount = Column(Float, default=0.0, nullable=False)
+    tax_expense_id = Column(String(36), ForeignKey("expenses.id", ondelete="SET NULL"), nullable=True)
     description = Column(String(255), default="Traspaso entre cuentas", nullable=False)
     date = Column(String(50), nullable=False)
 

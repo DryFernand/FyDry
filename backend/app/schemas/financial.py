@@ -8,7 +8,7 @@ from datetime import datetime
 # ==========================================
 class AccountCreate(BaseModel):
     name: str
-    type: str = "bank"  # "bank", "card", "wallet", "cash"
+    type: str = "bank"  # "bank", "card", "wallet", "cash", "savings"
     balance: float = 0.0
     currency: str = "USD"
     account_number: Optional[str] = None
@@ -111,6 +111,7 @@ class MovementCreate(BaseModel):
     to_account_id: Optional[str] = None
     to_account_name: Optional[str] = None
     amount: float
+    tax_amount: Optional[float] = 0.0
     description: Optional[str] = "Traspaso entre cuentas"
     date: str
 
@@ -121,6 +122,7 @@ class MovementUpdate(BaseModel):
     to_account_id: Optional[str] = None
     to_account_name: Optional[str] = None
     amount: Optional[float] = None
+    tax_amount: Optional[float] = None
     description: Optional[str] = None
     date: Optional[str] = None
 
@@ -132,6 +134,8 @@ class MovementResponse(BaseModel):
     to_account_id: Optional[str] = None
     to_account_name: str
     amount: float
+    tax_amount: float = 0.0
+    tax_expense_id: Optional[str] = None
     description: str
     date: str
 

@@ -49,7 +49,7 @@ def create_account(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Create a new financial account."""
+    """Create a new financial account (Bank, Card, Wallet, Cash, Savings)."""
     account = Account(
         user_id=current_user.id,
         name=account_in.name,
@@ -396,7 +396,7 @@ def delete_income(
 
 
 # ==========================================
-# MOVEMENTS (Transferencias entre Cuentas) CRUD
+# MOVEMENTS (Transferencias entre Cuentas) CRUD con Impuestos y Presupuestos
 # ==========================================
 @router.get("/movements", response_model=List[MovementResponse])
 def get_movements(
@@ -415,7 +415,7 @@ def create_movement(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Create a movement/transfer between two accounts and update both balances."""
+    """Create a movement/transfer between two accounts with optional tax calculation and budget integration."""
     # Find from_account
     from_acc = None
     if mov_in.from_account_id:
@@ -440,14 +440,44 @@ def create_movement(
             Account.name.ilike(mov_in.to_account_name.strip()),
         ).first()
 
-    # Apply double accounting transfer
+    tax_val = max(0.0, float(mov_in.tax_amount or 0.0))
+    total_debited = mov_in.amount + tax_val
+
+    # Apply double accounting transfer (Origin pays amount + tax; Destination receives exact amount)
     if from_acc:
-        from_acc.balance -= mov_in.amount
+        from_acc.balance -= total_debited
     if to_acc:
         to_acc.balance += mov_in.amount
 
     from_name = from_acc.name if from_acc else (mov_in.from_account_name or "Cuenta Origen")
     to_name = to_acc.name if to_acc else (mov_in.to_account_name or "Cuenta Destino")
+
+    # Check if user has an active budget for taxes/fees
+    tax_expense_id = None
+    if tax_val > 0:
+        tax_budget = db.query(Budget).filter(
+            Budget.user_id == current_user.id,
+            or_(
+                Budget.category.ilike("%impuesto%"),
+                Budget.category.ilike("%tax%"),
+                Budget.category.ilike("%comision%"),
+            ),
+        ).first()
+
+        # If budget exists and has an allocated limit, record the tax expense against this budget
+        if tax_budget and tax_budget.allocated_amount > 0:
+            tax_exp = Expense(
+                user_id=current_user.id,
+                account_id=from_acc.id if from_acc else None,
+                account_name=from_name,
+                category=tax_budget.category,
+                description=f"Impuesto por traspaso {from_name} ➔ {to_name}",
+                amount=tax_val,
+                date=mov_in.date,
+            )
+            db.add(tax_exp)
+            db.flush()
+            tax_expense_id = tax_exp.id
 
     mov = Movement(
         user_id=current_user.id,
@@ -456,6 +486,8 @@ def create_movement(
         to_account_id=to_acc.id if to_acc else mov_in.to_account_id,
         to_account_name=to_name,
         amount=mov_in.amount,
+        tax_amount=tax_val,
+        tax_expense_id=tax_expense_id,
         description=mov_in.description or f"Traspaso de {from_name} a {to_name}",
         date=mov_in.date,
     )
@@ -472,20 +504,25 @@ def update_movement(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Update a movement and recalculate balances of origin and destination accounts."""
+    """Update a movement and recalculate balances of origin and destination accounts and budget tax expense."""
     mov = db.query(Movement).filter(
         Movement.id == mov_id, Movement.user_id == current_user.id
     ).first()
     if not mov:
         raise HTTPException(status_code=404, detail="Movimiento no encontrado.")
 
-    # 1. Revert previous transfer
+    # 1. Revert previous transfer (including previous tax)
     prev_from = db.query(Account).filter(Account.id == mov.from_account_id).first() if mov.from_account_id else None
     prev_to = db.query(Account).filter(Account.id == mov.to_account_id).first() if mov.to_account_id else None
     if prev_from:
-        prev_from.balance += mov.amount
+        prev_from.balance += (mov.amount + mov.tax_amount)
     if prev_to:
         prev_to.balance -= mov.amount
+
+    # Remove previous tax expense if existed
+    if mov.tax_expense_id:
+        db.query(Expense).filter(Expense.id == mov.tax_expense_id).delete()
+        mov.tax_expense_id = None
 
     # 2. Update fields
     update_data = mov_in.model_dump(exclude_unset=True)
@@ -493,12 +530,38 @@ def update_movement(
         setattr(mov, field, value)
 
     # 3. Apply new transfer
+    new_tax = max(0.0, float(mov.tax_amount or 0.0))
+    mov.tax_amount = new_tax
     new_from = db.query(Account).filter(Account.id == mov.from_account_id).first() if mov.from_account_id else None
     new_to = db.query(Account).filter(Account.id == mov.to_account_id).first() if mov.to_account_id else None
     if new_from:
-        new_from.balance -= mov.amount
+        new_from.balance -= (mov.amount + new_tax)
     if new_to:
         new_to.balance += mov.amount
+
+    # Check budget for tax expense
+    if new_tax > 0:
+        tax_budget = db.query(Budget).filter(
+            Budget.user_id == current_user.id,
+            or_(
+                Budget.category.ilike("%impuesto%"),
+                Budget.category.ilike("%tax%"),
+                Budget.category.ilike("%comision%"),
+            ),
+        ).first()
+        if tax_budget and tax_budget.allocated_amount > 0:
+            tax_exp = Expense(
+                user_id=current_user.id,
+                account_id=new_from.id if new_from else None,
+                account_name=new_from.name if new_from else mov.from_account_name,
+                category=tax_budget.category,
+                description=f"Impuesto por traspaso {mov.from_account_name} ➔ {mov.to_account_name}",
+                amount=new_tax,
+                date=mov.date,
+            )
+            db.add(tax_exp)
+            db.flush()
+            mov.tax_expense_id = tax_exp.id
 
     db.commit()
     db.refresh(mov)
@@ -511,7 +574,7 @@ def delete_movement(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Delete a transfer movement and restore balances to origin and destination accounts."""
+    """Delete a transfer movement, restore balances to origin and destination accounts and remove tax expense."""
     mov = db.query(Movement).filter(
         Movement.id == mov_id, Movement.user_id == current_user.id
     ).first()
@@ -522,9 +585,13 @@ def delete_movement(
     from_acc = db.query(Account).filter(Account.id == mov.from_account_id).first() if mov.from_account_id else None
     to_acc = db.query(Account).filter(Account.id == mov.to_account_id).first() if mov.to_account_id else None
     if from_acc:
-        from_acc.balance += mov.amount
+        from_acc.balance += (mov.amount + mov.tax_amount)
     if to_acc:
         to_acc.balance -= mov.amount
+
+    # Delete associated tax expense if existed
+    if mov.tax_expense_id:
+        db.query(Expense).filter(Expense.id == mov.tax_expense_id).delete()
 
     db.delete(mov)
     db.commit()

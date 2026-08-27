@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   ArrowLeftRight,
-  Plus,
   Search,
   X,
   Trash2,
@@ -12,6 +11,8 @@ import {
   CreditCard,
   CheckCircle2,
   AlertCircle,
+  Receipt,
+  Percent,
 } from "lucide-react";
 import { MovementItem, AccountItem } from "../types";
 import { useLanguage } from "@/context/LanguageContext";
@@ -24,7 +25,7 @@ import {
 } from "@/lib/api";
 
 export default function MovementsView() {
-  const { t, language } = useLanguage();
+  const { language } = useLanguage();
   const [movements, setMovements] = useState<MovementItem[]>([]);
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
 
@@ -40,6 +41,7 @@ export default function MovementsView() {
   const [fromAccount, setFromAccount] = useState("");
   const [toAccount, setToAccount] = useState("");
   const [amount, setAmount] = useState("");
+  const [taxAmount, setTaxAmount] = useState("");
   const [description, setDescription] = useState("");
   const [formError, setFormError] = useState("");
 
@@ -68,6 +70,7 @@ export default function MovementsView() {
   const openCreateModal = () => {
     setEditingMovement(null);
     setAmount("");
+    setTaxAmount("");
     setDescription("");
     setFormError("");
     if (accounts.length >= 2) {
@@ -85,6 +88,7 @@ export default function MovementsView() {
     setFromAccount(mov.fromAccount);
     setToAccount(mov.toAccount);
     setAmount(mov.amount.toString());
+    setTaxAmount(mov.taxAmount && mov.taxAmount > 0 ? mov.taxAmount.toString() : "");
     setDescription(mov.description);
     setFormError("");
     setIsModalOpen(true);
@@ -106,7 +110,13 @@ export default function MovementsView() {
 
     const parsedAmount = parseFloat(amount);
     if (!parsedAmount || parsedAmount <= 0) {
-      setFormError("Ingresa un monto válido mayor a 0.");
+      setFormError("Ingresa un monto de transferencia válido mayor a 0.");
+      return;
+    }
+
+    const parsedTax = parseFloat(taxAmount) || 0.0;
+    if (parsedTax < 0) {
+      setFormError("El impuesto o comisión no puede ser negativo.");
       return;
     }
 
@@ -120,6 +130,7 @@ export default function MovementsView() {
         toAccount,
         toAccountId: toAccObj?.id,
         amount: parsedAmount,
+        taxAmount: parsedTax,
         description: description || `Traspaso de ${fromAccount} a ${toAccount}`,
       };
       setMovements((prev) =>
@@ -133,6 +144,7 @@ export default function MovementsView() {
         toAccount,
         toAccountId: toAccObj?.id,
         amount: parsedAmount,
+        taxAmount: parsedTax,
         description: description || `Traspaso de ${fromAccount} a ${toAccount}`,
         date: new Date().toLocaleDateString(language === "es" ? "es-ES" : "en-US", {
           day: "numeric",
@@ -150,7 +162,7 @@ export default function MovementsView() {
   };
 
   const handleDeleteMovement = async (id: string) => {
-    if (confirm("¿Deseas revertir y eliminar este traspaso? Los saldos de ambas cuentas serán restaurados.")) {
+    if (confirm("¿Deseas revertir y eliminar este traspaso? Los saldos de ambas cuentas y presupuestos serán restaurados.")) {
       setMovements((prev) => prev.filter((m) => m.id !== id));
       await deleteMovementApi(id);
       if (typeof window !== "undefined") {
@@ -181,6 +193,11 @@ export default function MovementsView() {
   });
 
   const totalTransferred = movements.reduce((sum, m) => sum + m.amount, 0);
+  const totalTaxes = movements.reduce((sum, m) => sum + (m.taxAmount || 0), 0);
+
+  const numAmount = parseFloat(amount) || 0;
+  const numTax = parseFloat(taxAmount) || 0;
+  const totalDebitedPreview = numAmount + numTax;
 
   return (
     <div className="space-y-6">
@@ -191,7 +208,7 @@ export default function MovementsView() {
             <span>Movimientos & Traspasos</span>
           </h1>
           <p className="text-xs text-zinc-500 mt-1">
-            Transfiere dinero entre tus cuentas y billeteras manteniendo tus balances siempre cuadrados.
+            Transfiere dinero entre tus cuentas, calcula impuestos bancarios y sincroniza con tu presupuesto.
           </p>
         </div>
 
@@ -223,35 +240,35 @@ export default function MovementsView() {
           </div>
         </div>
 
-        {/* Active Accounts Involved */}
+        {/* Total Taxes Paid */}
         <div className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-zinc-500">Cuentas Disponibles</span>
-            <div className="w-7 h-7 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-              <CreditCard className="w-3.5 h-3.5" />
+            <span className="text-xs font-semibold text-zinc-500">Impuestos / Comisiones</span>
+            <div className="w-7 h-7 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+              <Receipt className="w-3.5 h-3.5" />
             </div>
           </div>
-          <div className="text-2xl font-bold tracking-tight text-zinc-950">
-            {accounts.length}
+          <div className="text-2xl font-bold tracking-tight text-amber-600">
+            ${totalTaxes.toLocaleString("en-US", { minimumFractionDigits: 2 })}
           </div>
           <div className="text-[11px] text-zinc-400">
-            Cuentas habilitadas para transferencias
+            Retenciones debitadas en origen
           </div>
         </div>
 
         {/* Synchronized State */}
         <div className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-zinc-500">Sincronización Contable</span>
+            <span className="text-xs font-semibold text-zinc-500">Integración Presupuestaria</span>
             <div className="w-7 h-7 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
               <CheckCircle2 className="w-4 h-4" />
             </div>
           </div>
           <div className="text-2xl font-bold tracking-tight text-emerald-600">
-            Automática
+            Automatizada
           </div>
           <div className="text-[11px] text-zinc-400">
-            Débito y crédito en tiempo real
+            Asiento automático en límite de Impuestos
           </div>
         </div>
       </div>
@@ -281,7 +298,7 @@ export default function MovementsView() {
               <option value="all">Todas las Cuentas</option>
               {accounts.map((a) => (
                 <option key={a.id} value={a.name}>
-                  {a.name}
+                  {a.name} ({a.type})
                 </option>
               ))}
             </select>
@@ -307,7 +324,7 @@ export default function MovementsView() {
                     </span>
                     <Edit3 className="w-3 h-3 text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
-                  <div className="text-[11px] text-zinc-500 flex items-center gap-2 mt-0.5">
+                  <div className="text-[11px] text-zinc-500 flex flex-wrap items-center gap-2 mt-0.5">
                     <span className="font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md">
                       De: {item.fromAccount}
                     </span>
@@ -315,6 +332,11 @@ export default function MovementsView() {
                     <span className="font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">
                       A: {item.toAccount}
                     </span>
+                    {item.taxAmount && item.taxAmount > 0 ? (
+                      <span className="font-semibold text-amber-700 bg-amber-50 border border-amber-200/60 px-2 py-0.5 rounded-md">
+                        +${item.taxAmount.toFixed(2)} Impuesto
+                      </span>
+                    ) : null}
                     <span>•</span>
                     <span className="text-zinc-400">{item.date}</span>
                   </div>
@@ -325,9 +347,11 @@ export default function MovementsView() {
                 <div className="text-xs font-bold text-zinc-950">
                   ${item.amount.toFixed(2)}
                 </div>
-                <span className="text-[10px] text-zinc-400 font-medium">
-                  Traspaso
-                </span>
+                <div className="text-[10px] text-zinc-400">
+                  {item.taxAmount && item.taxAmount > 0
+                    ? `Salen $${(item.amount + item.taxAmount).toFixed(2)}`
+                    : "Traspaso exacto"}
+                </div>
               </div>
             </div>
           ))}
@@ -342,7 +366,7 @@ export default function MovementsView() {
               </div>
               <p className="text-[11px] text-zinc-400 max-w-xs mx-auto">
                 {movements.length === 0
-                  ? "Realiza transferencias entre tus cuentas bancarias o retiros a efectivo para llevar el control exacto."
+                  ? "Realiza transferencias entre tus cuentas bancarias, fondos de ahorro o retiros a efectivo."
                   : "Prueba seleccionando otra cuenta o limpiando el campo de búsqueda."}
               </p>
             </div>
@@ -393,7 +417,7 @@ export default function MovementsView() {
                   >
                     {accounts.map((a) => (
                       <option key={a.id} value={a.name}>
-                        {a.name} (Saldo: ${a.balance.toFixed(2)})
+                        {a.name} ({a.type} - Saldo: ${a.balance.toFixed(2)})
                       </option>
                     ))}
                   </select>
@@ -411,26 +435,66 @@ export default function MovementsView() {
                   >
                     {accounts.map((a) => (
                       <option key={a.id} value={a.name}>
-                        {a.name} (Saldo: ${a.balance.toFixed(2)})
+                        {a.name} ({a.type} - Saldo: ${a.balance.toFixed(2)})
                       </option>
                     ))}
                   </select>
                 </div>
 
-                {/* Amount */}
-                <div>
-                  <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
-                    Monto a Transferir ($)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    required
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    placeholder="0.00"
-                    className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 bg-white text-zinc-900 text-xs placeholder:text-zinc-400 focus:outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 transition-colors shadow-2xs"
-                  />
+                {/* Amount and Tax Fields */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
+                      Monto a Transferir ($)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      required
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      placeholder="0.00"
+                      className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 bg-white text-zinc-900 text-xs placeholder:text-zinc-400 focus:outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 transition-colors shadow-2xs"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-zinc-800 mb-1.5 flex items-center justify-between">
+                      <span>Impuesto / Comisión ($)</span>
+                      <span className="text-[10px] text-zinc-400 font-normal">Opcional</span>
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={taxAmount}
+                      onChange={(e) => setTaxAmount(e.target.value)}
+                      placeholder="0.00"
+                      className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 bg-white text-zinc-900 text-xs placeholder:text-zinc-400 focus:outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 transition-colors shadow-2xs"
+                    />
+                  </div>
+                </div>
+
+                {/* Accounting Preview Card */}
+                <div className="p-3 bg-zinc-50 rounded-2xl border border-zinc-200/70 text-xs space-y-1.5">
+                  <div className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">
+                    Desglose Contable
+                  </div>
+                  <div className="flex justify-between text-zinc-700">
+                    <span>Sale de {fromAccount || "Origen"}:</span>
+                    <span className="font-bold text-rose-600">
+                      -${totalDebitedPreview.toFixed(2)}
+                      {numTax > 0 && ` (Incluye $${numTax.toFixed(2)} imp.)`}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-zinc-700">
+                    <span>Llega a {toAccount || "Destino"}:</span>
+                    <span className="font-bold text-emerald-600">+${numAmount.toFixed(2)}</span>
+                  </div>
+                  {numTax > 0 && (
+                    <div className="text-[11px] text-zinc-400 pt-1 border-t border-zinc-200/60">
+                      ℹ️ Si tienes un presupuesto con límite para &quot;Impuestos&quot;, se registrará el asiento correspondiente automáticamente.
+                    </div>
+                  )}
                 </div>
 
                 {/* Concept / Description */}
@@ -442,7 +506,7 @@ export default function MovementsView() {
                     type="text"
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Ej. Retiro para efectivo, Pago a tarjeta de crédito..."
+                    placeholder="Ej. Retiro para gastos corrientes, Traslado a fondo de ahorro..."
                     className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 bg-white text-zinc-900 text-xs placeholder:text-zinc-400 focus:outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 transition-colors shadow-2xs"
                   />
                 </div>

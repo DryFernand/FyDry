@@ -374,6 +374,8 @@ export async function fetchMovementsApi(): Promise<MovementItem[]> {
         toAccount: d.to_account_name,
         toAccountId: d.to_account_id,
         amount: d.amount,
+        taxAmount: d.tax_amount || 0,
+        taxExpenseId: d.tax_expense_id,
         description: d.description,
         date: d.date,
       }));
@@ -400,6 +402,7 @@ export async function createMovementApi(mov: Omit<MovementItem, "id">): Promise<
     to_account_id: mov.toAccountId || null,
     to_account_name: mov.toAccount,
     amount: mov.amount,
+    tax_amount: mov.taxAmount || 0,
     description: mov.description,
     date: mov.date,
   };
@@ -419,6 +422,8 @@ export async function createMovementApi(mov: Omit<MovementItem, "id">): Promise<
         toAccount: d.to_account_name,
         toAccountId: d.to_account_id,
         amount: d.amount,
+        taxAmount: d.tax_amount || 0,
+        taxExpenseId: d.tax_expense_id,
         description: d.description,
         date: d.date,
       };
@@ -440,6 +445,7 @@ export async function updateMovementApi(id: string, mov: Partial<MovementItem>):
     to_account_id: mov.toAccountId || null,
     to_account_name: mov.toAccount,
     amount: mov.amount,
+    tax_amount: mov.taxAmount || 0,
     description: mov.description,
     date: mov.date,
   };

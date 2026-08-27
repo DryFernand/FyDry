@@ -7,6 +7,7 @@ import {
   Building2,
   CreditCard,
   Banknote,
+  PiggyBank,
   X,
   Wallet,
   Trash2,
@@ -29,7 +30,7 @@ export default function AccountsView() {
 
   // Form states
   const [name, setName] = useState("");
-  const [type, setType] = useState<"bank" | "card" | "wallet" | "cash">("bank");
+  const [type, setType] = useState<"bank" | "card" | "wallet" | "cash" | "savings">("bank");
   const [balance, setBalance] = useState("");
   const [accountNum, setAccountNum] = useState("");
 
@@ -46,6 +47,10 @@ export default function AccountsView() {
 
   const bankTotal = accounts
     .filter((a) => a.type === "bank")
+    .reduce((acc, curr) => acc + curr.balance, 0);
+
+  const savingsTotal = accounts
+    .filter((a) => a.type === "savings")
     .reduce((acc, curr) => acc + curr.balance, 0);
 
   const cardTotal = accounts
@@ -87,7 +92,6 @@ export default function AccountsView() {
         balance: parsedBalance,
         accountNumber: accountNum || undefined,
       };
-      // Actualización optimista
       setAccounts((prev) =>
         prev.map((a) => (a.id === editingAccount.id ? { ...a, ...updatedItem } : a))
       );
@@ -122,6 +126,36 @@ export default function AccountsView() {
     }
   };
 
+  const getAccountIcon = (accType: string) => {
+    switch (accType) {
+      case "bank":
+        return <Building2 className="w-5 h-5 text-zinc-800" />;
+      case "savings":
+        return <PiggyBank className="w-5 h-5 text-emerald-600" />;
+      case "cash":
+        return <Banknote className="w-5 h-5 text-zinc-800" />;
+      default:
+        return <CreditCard className="w-5 h-5 text-zinc-800" />;
+    }
+  };
+
+  const getAccountTypeLabel = (accType: string) => {
+    switch (accType) {
+      case "bank":
+        return "Banco";
+      case "savings":
+        return "Ahorros";
+      case "card":
+        return "Tarjeta";
+      case "wallet":
+        return "Billetera";
+      case "cash":
+        return "Efectivo";
+      default:
+        return accType;
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -146,7 +180,7 @@ export default function AccountsView() {
       </div>
 
       {/* Summary Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Bank Total */}
         <div className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs space-y-2">
           <div className="flex items-center justify-between">
@@ -158,6 +192,20 @@ export default function AccountsView() {
           </div>
           <div className="text-[11px] text-zinc-400">
             {accounts.filter((a) => a.type === "bank").length} {t.accounts.activeAccounts}
+          </div>
+        </div>
+
+        {/* Savings Total */}
+        <div className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-zinc-500">Cuentas de Ahorros</span>
+            <PiggyBank className="w-4 h-4 text-emerald-600" />
+          </div>
+          <div className="text-2xl font-bold tracking-tight text-emerald-600">
+            ${savingsTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+          </div>
+          <div className="text-[11px] text-zinc-400">
+            {accounts.filter((a) => a.type === "savings").length} fondos de ahorro
           </div>
         </div>
 
@@ -199,14 +247,10 @@ export default function AccountsView() {
           >
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-zinc-100 flex items-center justify-center font-bold text-xs text-zinc-800">
-                  {acc.type === "bank" ? (
-                    <Building2 className="w-5 h-5 text-zinc-800" />
-                  ) : acc.type === "cash" ? (
-                    <Banknote className="w-5 h-5 text-zinc-800" />
-                  ) : (
-                    <CreditCard className="w-5 h-5 text-zinc-800" />
-                  )}
+                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-xs ${
+                  acc.type === "savings" ? "bg-emerald-50" : "bg-zinc-100"
+                }`}>
+                  {getAccountIcon(acc.type)}
                 </div>
                 <div>
                   <div className="flex items-center gap-1.5">
@@ -216,13 +260,17 @@ export default function AccountsView() {
                     <Edit3 className="w-3 h-3 text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
                   <p className="text-[11px] text-zinc-400">
-                    {acc.accountNumber || (acc.type === "cash" ? "Billetera" : "Cuenta")}
+                    {acc.accountNumber || (acc.type === "cash" ? "Efectivo" : acc.type === "savings" ? "Fondo de Ahorro" : "Cuenta")}
                   </p>
                 </div>
               </div>
 
-              <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md bg-zinc-100 text-zinc-700">
-                {acc.type}
+              <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md ${
+                acc.type === "savings"
+                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200/60"
+                  : "bg-zinc-100 text-zinc-700"
+              }`}>
+                {getAccountTypeLabel(acc.type)}
               </span>
             </div>
 
@@ -230,7 +278,9 @@ export default function AccountsView() {
               <span className="text-[11px] text-zinc-400 font-medium">
                 {t.accounts.availableBalance}
               </span>
-              <span className="text-xl font-bold text-zinc-950">
+              <span className={`text-xl font-bold ${
+                acc.type === "savings" ? "text-emerald-600" : "text-zinc-950"
+              }`}>
                 ${acc.balance.toLocaleString("en-US", { minimumFractionDigits: 2 })}
               </span>
             </div>
@@ -244,7 +294,7 @@ export default function AccountsView() {
             </div>
             <div className="text-sm font-bold text-zinc-900">No tienes cuentas registradas aún</div>
             <p className="text-xs text-zinc-400 max-w-sm mx-auto">
-              Añade tus cuentas de banco, tarjetas o efectivo para vincularlas a tus gastos e ingresos.
+              Añade tus cuentas de banco, ahorros, tarjetas o efectivo para vincularlas a tus movimientos.
             </p>
             <button
               type="button"
@@ -291,7 +341,7 @@ export default function AccountsView() {
                     required
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="Ej. BBVA Principal, Santander Nómina..."
+                    placeholder="Ej. BBVA Principal, Cuenta de Ahorro Meta..."
                     className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 bg-white text-zinc-900 text-xs placeholder:text-zinc-400 focus:outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 transition-colors shadow-2xs"
                   />
                 </div>
@@ -304,11 +354,12 @@ export default function AccountsView() {
                     <select
                       value={type}
                       onChange={(e) =>
-                        setType(e.target.value as "bank" | "card" | "wallet" | "cash")
+                        setType(e.target.value as "bank" | "card" | "wallet" | "cash" | "savings")
                       }
                       className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 bg-white text-zinc-900 text-xs focus:outline-none focus:border-zinc-900 transition-colors shadow-2xs cursor-pointer"
                     >
                       <option value="bank">{t.accounts.bank}</option>
+                      <option value="savings">Ahorros / Inversión</option>
                       <option value="card">{t.accounts.card}</option>
                       <option value="wallet">Billetera Digital</option>
                       <option value="cash">{t.accounts.cash}</option>
@@ -332,7 +383,7 @@ export default function AccountsView() {
 
                 <div>
                   <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
-                    Número de Cuenta / IBAN (Opcional)
+                    Número de Cuenta / IBAN / Clave (Opcional)
                   </label>
                   <input
                     type="text"

@@ -25,6 +25,8 @@ export interface MovementItem {
   toAccount: string;
   toAccountId?: string;
   amount: number;
+  taxAmount?: number;
+  taxExpenseId?: string;
   description: string;
   date: string;
 }
@@ -32,7 +34,7 @@ export interface MovementItem {
 export interface AccountItem {
   id: string;
   name: string;
-  type: "bank" | "card" | "wallet" | "cash";
+  type: "bank" | "card" | "wallet" | "cash" | "savings";
   balance: number;
   currency: string;
   accountNumber?: string;
