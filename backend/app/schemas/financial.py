@@ -8,10 +8,14 @@ from datetime import datetime
 # ==========================================
 class AccountCreate(BaseModel):
     name: str
-    type: str = "bank"  # "bank", "card", "wallet", "cash", "savings"
+    type: str = "bank"  # "bank", "credit_card", "debit_card", "card", "wallet", "cash", "savings"
     balance: float = 0.0
     currency: str = "USD"
     account_number: Optional[str] = None
+    card_number: Optional[str] = None
+    cutoff_day: Optional[float] = None
+    grace_days: Optional[float] = None
+    overdraft_limit: Optional[float] = 0.0
 
 
 class AccountUpdate(BaseModel):
@@ -20,6 +24,10 @@ class AccountUpdate(BaseModel):
     balance: Optional[float] = None
     currency: Optional[str] = None
     account_number: Optional[str] = None
+    card_number: Optional[str] = None
+    cutoff_day: Optional[float] = None
+    grace_days: Optional[float] = None
+    overdraft_limit: Optional[float] = None
 
 
 class AccountResponse(BaseModel):
@@ -29,6 +37,10 @@ class AccountResponse(BaseModel):
     balance: float
     currency: str
     account_number: Optional[str] = None
+    card_number: Optional[str] = None
+    cutoff_day: Optional[float] = None
+    grace_days: Optional[float] = None
+    overdraft_limit: Optional[float] = 0.0
 
     class Config:
         from_attributes = True

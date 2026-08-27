@@ -34,10 +34,14 @@ export interface MovementItem {
 export interface AccountItem {
   id: string;
   name: string;
-  type: "bank" | "card" | "wallet" | "cash" | "savings";
+  type: "bank" | "credit_card" | "debit_card" | "card" | "wallet" | "cash" | "savings";
   balance: number;
   currency: string;
   accountNumber?: string;
+  cardNumber?: string;
+  cutoffDay?: number;
+  graceDays?: number;
+  overdraftLimit?: number;
 }
 
 export interface BudgetItem {

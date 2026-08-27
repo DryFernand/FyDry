@@ -12,10 +12,14 @@ class Account(Base, TimestampMixin):
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), index=True)
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     name = Column(String(255), nullable=False)
-    type = Column(String(50), default="bank", nullable=False)  # "bank", "card", "wallet", "cash", "savings"
+    type = Column(String(50), default="bank", nullable=False)  # "bank", "credit_card", "debit_card", "card", "wallet", "cash", "savings"
     balance = Column(Float, default=0.0, nullable=False)
     currency = Column(String(10), default="USD", nullable=False)
-    account_number = Column(String(100), nullable=True)
+    account_number = Column(String(100), nullable=True)  # Número de cuenta para bancos
+    card_number = Column(String(100), nullable=True)     # Número de tarjeta para crédito / débito
+    cutoff_day = Column(Float, nullable=True)            # Día de corte (ej. 15)
+    grace_days = Column(Float, nullable=True)            # Días de gracia para pago (ej. 20)
+    overdraft_limit = Column(Float, default=0.0, nullable=True)  # Monto de sobregiro / Límite de crédito
 
     user = relationship("User", backref="accounts")
 

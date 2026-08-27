@@ -49,7 +49,7 @@ def create_account(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Create a new financial account (Bank, Card, Wallet, Cash, Savings)."""
+    """Create a new financial account (Bank, Debit/Credit Card, Wallet, Cash, Savings)."""
     account = Account(
         user_id=current_user.id,
         name=account_in.name,
@@ -57,6 +57,10 @@ def create_account(
         balance=account_in.balance,
         currency=account_in.currency,
         account_number=account_in.account_number,
+        card_number=account_in.card_number,
+        cutoff_day=account_in.cutoff_day,
+        grace_days=account_in.grace_days,
+        overdraft_limit=account_in.overdraft_limit or 0.0,
     )
     db.add(account)
     db.commit()

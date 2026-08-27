@@ -63,6 +63,10 @@ export async function fetchAccountsApi(): Promise<AccountItem[]> {
         balance: d.balance,
         currency: d.currency || "USD",
         accountNumber: d.account_number,
+        cardNumber: d.card_number,
+        cutoffDay: d.cutoff_day,
+        graceDays: d.grace_days,
+        overdraftLimit: d.overdraft_limit,
       }));
       if (typeof window !== "undefined") {
         localStorage.setItem("fydry_accounts", JSON.stringify(accounts));
@@ -88,6 +92,10 @@ export async function createAccountApi(account: Omit<AccountItem, "id">): Promis
     balance: account.balance,
     currency: account.currency || "USD",
     account_number: account.accountNumber || null,
+    card_number: account.cardNumber || null,
+    cutoff_day: account.cutoffDay || null,
+    grace_days: account.graceDays || null,
+    overdraft_limit: account.overdraftLimit || 0.0,
   };
 
   try {
@@ -105,6 +113,10 @@ export async function createAccountApi(account: Omit<AccountItem, "id">): Promis
         balance: d.balance,
         currency: d.currency,
         accountNumber: d.account_number,
+        cardNumber: d.card_number,
+        cutoffDay: d.cutoff_day,
+        graceDays: d.grace_days,
+        overdraftLimit: d.overdraft_limit,
       };
     }
   } catch (err) {
@@ -124,7 +136,11 @@ export async function updateAccountApi(id: string, account: Partial<AccountItem>
     type: account.type,
     balance: account.balance,
     currency: account.currency,
-    account_number: account.accountNumber || null,
+    account_number: account.accountNumber !== undefined ? account.accountNumber : null,
+    card_number: account.cardNumber !== undefined ? account.cardNumber : null,
+    cutoff_day: account.cutoffDay !== undefined ? account.cutoffDay : null,
+    grace_days: account.graceDays !== undefined ? account.graceDays : null,
+    overdraft_limit: account.overdraftLimit !== undefined ? account.overdraftLimit : null,
   };
 
   try {
