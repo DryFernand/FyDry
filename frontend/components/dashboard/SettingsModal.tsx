@@ -790,6 +790,7 @@ export default function SettingsModal({
                     }}
                     className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 text-xs text-zinc-900 focus:outline-none focus:border-zinc-900 cursor-pointer"
                   >
+                    <option value="DOP">DOP (RD$) - Peso Dominicano</option>
                     <option value="USD">USD ($) - Dólar estadounidense</option>
                     <option value="EUR">EUR (€) - Euro</option>
                     <option value="MXN">MXN ($) - Peso Mexicano</option>

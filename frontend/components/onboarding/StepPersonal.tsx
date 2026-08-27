@@ -11,6 +11,7 @@ interface StepPersonalProps {
 }
 
 const currencies = [
+  { code: "DOP", symbol: "RD$", label: "Peso Dominicano (DOP / RD$)" },
   { code: "USD", symbol: "$", label: "Dólar estadounidense (USD)" },
   { code: "EUR", symbol: "€", label: "Euro (EUR)" },
   { code: "MXN", symbol: "$", label: "Peso Mexicano (MXN)" },
@@ -20,6 +21,7 @@ const currencies = [
 ];
 
 const countries = [
+  "República Dominicana",
   "España",
   "México",
   "Colombia",

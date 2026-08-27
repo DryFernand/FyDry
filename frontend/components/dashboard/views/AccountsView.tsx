@@ -45,6 +45,7 @@ export default function AccountsView() {
   const [overdraftLimit, setOverdraftLimit] = useState("");
   const [creditLimit, setCreditLimit] = useState("");
   const [minBalance, setMinBalance] = useState("");
+  const [currency, setCurrency] = useState("DOP");
 
   const loadAccounts = async () => {
     const data = await fetchAccountsApi();
@@ -78,6 +79,7 @@ export default function AccountsView() {
     setName("");
     setType("bank");
     setBalance("");
+    setCurrency("DOP");
     setAccountNum("");
     setCardNum("");
     setCutoffDay("");
@@ -93,6 +95,7 @@ export default function AccountsView() {
     setName(acc.name);
     setType(acc.type as AccountType);
     setBalance(acc.balance.toString());
+    setCurrency(acc.currency || "DOP");
     setAccountNum(acc.accountNumber || "");
     setCardNum(acc.cardNumber || (acc.type === "credit_card" || acc.type === "debit_card" || acc.type === "card" ? acc.accountNumber || "" : ""));
     setCutoffDay(acc.cutoffDay ? acc.cutoffDay.toString() : "");
@@ -118,7 +121,7 @@ export default function AccountsView() {
       name,
       type,
       balance: parsedBalance,
-      currency: "USD",
+      currency: currency || "DOP",
       accountNumber: type === "bank" ? accountNum : undefined,
       cardNumber: (type === "credit_card" || type === "debit_card" || type === "card") ? cardNum : undefined,
       cutoffDay: type === "credit_card" ? parsedCutoff : undefined,
@@ -138,7 +141,7 @@ export default function AccountsView() {
         name,
         type,
         balance: parsedBalance,
-        currency: "USD",
+        currency: currency || "DOP",
         accountNumber: type === "bank" ? accountNum : undefined,
         cardNumber: (type === "credit_card" || type === "debit_card" || type === "card") ? cardNum : undefined,
         cutoffDay: type === "credit_card" ? parsedCutoff : undefined,
@@ -204,6 +207,22 @@ export default function AccountsView() {
       case "cash":
       default:
         return "Efectivo";
+    }
+  };
+
+  const getCurrencySymbol = (curr?: string) => {
+    switch (curr) {
+      case "DOP":
+        return "RD$";
+      case "EUR":
+        return "€";
+      case "MXN":
+      case "COP":
+      case "ARS":
+      case "CLP":
+      case "USD":
+      default:
+        return "$";
     }
   };
 
@@ -350,7 +369,12 @@ export default function AccountsView() {
             </div>
 
             <div className="pt-2 border-t border-zinc-100 flex items-baseline justify-between">
-              <span className="text-xs font-semibold text-zinc-400">Saldo Disponible</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-semibold text-zinc-400">Saldo Disponible</span>
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-600">
+                  {acc.currency || "DOP"}
+                </span>
+              </div>
               <span className={`text-lg font-bold tracking-tight ${
                 acc.type === "credit_card"
                   ? "text-purple-600"
@@ -358,7 +382,7 @@ export default function AccountsView() {
                   ? "text-emerald-600"
                   : "text-zinc-950"
               }`}>
-                ${acc.balance.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                {getCurrencySymbol(acc.currency)} {acc.balance.toLocaleString("en-US", { minimumFractionDigits: 2 })}
               </span>
             </div>
           </motion.div>
@@ -369,22 +393,22 @@ export default function AccountsView() {
             <div className="w-12 h-12 rounded-2xl bg-zinc-100 flex items-center justify-center mx-auto text-zinc-400">
               <Building2 className="w-6 h-6" />
             </div>
-            <h3 className="font-bold text-zinc-900 text-sm">No tienes cuentas registradas</h3>
+            <h3 className="font-bold text-zinc-900 text-sm">{t.accounts.activeAccounts}</h3>
             <p className="text-xs text-zinc-500 max-w-sm mx-auto">
-              Crea tus cuentas bancarias, tarjetas de crédito, débito, billeteras o ahorros para gestionar tus finanzas.
+              No tienes ninguna cuenta registrada. Agrega tu cuenta de banco, tarjeta de crédito o efectivo para comenzar.
             </p>
             <button
               type="button"
               onClick={openCreateModal}
               className="py-2 px-4 rounded-xl bg-zinc-950 text-white text-xs font-semibold hover:bg-zinc-800 transition-all cursor-pointer"
             >
-              Crear primera cuenta
+              {t.accounts.addAccount}
             </button>
           </div>
         )}
       </div>
 
-      {/* Modal Crear / Editar Cuenta */}
+      {/* Modal Añadir / Editar Cuenta */}
       <AnimatePresence>
         {isModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
@@ -392,14 +416,14 @@ export default function AccountsView() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-md bg-white rounded-3xl border border-zinc-200 shadow-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto"
+              className="w-full max-w-lg bg-white rounded-3xl border border-zinc-200 p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-xl bg-zinc-100 flex items-center justify-center text-zinc-900">
                     <Building2 className="w-4 h-4" />
                   </div>
-                  <h3 className="font-bold text-zinc-950 text-sm">
+                  <h3 className="font-bold text-zinc-950 text-base">
                     {editingAccount ? "Editar Cuenta" : t.accounts.modalTitle}
                   </h3>
                 </div>
@@ -408,7 +432,7 @@ export default function AccountsView() {
                   onClick={() => setIsModalOpen(false)}
                   className="p-1 rounded-lg text-zinc-400 hover:text-zinc-900 transition-colors cursor-pointer"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-5 h-5" />
                 </button>
               </div>
 
@@ -463,32 +487,53 @@ export default function AccountsView() {
                     onChange={(e) => setName(e.target.value)}
                     placeholder={
                       type === "credit_card"
-                        ? "Ej. Visa Oro BBVA, Mastercard Platinum..."
+                        ? "Ej. Visa Oro Banreservas, Mastercard Popular..."
                         : type === "debit_card"
-                        ? "Ej. Débito Nómina Santander..."
+                        ? "Ej. Débito Nómina BHD..."
                         : type === "savings"
                         ? "Ej. Fondo de Emergencia, Vacaciones..."
-                        : "Ej. Banco Principal, Efectivo Cartera..."
+                        : "Ej. Cuenta Corriente Banco, Efectivo RD..."
                     }
                     className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 bg-white text-zinc-900 text-xs placeholder:text-zinc-400 focus:outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 transition-colors shadow-2xs"
                   />
                 </div>
 
-                {/* Initial Balance */}
-                <div>
-                  <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
-                    {type === "credit_card"
-                      ? "Saldo Actual Disponible / Saldo en Tarjeta ($)"
-                      : t.accounts.initialBalance}
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={balance}
-                    onChange={(e) => setBalance(e.target.value)}
-                    placeholder="0.00"
-                    className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 bg-white text-zinc-900 text-xs placeholder:text-zinc-400 focus:outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 transition-colors shadow-2xs"
-                  />
+                {/* Initial Balance & Currency */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
+                      {type === "credit_card"
+                        ? "Saldo Actual Disponible"
+                        : t.accounts.initialBalance}
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={balance}
+                      onChange={(e) => setBalance(e.target.value)}
+                      placeholder="0.00"
+                      className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 bg-white text-zinc-900 text-xs placeholder:text-zinc-400 focus:outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 transition-colors shadow-2xs"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
+                      Moneda de la Cuenta
+                    </label>
+                    <select
+                      value={currency}
+                      onChange={(e) => setCurrency(e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 bg-white text-zinc-900 text-xs focus:outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 transition-colors shadow-2xs cursor-pointer"
+                    >
+                      <option value="DOP">DOP (RD$) - Peso Dominicano</option>
+                      <option value="USD">USD ($) - Dólar estadounidense</option>
+                      <option value="EUR">EUR (€) - Euro</option>
+                      <option value="MXN">MXN ($) - Peso Mexicano</option>
+                      <option value="COP">COP ($) - Peso Colombiano</option>
+                      <option value="ARS">ARS ($) - Peso Argentino</option>
+                      <option value="CLP">CLP ($) - Peso Chileno</option>
+                    </select>
+                  </div>
                 </div>
 
                 {/* Saldo Mínimo Aceptado (Para todos los tipos de cuenta) */}

@@ -476,6 +476,20 @@
   - El área de contenido principal se adaptó con `md:pl-64`, permitiendo un desplazamiento vertical fluido sin empujar ni desfasar el menú lateral.
 - **Despliegue a Producción**: Verificado con `npx tsc --noEmit` (0 errores) y desplegado en Vercel (`READY`).
 
+### 2026-08-27 - Soporte Integral para República Dominicana (RD) y Moneda DOP (RD$)
+- **Onboarding de Nuevos Usuarios (`StepPersonal.tsx`)**:
+  - Incorporado el país **`"República Dominicana"`** en la lista principal de selección geográfica.
+  - Añadida la moneda oficial **`Peso Dominicano (DOP / RD$)`** con su símbolo correspondiente.
+- **Configuración de Preferencias (`SettingsModal.tsx`)**:
+  - Añadida la opción **`DOP (RD$) - Peso Dominicano`** en el selector de moneda principal del usuario.
+- **Gestión de Cuentas y Tarjetas (`AccountsView.tsx`)**:
+  - Incorporado selector de moneda por cuenta (`DOP`, `USD`, `EUR`, `MXN`, `COP`, etc.) en los modales de creación y edición.
+  - Renderizado dinámico de balances con el símbolo oficial (`RD$` para cuentas dominicanas) y badge visual del código ISO (`DOP`).
+- **Análisis Inteligente de Notificaciones Bancarias (`notifications.py`)**:
+  - Actualizado el motor de expresiones regulares para identificar montos expresados en `RD$`, `DOP` y `RD` procedentes de notificaciones de bancos dominicanos (Banreservas, Banco Popular, BHD, APAP, etc.).
+- **Despliegue a Producción**: Verificado con `npx tsc --noEmit` (0 errores) y desplegado en Vercel (`READY`).
+
+
 
 
 

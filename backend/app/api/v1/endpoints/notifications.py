@@ -36,9 +36,9 @@ def extract_financial_data_from_text(subject: str, body: str, sender: str = "") 
     """Analiza el texto de un correo bancario para extraer monto, concepto, tipo y categoría."""
     full_text = f"{subject} {body} {sender}".lower()
 
-    # 1. Extraer Monto ($ 1,234.56, 45.20, 1200.00 USD, etc.)
+    # 1. Extraer Monto ($ 1,234.56, RD$ 45.20, 1200.00 DOP, USD, etc.)
     amount = 0.0
-    matches = re.findall(r"(?:[\$\€\£]|usd|eur|mxn|cop|clp|ars|monto:?|total:?|importe:?)\s*([0-9]{1,3}(?:[,\.][0-9]{3})*(?:[,\.][0-9]{1,2})?|[0-9]+(?:[,\.][0-9]{1,2})?)", full_text)
+    matches = re.findall(r"(?:[\$\€\£]|rd\$|dop|rd|usd|eur|mxn|cop|clp|ars|monto:?|total:?|importe:?)\s*([0-9]{1,3}(?:[,\.][0-9]{3})*(?:[,\.][0-9]{1,2})?|[0-9]+(?:[,\.][0-9]{1,2})?)", full_text)
     if not matches:
         matches = re.findall(r"([0-9]+(?:[,\.][0-9]{1,2}))", full_text)
 
