@@ -332,6 +332,15 @@
   - Al editar o eliminar un movimiento, ambos saldos y el asiento presupuestario asociado se restauran automáticamente.
 - **Despliegue a Producción**: Verificado con `npx tsc --noEmit` (0 errores) y desplegado en Vercel (`READY`).
 
+### 2026-08-27 - Cómputo Sistemático de Impuestos en Límite de Categoría y Presupuesto General
+- **Asiento y Cómputo de Impuestos de Transferencias en Presupuestos**:
+  - Todo impuesto o comisión de transferencias se registra sistemáticamente en la categoría `Impuestos & Tasas`.
+  - **Límite de Categoría**: La tarjeta de presupuesto de `Impuestos & Tasas` refleja en tiempo real el monto gastado (`spent`), el porcentaje consumido del límite (`percent%`) con barra de color dinámica y alertas de sobrepresupuesto.
+  - **Presupuesto General**: El consumo global (`totalSpent` y `overallPercentage`) suma automáticamente estos gastos de impuestos.
+  - Badge visual en `BudgetView.tsx`: `• Incluye impuestos de transferencias` para total claridad contable.
+- **Despliegue a Producción**: Compilado con `npx tsc --noEmit` (0 errores) y desplegado en Vercel (`READY`).
+
+
 
 
 
