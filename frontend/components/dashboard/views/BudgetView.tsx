@@ -8,6 +8,10 @@ import {
   PieChart,
   Trash2,
   Edit3,
+  ChevronLeft,
+  ChevronRight,
+  Calendar,
+  RotateCcw,
 } from "lucide-react";
 import { BudgetItem, TransactionItem } from "../types";
 import { EXPENSE_CATEGORIES } from "@/lib/categories";
@@ -20,12 +24,25 @@ import {
   fetchTransactionsApi,
 } from "@/lib/api";
 
+const MONTH_NAMES_ES = [
+  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+];
+
+const MONTH_NAMES_EN = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
+];
+
 export default function BudgetView() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [budgets, setBudgets] = useState<BudgetItem[]>([]);
   const [expenses, setExpenses] = useState<TransactionItem[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingBudget, setEditingBudget] = useState<BudgetItem | null>(null);
+
+  // Selector de mes y año activo
+  const [selectedDate, setSelectedDate] = useState(() => new Date());
 
   const [newCat, setNewCat] = useState<string>(EXPENSE_CATEGORIES[0]);
   const [newAllocated, setNewAllocated] = useState("");
@@ -45,14 +62,65 @@ export default function BudgetView() {
     return () => window.removeEventListener("fydry_storage_updated", loadData);
   }, []);
 
-  // Calcular gasto real acumulado por cada categoría presupuestada de forma exacta
+  const selectedYear = selectedDate.getFullYear();
+  const selectedMonth = selectedDate.getMonth();
+
+  const isCurrentMonth = () => {
+    const now = new Date();
+    return now.getFullYear() === selectedYear && now.getMonth() === selectedMonth;
+  };
+
+  const handlePrevMonth = () => {
+    setSelectedDate((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+  };
+
+  const handleNextMonth = () => {
+    setSelectedDate((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+  };
+
+  const handleCurrentMonth = () => {
+    setSelectedDate(new Date());
+  };
+
+  const monthLabel =
+    language === "es"
+      ? `${MONTH_NAMES_ES[selectedMonth]} ${selectedYear}`
+      : `${MONTH_NAMES_EN[selectedMonth]} ${selectedYear}`;
+
+  // Helper para verificar si un gasto pertenece al mes seleccionado
+  const isExpenseInPeriod = (e: TransactionItem): boolean => {
+    if (e.createdAt) {
+      const d = new Date(e.createdAt);
+      if (!isNaN(d.getTime())) {
+        return d.getFullYear() === selectedYear && d.getMonth() === selectedMonth;
+      }
+    }
+    if (e.date && e.date.includes("-")) {
+      const parts = e.date.split("-");
+      if (parts.length >= 2) {
+        const y = parseInt(parts[0]);
+        const m = parseInt(parts[1]) - 1;
+        if (!isNaN(y) && !isNaN(m)) {
+          return y === selectedYear && m === selectedMonth;
+        }
+      }
+    }
+    // Fallback: Si no tiene fecha ISO, atribuir al mes actual
+    const now = new Date();
+    return selectedYear === now.getFullYear() && selectedMonth === now.getMonth();
+  };
+
+  // Filtrar gastos del mes seleccionado
+  const monthlyExpenses = expenses.filter(isExpenseInPeriod);
+
+  // Calcular gasto real acumulado por cada categoría en el mes seleccionado
   const budgetsWithSpent = budgets.map((b) => {
     const isTax =
       b.category.toLowerCase().includes("impuesto") &&
       !b.category.toLowerCase().includes("transporte") &&
       !b.category.toLowerCase().includes("taxi");
 
-    const actualSpent = expenses
+    const actualSpent = monthlyExpenses
       .filter((e) => {
         // Coincidencia exacta de categoría
         if (e.category.toLowerCase().trim() === b.category.toLowerCase().trim()) return true;
@@ -127,7 +195,7 @@ export default function BudgetView() {
   };
 
   const handleDeleteBudget = async (id: string) => {
-    if (confirm("¿Deseas eliminar esta meta de presupuesto?")) {
+    if (confirm("¿Estás seguro de eliminar este límite de presupuesto?")) {
       setBudgets((prev) => prev.filter((b) => b.id !== id));
       await deleteBudgetApi(id);
       if (typeof window !== "undefined") {
@@ -140,157 +208,222 @@ export default function BudgetView() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-3xl border border-zinc-200/80 shadow-xs">
+      {/* Header with Month Navigator */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-3xl border border-zinc-200/80 shadow-xs">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-zinc-950">
             {t.budget.title}
           </h1>
           <p className="text-xs text-zinc-500 mt-1">
-            {t.budget.subtitle}
+            {t.budget.subtitle} · Los límites se conservan cada mes
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={openCreateModal}
-          className="flex items-center gap-1.5 py-2 px-3.5 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span>{t.budget.adjustLimit}</span>
-        </button>
+        {/* Month Selector Controls & New Budget Button */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          {/* Navegador de Meses */}
+          <div className="flex items-center bg-zinc-100/90 rounded-2xl p-1 border border-zinc-200/60 shadow-2xs">
+            <button
+              type="button"
+              onClick={handlePrevMonth}
+              className="p-1.5 rounded-xl hover:bg-white hover:text-zinc-950 text-zinc-600 transition-all cursor-pointer shadow-2xs"
+              title="Mes anterior"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+
+            <div className="flex items-center gap-1.5 px-3 py-1 text-xs font-bold text-zinc-900 min-w-[130px] justify-center">
+              <Calendar className="w-3.5 h-3.5 text-zinc-500" />
+              <span>{monthLabel}</span>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleNextMonth}
+              className="p-1.5 rounded-xl hover:bg-white hover:text-zinc-950 text-zinc-600 transition-all cursor-pointer shadow-2xs"
+              title="Mes siguiente"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Botón Mes Actual si está en otro mes */}
+          {!isCurrentMonth() && (
+            <button
+              type="button"
+              onClick={handleCurrentMonth}
+              className="flex items-center gap-1 py-2 px-3 rounded-2xl bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-xs font-semibold transition-all cursor-pointer border border-zinc-200/60"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Mes actual</span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={openCreateModal}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-zinc-950 text-white hover:bg-zinc-800 transition-all font-semibold text-xs shadow-xs cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>{t.budget.adjustLimit || "Nuevo Presupuesto"}</span>
+          </button>
+        </div>
       </div>
 
-      {/* Progress summary card */}
-      <div className="bg-white p-6 rounded-3xl border border-zinc-200/80 shadow-xs space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div>
-            <span className="text-xs font-semibold text-zinc-500">
-              {t.budget.globalConsumption}
+      {/* Main Budget Summary */}
+      <div className="bg-white p-6 rounded-3xl border border-zinc-200/80 shadow-xs space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
+              {t.budget.globalConsumption || "Presupuesto Mensual"} ({monthLabel})
             </span>
-            <div className="text-2xl font-bold text-zinc-950">
-              ${totalSpent.toFixed(2)} / ${totalAllocated.toFixed(2)}{" "}
-              <span className="text-xs text-zinc-400 font-normal">
-                ({overallPercentage}% {t.budget.used})
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-bold tracking-tight text-zinc-950">
+                ${totalAllocated.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+              </span>
+              <span className="text-xs text-zinc-500 font-medium">
+                / Gastado: ${totalSpent.toLocaleString("en-US", { minimumFractionDigits: 2 })}
               </span>
             </div>
           </div>
 
-          <div className="text-left sm:text-right">
-            <span className="text-xs font-semibold text-zinc-500">{t.budget.availableMargin}</span>
-            <div className="text-xl font-bold text-emerald-600">
-              ${remainingBudget.toFixed(2)} {t.budget.remaining}
+          <div className="flex items-center gap-6">
+            <div className="text-right">
+              <span className="text-xs font-semibold text-zinc-400 block">{t.budget.availableMargin || "Disponible"}</span>
+              <span className="text-lg font-bold text-emerald-600">
+                ${remainingBudget.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+            <div className="text-right">
+              <span className="text-xs font-semibold text-zinc-400 block">{t.budget.used || "Consumido"}</span>
+              <span className={`text-lg font-bold ${overallPercentage > 90 ? "text-rose-600" : "text-zinc-950"}`}>
+                {overallPercentage}%
+              </span>
             </div>
           </div>
         </div>
 
-        <div className="w-full bg-zinc-100 rounded-full h-2.5 overflow-hidden">
-          <motion.div
-            className="bg-zinc-950 h-2.5 rounded-full"
-            initial={{ width: "0%" }}
-            animate={{ width: `${Math.min(overallPercentage, 100)}%` }}
-            transition={{ duration: 0.6, ease: "easeOut" }}
-          />
+        {/* Global Progress Bar */}
+        <div className="space-y-2">
+          <div className="w-full h-3 bg-zinc-100 rounded-full overflow-hidden p-0.5">
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: `${Math.min(overallPercentage, 100)}%` }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
+              className={`h-full rounded-full transition-all ${
+                overallPercentage > 100
+                  ? "bg-rose-600"
+                  : overallPercentage > 80
+                  ? "bg-amber-500"
+                  : "bg-zinc-950"
+              }`}
+            />
+          </div>
+          <div className="flex justify-between text-[11px] text-zinc-400 font-medium">
+            <span>$0.00</span>
+            <span>50%</span>
+            <span>100%</span>
+          </div>
         </div>
       </div>
 
-      {/* Budget Categories Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Category Budgets Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {budgetsWithSpent.map((b) => {
-          const percent = b.allocated > 0 ? Math.round((b.spent / b.allocated) * 100) : 0;
-          const isWarning = percent >= 85 && percent < 100;
-          const isExceeded = percent >= 100;
+          const percentage = b.allocated > 0 ? Math.round((b.spent / b.allocated) * 100) : 0;
+          const isOver = b.spent > b.allocated;
 
           return (
             <motion.div
               key={b.id}
               whileHover={{ y: -2 }}
               onClick={() => openEditModal(b)}
-              className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs space-y-3 cursor-pointer hover:border-zinc-400 transition-all group"
+              className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs flex flex-col justify-between space-y-4 hover:border-zinc-400 transition-all cursor-pointer group"
             >
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <h3 className="text-sm font-bold text-zinc-950 group-hover:text-zinc-700">
-                      {b.category}
-                    </h3>
-                    <Edit3 className="w-3 h-3 text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="space-y-3">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-zinc-100 flex items-center justify-center font-bold text-xs text-zinc-700">
+                      <PieChart className="w-5 h-5 text-zinc-600" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <h3 className="text-sm font-bold text-zinc-950 group-hover:text-zinc-700">
+                          {b.category}
+                        </h3>
+                        <Edit3 className="w-3 h-3 text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </div>
+                      <p className="text-[11px] text-zinc-400">
+                        {monthLabel}
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1 text-[11px] text-zinc-400">
-                    <span>{t.budget.assignedLimit}</span>
-                    {b.isTaxCategory && (
-                      <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.2 rounded-md">
-                        • Incluye impuestos de transferencias
-                      </span>
-                    )}
-                  </div>
+
+                  <span
+                    className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                      isOver
+                        ? "bg-rose-50 text-rose-700"
+                        : percentage > 80
+                        ? "bg-amber-50 text-amber-700"
+                        : "bg-zinc-100 text-zinc-700"
+                    }`}
+                  >
+                    {percentage}%
+                  </span>
                 </div>
-                {isExceeded ? (
-                  <span className="px-2 py-0.5 rounded-md bg-rose-50 border border-rose-200/60 text-rose-700 text-[10px] font-bold">
-                    {t.budget.exceeded}
-                  </span>
-                ) : isWarning ? (
-                  <span className="px-2 py-0.5 rounded-md bg-amber-50 border border-amber-200/60 text-amber-700 text-[10px] font-bold">
-                    {t.budget.warning85}
-                  </span>
-                ) : (
-                  <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 text-[10px] font-semibold">
-                    {t.budget.inRange}
-                  </span>
-                )}
+
+                {/* Progress bar */}
+                <div className="w-full h-2 bg-zinc-100 rounded-full overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${Math.min(percentage, 100)}%` }}
+                    transition={{ duration: 0.8, ease: "easeOut" }}
+                    className={`h-full rounded-full ${
+                      isOver ? "bg-rose-600" : percentage > 80 ? "bg-amber-500" : "bg-zinc-950"
+                    }`}
+                  />
+                </div>
               </div>
 
-              <div className="flex justify-between items-baseline text-xs">
-                <span className="font-bold text-zinc-900">
-                  ${b.spent.toFixed(2)}{" "}
-                  <span className="text-zinc-400 font-normal">/ ${b.allocated.toFixed(2)}</span>
-                </span>
-                <span className="text-zinc-500 font-medium">{percent}%</span>
-              </div>
-
-              <div className="w-full bg-zinc-100 rounded-full h-2 overflow-hidden">
-                <motion.div
-                  className={`h-2 rounded-full ${
-                    isExceeded ? "bg-rose-500" : isWarning ? "bg-amber-500" : "bg-zinc-900"
-                  }`}
-                  initial={{ width: "0%" }}
-                  animate={{ width: `${Math.min(percent, 100)}%` }}
-                  transition={{ duration: 0.5, ease: "easeOut" }}
-                />
-              </div>
-
-              <div className="flex justify-between text-[11px] text-zinc-500 pt-1">
-                <span>{t.budget.remainingLabel}</span>
-                <span className="font-bold text-zinc-800">
-                  ${Math.max(b.allocated - b.spent, 0).toFixed(2)}
-                </span>
+              <div className="pt-2 border-t border-zinc-100 flex items-baseline justify-between">
+                <div>
+                  <span className="text-[10px] text-zinc-400 block">Gastado</span>
+                  <span className={`text-sm font-bold ${isOver ? "text-rose-600" : "text-zinc-950"}`}>
+                    ${b.spent.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className="text-[10px] text-zinc-400 block">{t.budget.assignedLimit || "Límite"}</span>
+                  <span className="text-sm font-bold text-zinc-500">
+                    ${b.allocated.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
               </div>
             </motion.div>
           );
         })}
 
         {budgets.length === 0 && (
-          <div className="col-span-full py-16 text-center bg-white rounded-3xl border border-zinc-200/80 p-8 space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-zinc-100 text-zinc-400 flex items-center justify-center mx-auto">
+          <div className="col-span-full bg-white p-12 rounded-3xl border border-zinc-200 text-center space-y-3">
+            <div className="w-12 h-12 rounded-2xl bg-zinc-100 flex items-center justify-center mx-auto text-zinc-400">
               <PieChart className="w-6 h-6" />
             </div>
-            <div className="text-sm font-bold text-zinc-900">Sin límites presupuestarios definidos</div>
-            <p className="text-xs text-zinc-400 max-w-sm mx-auto">
-              Define topes de gasto por categoría para recibir alertas antes de sobrepasar tu presupuesto.
+            <h3 className="font-bold text-zinc-900 text-sm">No tienes categorías presupuestadas</h3>
+            <p className="text-xs text-zinc-500 max-w-sm mx-auto">
+              Define límites mensuales para tus gastos y recibe alertas preventivas cuando alcances el 80% de consumo.
             </p>
             <button
               type="button"
               onClick={openCreateModal}
-              className="inline-flex items-center gap-1.5 py-2.5 px-4 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer mt-2"
+              className="py-2 px-4 rounded-xl bg-zinc-950 text-white text-xs font-semibold hover:bg-zinc-800 transition-all cursor-pointer"
             >
-              <Plus className="w-4 h-4" />
-              <span>{t.budget.adjustLimit}</span>
+              Crear primer presupuesto
             </button>
           </div>
         )}
       </div>
 
-      {/* Add / Edit Budget Modal */}
+      {/* Modal Crear / Editar Presupuesto */}
       <AnimatePresence>
         {isModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
@@ -298,55 +431,65 @@ export default function BudgetView() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-md bg-white rounded-3xl border border-zinc-200 p-6 shadow-xl space-y-4 max-h-[90vh] overflow-y-auto"
+              className="w-full max-w-sm bg-white rounded-3xl border border-zinc-200 shadow-2xl p-6 space-y-4"
             >
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-bold text-zinc-950">
-                  {editingBudget ? "Editar Límite Presupuestario" : t.budget.modalTitle}
-                </h3>
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-zinc-100 flex items-center justify-center text-zinc-900">
+                    <PieChart className="w-4 h-4" />
+                  </div>
+                  <h3 className="font-bold text-zinc-950 text-sm">
+                    {editingBudget ? "Editar Límite de Presupuesto" : t.budget.modalTitle}
+                  </h3>
+                </div>
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="p-1 rounded-lg text-zinc-400 hover:text-zinc-700 cursor-pointer"
+                  className="p-1 rounded-lg text-zinc-400 hover:text-zinc-900 transition-colors cursor-pointer"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-4 h-4" />
                 </button>
               </div>
 
               <form onSubmit={handleSaveBudget} className="space-y-4">
+                {/* Category Select */}
                 <div>
                   <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
-                    {t.budget.category} (Misma lista de 25 categorías)
+                    {t.budget.category}
                   </label>
                   <select
                     value={newCat}
                     onChange={(e) => setNewCat(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 bg-white text-zinc-900 text-xs focus:outline-none focus:border-zinc-900 transition-colors shadow-2xs cursor-pointer truncate"
+                    className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 bg-white text-zinc-900 text-xs focus:outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 transition-colors shadow-2xs"
                   >
-                    {EXPENSE_CATEGORIES.map((catName) => (
-                      <option key={catName} value={catName}>
-                        {catName}
+                    {EXPENSE_CATEGORIES.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
                       </option>
                     ))}
                   </select>
                 </div>
 
+                {/* Allocated Amount */}
                 <div>
                   <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
-                    {t.budget.monthlyLimit}
+                    {t.budget.monthlyLimit} ($)
                   </label>
                   <input
                     type="number"
-                    step="1"
+                    step="0.01"
                     required
                     value={newAllocated}
                     onChange={(e) => setNewAllocated(e.target.value)}
-                    placeholder="0.00"
+                    placeholder="Ej. 500.00"
                     className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 bg-white text-zinc-900 text-xs placeholder:text-zinc-400 focus:outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 transition-colors shadow-2xs"
                   />
+                  <span className="text-[10px] text-zinc-400 mt-1 block">
+                    Este tope se renovará automáticamente cada mes.
+                  </span>
                 </div>
 
-                <div className="flex items-center justify-between gap-2.5 pt-3 border-t border-zinc-100">
+                <div className="flex items-center justify-between gap-2.5 pt-2">
                   {editingBudget ? (
                     <button
                       type="button"
@@ -366,13 +509,13 @@ export default function BudgetView() {
                       onClick={() => setIsModalOpen(false)}
                       className="py-2.5 px-4 rounded-xl border border-zinc-200 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 cursor-pointer"
                     >
-                      {t.accounts.cancel}
+                      Cancelar
                     </button>
                     <button
                       type="submit"
                       className="py-2.5 px-4 rounded-xl bg-zinc-950 text-xs font-semibold text-white hover:bg-zinc-800 cursor-pointer"
                     >
-                      {editingBudget ? "Guardar Cambios" : t.budget.saveLimit}
+                      {editingBudget ? "Guardar Cambios" : t.budget.saveLimit || "Guardar Presupuesto"}
                     </button>
                   </div>
                 </div>

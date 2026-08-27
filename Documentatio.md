@@ -435,6 +435,18 @@
   - Implementado `inMemoryDispatchedIds` y asignación de `tag` estricto por ID para bloquear cualquier intento concurrente y asegurar que el sistema operativo colapse e impida emitir dos notificaciones idénticas.
 - **Despliegue a Producción**: Verificado con `npx tsc --noEmit` (0 errores) y desplegado en Vercel (`READY`).
 
+### 2026-08-27 - Ciclo Mensual Recurrente de Presupuestos y Selector de Mes
+- **Selector de Período Mensual (`BudgetView.tsx`)**:
+  - Incorporado control interactivo para navegar entre meses (`<` y `>`) con indicador visual de fecha activa (ej. `Agosto 2026`) y botón de retorno rápido a "Mes actual".
+  - El consumo acumulado de cada categoría (`spent`) se calcula dinámicamente según los gastos realizados en el mes y año seleccionados.
+- **Restablecimiento Automático Mensual**:
+  - Los topes y límites presupuestarios asignados se preservan de forma permanente mes a mes.
+  - Al iniciar cada nuevo mes (día 1), el contador de consumo acumulado vuelve automáticamente a **$0.00** para todo el período nuevo.
+- **Alertas de Presupuesto del Mes Actual (`notifications.py`)**:
+  - La comprobación automática del umbral del 80% evalúa estrictamente las transacciones pertenecientes al mes en curso.
+- **Despliegue a Producción**: Verificado con `npx tsc --noEmit` (0 errores) y desplegado en Vercel (`READY`).
+
+
 
 
 

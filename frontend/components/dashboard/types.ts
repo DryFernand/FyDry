@@ -16,6 +16,7 @@ export interface TransactionItem {
   amount: number;
   type: "expense" | "income";
   date: string;
+  createdAt?: string;
 }
 
 export interface MovementItem {

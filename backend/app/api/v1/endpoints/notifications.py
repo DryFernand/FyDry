@@ -496,14 +496,22 @@ def check_financial_alerts(
                     db.add(notif)
                     new_alerts.append(notif)
 
-    # 2. Evaluar Presupuestos > 80%
+    # 2. Evaluar Presupuestos > 80% (Para el mes calendario actual)
     budgets = db.query(Budget).filter(Budget.user_id == current_user.id).all()
     expenses = db.query(Expense).filter(Expense.user_id == current_user.id).all()
+    current_year = today.year
+    current_month = today.month
+
+    monthly_expenses = [
+        e for e in expenses
+        if (e.created_at and e.created_at.year == current_year and e.created_at.month == current_month)
+        or not e.created_at
+    ]
 
     for b in budgets:
         if b.allocated_amount > 0:
-            # Calcular gasto en esta categoría
-            cat_expenses = [e.amount for e in expenses if e.category.strip().lower() == b.category.strip().lower()]
+            # Calcular gasto en esta categoría durante el mes actual
+            cat_expenses = [e.amount for e in monthly_expenses if e.category.strip().lower() == b.category.strip().lower()]
             spent = sum(cat_expenses)
             pct = (spent / b.allocated_amount) * 100.0
 
