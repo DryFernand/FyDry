@@ -31,32 +31,37 @@ import {
 
 interface NotificationBellProps {
   onOpenDraft: (item: NotificationItem) => void;
+  notifications?: NotificationItem[];
+  onRefresh?: () => void;
 }
 
-export default function NotificationBell({ onOpenDraft }: NotificationBellProps) {
-  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+export default function NotificationBell({
+  onOpenDraft,
+  notifications: externalNotifications,
+  onRefresh,
+}: NotificationBellProps) {
+  const [internalNotifications, setInternalNotifications] = useState<NotificationItem[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  const notifications = externalNotifications || internalNotifications;
+
   const loadNotificationsAndCheckAlerts = async () => {
-    // 1. Chequeo de alertas automáticas (corte, pago, sobregiro, saldo mínimo, presupuesto >80%)
+    if (externalNotifications) {
+      if (onRefresh) onRefresh();
+      return;
+    }
+    // Chequeo de alertas automáticas
     const alerts = await checkFinancialAlertsApi();
     const activeAlerts = alerts.filter((n) => !n.isProcessed);
-    setNotifications(activeAlerts);
-
-    // 2. Disparar notificaciones nativas a PC / Teléfono
+    setInternalNotifications(activeAlerts);
     dispatchNativeAlerts(activeAlerts);
   };
 
   useEffect(() => {
-    loadNotificationsAndCheckAlerts();
-    window.addEventListener("fydry_storage_updated", loadNotificationsAndCheckAlerts);
-
-    // Auto-solicitar permiso web de notificaciones suavemente
-    if (typeof window !== "undefined" && "Notification" in window) {
-      if (Notification.permission === "default") {
-        requestSystemNotificationPermission();
-      }
+    if (!externalNotifications) {
+      loadNotificationsAndCheckAlerts();
+      window.addEventListener("fydry_storage_updated", loadNotificationsAndCheckAlerts);
     }
 
     const handleClickOutside = (e: MouseEvent) => {
@@ -67,26 +72,35 @@ export default function NotificationBell({ onOpenDraft }: NotificationBellProps)
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
-      window.removeEventListener("fydry_storage_updated", loadNotificationsAndCheckAlerts);
+      if (!externalNotifications) {
+        window.removeEventListener("fydry_storage_updated", loadNotificationsAndCheckAlerts);
+      }
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, []);
+  }, [externalNotifications]);
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   const handleOpenDraft = async (item: NotificationItem) => {
     await markNotificationReadApi(item.id);
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === item.id ? { ...n, isRead: true } : n))
-    );
+    if (!externalNotifications) {
+      setInternalNotifications((prev) =>
+        prev.map((n) => (n.id === item.id ? { ...n, isRead: true } : n))
+      );
+    }
     setIsOpen(false);
     onOpenDraft(item);
   };
 
   const handleDismiss = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
+    if (!externalNotifications) {
+      setInternalNotifications((prev) => prev.filter((n) => n.id !== id));
+    }
     await deleteNotificationApi(id);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("fydry_storage_updated"));
+    }
   };
 
   const handleEnableSystemNotifications = async () => {

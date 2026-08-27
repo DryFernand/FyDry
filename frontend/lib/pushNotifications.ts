@@ -4,35 +4,36 @@ import { NotificationItem } from "@/components/dashboard/types";
 
 const SENT_ALERTS_STORAGE_KEY = "fydry_sent_native_alert_ids";
 
+// Set en memoria para deduplicación instantánea síncrona
+const inMemoryDispatchedIds = new Set<string>();
+
 /**
  * Obtiene el conjunto de IDs de alertas que ya fueron emitidas en este dispositivo.
  */
 function getDispatchedAlertIds(): Set<string> {
-  if (typeof window === "undefined") return new Set();
+  if (typeof window === "undefined") return inMemoryDispatchedIds;
   try {
     const raw = localStorage.getItem(SENT_ALERTS_STORAGE_KEY);
     if (raw) {
       const arr = JSON.parse(raw);
       if (Array.isArray(arr)) {
-        return new Set(arr);
+        arr.forEach((id) => inMemoryDispatchedIds.add(id));
       }
     }
   } catch (err) {
     console.warn("Error reading dispatched alert IDs:", err);
   }
-  return new Set();
+  return inMemoryDispatchedIds;
 }
 
 /**
  * Guarda el ID de una alerta para que nunca más se vuelva a emitir en este dispositivo.
  */
 function saveDispatchedAlertId(id: string) {
+  inMemoryDispatchedIds.add(id);
   if (typeof window === "undefined") return;
   try {
-    const ids = getDispatchedAlertIds();
-    ids.add(id);
-    // Limitar el tamaño a las últimas 200 alertas
-    const arr = Array.from(ids).slice(-200);
+    const arr = Array.from(inMemoryDispatchedIds).slice(-200);
     localStorage.setItem(SENT_ALERTS_STORAGE_KEY, JSON.stringify(arr));
   } catch (err) {
     console.warn("Error saving dispatched alert ID:", err);
@@ -83,9 +84,9 @@ export async function requestSystemNotificationPermission(): Promise<boolean> {
 }
 
 /**
- * Dispara una notificación nativa del sistema operativo en PC o Celular.
+ * Dispara una notificación nativa del sistema operativo en PC o Celular con tag único anti-duplicado.
  */
-export function triggerSystemNotification(title: string, body: string, tag?: string): boolean {
+export function triggerSystemNotification(title: string, body: string, tag: string): boolean {
   if (typeof window === "undefined" || !("Notification" in window)) {
     return false;
   }
@@ -95,6 +96,8 @@ export function triggerSystemNotification(title: string, body: string, tag?: str
   }
 
   try {
+    const notifTag = tag || `fydry-${title.replace(/\s+/g, "_")}`;
+
     // Si hay un Service Worker registrado, usar showNotification para soporte con web cerrada y móvil
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.ready.then((registration) => {
@@ -102,7 +105,7 @@ export function triggerSystemNotification(title: string, body: string, tag?: str
           body,
           icon: "/favicon.ico",
           badge: "/favicon.ico",
-          tag: tag || `fydry-${Date.now()}`,
+          tag: notifTag,
           vibrate: [200, 100, 200],
         } as NotificationOptions);
       });
@@ -113,7 +116,7 @@ export function triggerSystemNotification(title: string, body: string, tag?: str
     new Notification(title, {
       body,
       icon: "/favicon.ico",
-      tag: tag || `fydry-${Date.now()}`,
+      tag: notifTag,
     });
     return true;
   } catch (err) {
@@ -137,6 +140,7 @@ export function dispatchNativeAlerts(notifications: NotificationItem[]) {
   unreadAlerts.forEach((item) => {
     // Si ya fue despachada anteriormente, no volver a disparar
     if (!dispatchedIds.has(item.id)) {
+      // Bloquear inmediatamente en memoria antes del dispatch
       saveDispatchedAlertId(item.id);
       triggerSystemNotification(item.title, item.message, item.id);
     }

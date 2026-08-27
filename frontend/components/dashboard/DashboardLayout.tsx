@@ -31,8 +31,9 @@ import DebtsView from "./views/DebtsView";
 import ReportsView from "./views/ReportsView";
 import SettingsModal from "./SettingsModal";
 import NotificationBell from "./NotificationBell";
-import { apiRequest } from "@/lib/api";
+import { apiRequest, checkFinancialAlertsApi } from "@/lib/api";
 import { useLanguage } from "@/context/LanguageContext";
+import { dispatchNativeAlerts } from "@/lib/pushNotifications";
 
 export default function DashboardLayout() {
   const router = useRouter();
@@ -42,6 +43,7 @@ export default function DashboardLayout() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [currentUser, setCurrentUser] = useState<{
     id?: string;
     full_name?: string;
@@ -70,6 +72,24 @@ export default function DashboardLayout() {
     { id: "debts" as DashboardTab, label: t.nav.debts, icon: ShieldAlert },
     { id: "reports" as DashboardTab, label: t.nav.reports, icon: FileText },
   ];
+
+  // Carga centralizada de alertas y despacho único de notificaciones push
+  const loadGlobalNotifications = async () => {
+    try {
+      const alerts = await checkFinancialAlertsApi();
+      const active = alerts.filter((n) => !n.isProcessed);
+      setNotifications(active);
+      dispatchNativeAlerts(active);
+    } catch (err) {
+      console.warn("Error loading notifications:", err);
+    }
+  };
+
+  useEffect(() => {
+    loadGlobalNotifications();
+    window.addEventListener("fydry_storage_updated", loadGlobalNotifications);
+    return () => window.removeEventListener("fydry_storage_updated", loadGlobalNotifications);
+  }, []);
 
   // Auth Guard
   useEffect(() => {
@@ -164,129 +184,121 @@ export default function DashboardLayout() {
     );
   }
 
-  const userInitials =
-    currentUser?.full_name
-      ?.split(" ")
-      .map((n) => n[0])
-      .join("")
-      .substring(0, 2)
-      .toUpperCase() || "FD";
-
   return (
-    <div className="min-h-screen bg-zinc-50/60 flex flex-col md:flex-row text-zinc-900 selection:bg-zinc-900 selection:text-white">
-      {/* Settings Modal */}
-      <SettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-      />
-
-      {/* Desktop Sidebar */}
+    <div className="min-h-screen bg-zinc-50/60 flex flex-col md:flex-row antialiased font-sans text-zinc-900">
+      {/* Desktop Left Sidebar */}
       <motion.aside
         animate={{ width: isSidebarCollapsed ? 80 : 256 }}
         transition={{ duration: 0.2, ease: "easeInOut" }}
-        className="hidden md:flex flex-col justify-between bg-white border-r border-zinc-200/80 p-4 sticky top-0 h-screen z-30 select-none shrink-0 print:hidden"
+        className="hidden md:flex flex-col border-r border-zinc-200/80 bg-white min-h-screen p-4 sticky top-0 z-20 print:hidden relative"
       >
-        <div className="space-y-6">
-          {/* Brand Header */}
-          <div className="flex items-center justify-between px-2 pt-2">
-            <div className="flex items-center gap-3 overflow-hidden">
-              <div className="w-8 h-8 rounded-xl bg-zinc-950 text-white flex items-center justify-center font-bold text-xs shadow-xs shrink-0">
-                FD
+        {/* Toggle Collapse Button */}
+        <button
+          type="button"
+          onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+          className="absolute -right-3 top-7 w-6 h-6 rounded-full bg-white border border-zinc-200 shadow-xs flex items-center justify-center text-zinc-500 hover:text-zinc-950 hover:border-zinc-300 transition-colors z-30 cursor-pointer"
+          title={isSidebarCollapsed ? "Expandir menú" : "Colapsar menú"}
+        >
+          {isSidebarCollapsed ? (
+            <ChevronRight className="w-3.5 h-3.5" />
+          ) : (
+            <ChevronLeft className="w-3.5 h-3.5" />
+          )}
+        </button>
+
+        {/* Brand Header */}
+        <div className={`flex items-center gap-3 px-2 py-4 mb-6 ${isSidebarCollapsed ? "justify-center" : ""}`}>
+          <div className="w-9 h-9 rounded-2xl bg-zinc-950 text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
+            FD
+          </div>
+          {!isSidebarCollapsed && (
+            <div className="flex flex-col min-w-0">
+              <span className="font-bold text-sm tracking-tight text-zinc-950 truncate">
+                {t.brand.name}
+              </span>
+              <span className="text-[10px] text-zinc-400 font-medium">
+                {t.brand.tagline}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Navigation Items */}
+        <nav className="space-y-1 flex-1">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => {
+                  setActiveTab(item.id);
+                  setActiveDraft(null);
+                }}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-xs font-semibold transition-all group cursor-pointer ${
+                  isSidebarCollapsed ? "justify-center px-0" : ""
+                } ${
+                  isActive
+                    ? "bg-zinc-950 text-white shadow-xs"
+                    : "text-zinc-500 hover:text-zinc-950 hover:bg-zinc-100/70"
+                }`}
+                title={isSidebarCollapsed ? item.label : undefined}
+              >
+                <Icon
+                  className={`w-4 h-4 shrink-0 transition-transform group-hover:scale-105 ${
+                    isActive ? "text-white" : "text-zinc-400 group-hover:text-zinc-950"
+                  }`}
+                />
+                {!isSidebarCollapsed && <span className="truncate">{item.label}</span>}
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* User Card & Settings */}
+        <div className="pt-4 border-t border-zinc-100 space-y-2">
+          {/* Settings Trigger */}
+          <button
+            type="button"
+            onClick={() => setIsSettingsOpen(true)}
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-2xl text-xs font-semibold text-zinc-500 hover:text-zinc-950 hover:bg-zinc-100/70 transition-all cursor-pointer ${
+              isSidebarCollapsed ? "justify-center px-0" : ""
+            }`}
+            title={isSidebarCollapsed ? t.nav.settings : undefined}
+          >
+            <Settings className="w-4 h-4 shrink-0 text-zinc-400" />
+            {!isSidebarCollapsed && <span className="truncate">{t.nav.settings}</span>}
+          </button>
+
+          {/* User Profile Mini */}
+          <div
+            className={`p-2.5 rounded-2xl bg-zinc-50 border border-zinc-200/50 flex items-center gap-3 ${
+              isSidebarCollapsed ? "justify-center" : "justify-between"
+            }`}
+          >
+            <div className={`flex items-center gap-2.5 min-w-0 ${isSidebarCollapsed ? "hidden" : ""}`}>
+              <div className="w-7 h-7 rounded-xl bg-zinc-200 text-zinc-700 flex items-center justify-center font-bold text-[11px] shrink-0">
+                {currentUser?.full_name ? currentUser.full_name.charAt(0).toUpperCase() : "U"}
               </div>
-              {!isSidebarCollapsed && (
-                <div className="truncate font-bold text-base tracking-tight text-zinc-950">
-                  {t.brand.name}
-                </div>
-              )}
+              <div className="flex flex-col min-w-0">
+                <span className="text-xs font-semibold text-zinc-900 truncate">
+                  {currentUser?.full_name || "Usuario"}
+                </span>
+                <span className="text-[10px] text-zinc-400 truncate">
+                  {currentUser?.email || "usuario@fydry.io"}
+                </span>
+              </div>
             </div>
 
             <button
               type="button"
-              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-              className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 transition-colors cursor-pointer"
-              title={isSidebarCollapsed ? "Expandir" : "Colapsar"}
+              onClick={handleLogout}
+              className="p-1.5 rounded-xl text-zinc-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer shrink-0"
+              title={t.nav.logout}
             >
-              {isSidebarCollapsed ? (
-                <ChevronRight className="w-4 h-4" />
-              ) : (
-                <ChevronLeft className="w-4 h-4" />
-              )}
+              <LogOut className="w-3.5 h-3.5" />
             </button>
-          </div>
-
-          {/* Navigation Links */}
-          <nav className="space-y-1">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = activeTab === item.id;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => {
-                    setActiveTab(item.id);
-                    setActiveDraft(null);
-                  }}
-                  title={isSidebarCollapsed ? item.label : undefined}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-xs font-semibold transition-all cursor-pointer ${
-                    isActive
-                      ? "bg-zinc-950 text-white shadow-xs"
-                      : "text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100/80"
-                  } ${isSidebarCollapsed ? "justify-center px-2" : ""}`}
-                >
-                  <Icon className="w-4 h-4 shrink-0" />
-                  {!isSidebarCollapsed && <span className="truncate">{item.label}</span>}
-                </button>
-              );
-            })}
-          </nav>
-        </div>
-
-        {/* Bottom Sidebar: Settings, Logout & User Profile */}
-        <div className="pt-4 border-t border-zinc-100 space-y-1">
-          <button
-            type="button"
-            onClick={() => setIsSettingsOpen(true)}
-            title={isSidebarCollapsed ? t.nav.settings : undefined}
-            className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100 transition-colors cursor-pointer ${
-              isSidebarCollapsed ? "justify-center px-2" : ""
-            }`}
-          >
-            <Settings className="w-4 h-4 text-zinc-400 shrink-0" />
-            {!isSidebarCollapsed && <span className="truncate">{t.nav.settings}</span>}
-          </button>
-
-          <button
-            type="button"
-            onClick={handleLogout}
-            title={isSidebarCollapsed ? t.nav.logout : undefined}
-            className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer ${
-              isSidebarCollapsed ? "justify-center px-2" : ""
-            }`}
-          >
-            <LogOut className="w-4 h-4 text-rose-500 shrink-0" />
-            {!isSidebarCollapsed && <span className="truncate">{t.nav.logout}</span>}
-          </button>
-
-          {/* User badge */}
-          <div
-            className={`pt-3 flex items-center gap-3 px-1 ${
-              isSidebarCollapsed ? "justify-center" : ""
-            }`}
-          >
-            <div className="w-8 h-8 rounded-full bg-zinc-100 border border-zinc-200 text-zinc-900 font-bold text-xs flex items-center justify-center shrink-0">
-              {userInitials}
-            </div>
-            {!isSidebarCollapsed && (
-              <div className="overflow-hidden">
-                <div className="text-xs font-bold text-zinc-900 truncate">
-                  {currentUser?.full_name || "Fernando Gómez"}
-                </div>
-                <div className="text-[10px] text-zinc-400 truncate">
-                  {currentUser?.email || "daryfernand7@gmail.com"}
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </motion.aside>
@@ -302,7 +314,11 @@ export default function DashboardLayout() {
 
         <div className="flex items-center gap-2">
           {/* Campanita de Notificaciones Mobile */}
-          <NotificationBell onOpenDraft={handleOpenDraft} />
+          <NotificationBell
+            onOpenDraft={handleOpenDraft}
+            notifications={notifications}
+            onRefresh={loadGlobalNotifications}
+          />
 
           <button
             type="button"
@@ -375,7 +391,11 @@ export default function DashboardLayout() {
         {/* Desktop Top Bar with NotificationBell */}
         <div className="hidden md:flex items-center justify-end px-6 lg:px-8 pt-6 pb-2 print:hidden">
           <div className="flex items-center gap-3">
-            <NotificationBell onOpenDraft={handleOpenDraft} />
+            <NotificationBell
+              onOpenDraft={handleOpenDraft}
+              notifications={notifications}
+              onRefresh={loadGlobalNotifications}
+            />
           </div>
         </div>
 
@@ -388,28 +408,11 @@ export default function DashboardLayout() {
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.2 }}
             >
-              {activeTab === "home" && (
-                <DashboardHome onNavigate={(tab) => setActiveTab(tab)} />
-              )}
-              {activeTab === "movements" && (
-                <MovementsView
-                  initialDraft={activeDraft?.targetType === "movement" ? activeDraft : null}
-                  onClearDraft={() => setActiveDraft(null)}
-                />
-              )}
+              {activeTab === "home" && <DashboardHome onNavigate={(tab) => setActiveTab(tab)} />}
+              {activeTab === "movements" && <MovementsView initialDraft={activeDraft?.targetType === "movement" ? activeDraft : null} onClearDraft={() => setActiveDraft(null)} />}
               {activeTab === "accounts" && <AccountsView />}
-              {activeTab === "expenses" && (
-                <ExpensesView
-                  initialDraft={activeDraft?.targetType === "expense" ? activeDraft : null}
-                  onClearDraft={() => setActiveDraft(null)}
-                />
-              )}
-              {activeTab === "incomes" && (
-                <IncomesView
-                  initialDraft={activeDraft?.targetType === "income" ? activeDraft : null}
-                  onClearDraft={() => setActiveDraft(null)}
-                />
-              )}
+              {activeTab === "expenses" && <ExpensesView initialDraft={activeDraft?.targetType === "expense" ? activeDraft : null} onClearDraft={() => setActiveDraft(null)} />}
+              {activeTab === "incomes" && <IncomesView initialDraft={activeDraft?.targetType === "income" ? activeDraft : null} onClearDraft={() => setActiveDraft(null)} />}
               {activeTab === "budget" && <BudgetView />}
               {activeTab === "debts" && <DebtsView />}
               {activeTab === "reports" && <ReportsView />}
@@ -417,6 +420,12 @@ export default function DashboardLayout() {
           </AnimatePresence>
         </main>
       </div>
+
+      {/* Global Settings Modal */}
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+      />
     </div>
   );
 }

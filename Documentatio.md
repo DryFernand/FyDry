@@ -427,6 +427,15 @@
     - **Backend**: Rechazo de seguridad con código `HTTP 400 Bad Request`.
 - **Despliegue a Producción**: Verificado con `npx tsc --noEmit` (0 errores) y desplegado en Vercel (`READY`).
 
+### 2026-08-27 - Corrección de Doble Despacho de Notificaciones Push y Alertas
+- **Centralización en `DashboardLayout.tsx`**:
+  - Se identificó que la presencia de `<NotificationBell />` en el header móvil y en el header desktop provocaba la ejecución paralela y simultánea de dos efectos de despacho de alertas.
+  - Se centralizó el estado `notifications` y la llamada `dispatchNativeAlerts` a un único despachador global en `DashboardLayout`, pasando el estado a los componentes hijos como observadores.
+- **Bloqueo Síncrono en Memoria (`pushNotifications.ts`)**:
+  - Implementado `inMemoryDispatchedIds` y asignación de `tag` estricto por ID para bloquear cualquier intento concurrente y asegurar que el sistema operativo colapse e impida emitir dos notificaciones idénticas.
+- **Despliegue a Producción**: Verificado con `npx tsc --noEmit` (0 errores) y desplegado en Vercel (`READY`).
+
+
 
 
 
