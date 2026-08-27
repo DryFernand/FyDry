@@ -410,6 +410,14 @@
   - Creado y registrado el Service Worker que escucha eventos `push` y `notificationclick` para recibir alertas cuando la pestaña o el navegador estén cerrados en teléfonos móviles (Android, iOS PWA) y computadoras, enfocando o abriendo automáticamente la app al pulsar la notificación.
 - **Despliegue a Producción**: Verificado con `npx tsc --noEmit` (0 errores) y desplegado en Vercel (`READY`).
 
+### 2026-08-27 - Corrección de Persistencia en el Descarte de Notificaciones y Alertas
+- **Descarte Permanente sin Regeneración (`notifications.py` & PostgreSQL)**:
+  - Añadida la columna `is_dismissed` a la tabla `pending_notifications`.
+  - Cuando el usuario elimina o descarta una alerta, se marca permanentemente como `is_dismissed = "true"`.
+  - El evaluador de alertas (`check_financial_alerts`) verifica los identificadores descartados para que al refrescar la página o volver a cargar el Dashboard **no se vuelvan a generar ni reaparecer** en la bandeja.
+- **Despliegue a Producción**: Verificado con `npx tsc --noEmit` (0 errores) y desplegado en Vercel (`READY`).
+
+
 
 
 

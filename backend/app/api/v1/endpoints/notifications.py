@@ -118,9 +118,11 @@ def get_notifications(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Retrieve all pending notifications & draft transactions."""
+    """Retrieve all active pending notifications & draft transactions."""
     notifs = db.query(PendingNotification).filter(
-        PendingNotification.user_id == current_user.id
+        PendingNotification.user_id == current_user.id,
+        PendingNotification.is_dismissed != "true",
+        PendingNotification.is_processed != "true",
     ).order_by(PendingNotification.created_at.desc()).all()
 
     result = []
@@ -216,7 +218,7 @@ def delete_notification(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Dismiss and delete a pending notification."""
+    """Dismiss and delete a pending notification without allowing it to regenerate."""
     notif = db.query(PendingNotification).filter(
         PendingNotification.id == notif_id,
         PendingNotification.user_id == current_user.id,
@@ -224,9 +226,10 @@ def delete_notification(
     if not notif:
         raise HTTPException(status_code=404, detail="Notificación no encontrada.")
 
-    db.delete(notif)
+    notif.is_dismissed = "true"
+    notif.is_read = "true"
     db.commit()
-    return {"status": "success", "message": "Notificación descartada."}
+    return {"status": "success", "message": "Notificación descartada permanentemente."}
 
 
 # ==========================================
@@ -526,9 +529,11 @@ def check_financial_alerts(
         for a in new_alerts:
             db.refresh(a)
 
-    # Devolver todas las notificaciones pendientes actualizadas
+    # Devolver todas las notificaciones pendientes activas (no descartadas ni procesadas)
     all_notifs = db.query(PendingNotification).filter(
-        PendingNotification.user_id == current_user.id
+        PendingNotification.user_id == current_user.id,
+        PendingNotification.is_dismissed != "true",
+        PendingNotification.is_processed != "true",
     ).order_by(PendingNotification.created_at.desc()).all()
 
     result = []

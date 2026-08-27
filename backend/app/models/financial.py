@@ -135,6 +135,7 @@ class PendingNotification(Base, TimestampMixin):
     draft_data = Column(String(2000), nullable=False)  # JSON string con datos precargados
     is_read = Column(String(10), default="false", nullable=False)  # "true" | "false"
     is_processed = Column(String(10), default="false", nullable=False)  # "true" | "false"
+    is_dismissed = Column(String(10), default="false", nullable=False)  # "true" | "false"
     email_message_id = Column(String(255), nullable=True, index=True)
 
     user = relationship("User", backref="notifications")
