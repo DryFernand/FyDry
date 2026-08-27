@@ -321,6 +321,18 @@
   - Métricas de volumen transferido y cuentas involucradas.
 - **Despliegue a Producción**: Compilado con `npx tsc --noEmit` (0 errores) y desplegado con éxito en Vercel.
 
+### 2026-08-27 - Cuentas de Ahorros e Impuesto/Comisión con Integración a Presupuestos en Movimientos
+- **Nuevo Tipo de Cuenta: Ahorros (`savings`)**:
+  - Añadido tipo `savings` ("Ahorros / Inversión") en modelos de backend y componentes de frontend con icono `PiggyBank`, badge distintivo y métrica agregada en `AccountsView.tsx`.
+- **Campo de Impuesto / Comisión en Movimientos (`tax_amount`)**:
+  - La cuenta origen es debitada por `amount + tax_amount`, mientras que la cuenta destino recibe exactamente `amount`.
+  - **Integración con Presupuesto de Impuestos**:
+    - Si el usuario tiene un presupuesto creado en la categoría `Impuestos` (o `Impuestos y Comisiones` / `Taxes`) con límite asignado (`allocated_amount > 0`), se registra automáticamente el asiento de gasto correspondiente en `expenses` para computar contra el límite presupuestario y generar alertas.
+    - Si no tiene un presupuesto con límite definido para impuestos, no se crea asiento en presupuestos pero el impuesto **sí se debita de la cuenta de origen** sumado al total transferido.
+  - Al editar o eliminar un movimiento, ambos saldos y el asiento presupuestario asociado se restauran automáticamente.
+- **Despliegue a Producción**: Verificado con `npx tsc --noEmit` (0 errores) y desplegado en Vercel (`READY`).
+
+
 
 
 
