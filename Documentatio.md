@@ -446,6 +446,22 @@
   - La comprobación automática del umbral del 80% evalúa estrictamente las transacciones pertenecientes al mes en curso.
 - **Despliegue a Producción**: Verificado con `npx tsc --noEmit` (0 errores) y desplegado en Vercel (`READY`).
 
+### 2026-08-27 - Módulo de Pago y Abono a Deudas con Integración Contable y Presupuestaria
+- **Acción "Pagar / Abonar" en Deudas (`DebtsView.tsx`)**:
+  - Incorporado botón de pago en cada compromiso de deuda con modal inteligente.
+  - Opciones de pago rápido: *Pagar Cuota Mensual*, *Liquidar Total* o ingresar un *Monto personalizado*.
+  - Selector de cuenta de origen mostrando saldo disponible en tiempo real.
+- **Doble Impacto Contable y Amortización (`financial.py`)**:
+  - Endpoint dedicado `POST /api/v1/debts/{debt_id}/pay`.
+  - Valida fondos y cupo de sobregiro antes de debitar el dinero de la cuenta seleccionada.
+  - Reduce automáticamente el saldo pendiente de la deuda (`remaining_amount`).
+- **Asiento Automático en Presupuesto y Gastos**:
+  - Genera automáticamente un gasto en la categoría **`"Pago de Deudas & Préstamos"`**, reflejándose en el presupuesto mensual del período actual y en el control de gastos.
+- **Categorías Financieras (`categories.ts`)**:
+  - Añadida la categoría oficial **`"Pago de Deudas & Préstamos"`** a las categorías de gastos y presupuestos.
+- **Despliegue a Producción**: Verificado con `npx tsc --noEmit` (0 errores) y desplegado en Vercel (`READY`).
+
+
 
 
 

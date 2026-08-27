@@ -759,6 +759,44 @@ export async function deleteDebtApi(id: string): Promise<void> {
   }
 }
 
+export async function payDebtApi(
+  id: string,
+  payload: {
+    amount: number;
+    account_id?: string;
+    account_name?: string;
+    date?: string;
+    description?: string;
+  }
+): Promise<DebtItem | null> {
+  try {
+    const res = await fetch(`${getApiBase()}/debts/${id}/pay`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    });
+    if (res.ok) {
+      const resp = await res.json();
+      return {
+        id: resp.id,
+        creditor: resp.creditor,
+        type: resp.type,
+        totalAmount: resp.total_amount,
+        remainingAmount: resp.remaining_amount,
+        monthlyPayment: resp.monthly_payment,
+        interestRate: resp.interest_rate,
+        dueDate: resp.due_date,
+      };
+    } else {
+      const errJson = await res.json().catch(() => ({}));
+      throw new Error(errJson.detail || "Error al procesar el pago de la deuda.");
+    }
+  } catch (err) {
+    console.warn("Error paying debt on backend:", err);
+    throw err;
+  }
+}
+
 // ==========================================
 // COMPLETE ONBOARDING API
 // ==========================================

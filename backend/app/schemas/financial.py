@@ -223,6 +223,14 @@ class DebtResponse(BaseModel):
         from_attributes = True
 
 
+class DebtPaymentRequest(BaseModel):
+    amount: float
+    account_id: Optional[str] = None
+    account_name: Optional[str] = None
+    date: Optional[str] = None
+    description: Optional[str] = None
+
+
 # ==========================================
 # EMAIL SYNC & NOTIFICATIONS
 # ==========================================

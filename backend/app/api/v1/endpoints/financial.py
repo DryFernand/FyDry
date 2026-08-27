@@ -26,6 +26,7 @@ from app.schemas.financial import (
     DebtCreate,
     DebtUpdate,
     DebtResponse,
+    DebtPaymentRequest,
 )
 
 router = APIRouter()
@@ -764,6 +765,73 @@ def delete_debt(
     db.delete(debt)
     db.commit()
     return {"status": "success", "message": "Deuda eliminada exitosamente."}
+
+
+@router.post("/debts/{debt_id}/pay", response_model=DebtResponse)
+def pay_debt(
+    debt_id: str,
+    pay_in: DebtPaymentRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Pay/amortize a debt: deduct from chosen account, reduce remaining amount, and create expense under 'Pago de Deudas & Préstamos'."""
+    debt = db.query(Debt).filter(
+        Debt.id == debt_id, Debt.user_id == current_user.id
+    ).first()
+    if not debt:
+        raise HTTPException(status_code=404, detail="Deuda no encontrada.")
+
+    if pay_in.amount <= 0:
+        raise HTTPException(status_code=400, detail="El monto del abono debe ser mayor a 0.")
+
+    # Buscar cuenta de débito
+    account = None
+    if pay_in.account_id:
+        account = db.query(Account).filter(
+            Account.id == pay_in.account_id, Account.user_id == current_user.id
+        ).first()
+    if not account and pay_in.account_name:
+        account = db.query(Account).filter(
+            Account.user_id == current_user.id,
+            Account.name.ilike(pay_in.account_name.strip()),
+        ).first()
+
+    # Validar sobregiro si es tarjeta de crédito
+    if account and account.type == "credit_card":
+        available_funds = account.balance + (account.overdraft_limit or 0.0)
+        if pay_in.amount > available_funds:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Transacción rechazada: El monto del pago (${pay_in.amount:.2f}) supera el cupo disponible más el límite de sobregiro (${available_funds:.2f}) de la tarjeta '{account.name}'.",
+            )
+
+    # 1. Debitar de la cuenta
+    if account:
+        account.balance -= pay_in.amount
+
+    # 2. Amortizar deuda
+    payment_amount = pay_in.amount
+    debt.remaining_amount = max(0.0, float(debt.remaining_amount) - payment_amount)
+
+    # 3. Asentar gasto en categoría "Pago de Deudas & Préstamos" para impactar presupuestos y reportes
+    account_name = account.name if account else (pay_in.account_name or "Cuenta Bancaria")
+    exp_desc = pay_in.description or f"Abono a {debt.creditor} ({debt.type})"
+    exp_date = pay_in.date or "Hoy"
+
+    expense = Expense(
+        user_id=current_user.id,
+        account_id=account.id if account else None,
+        account_name=account_name,
+        category="Pago de Deudas & Préstamos",
+        description=exp_desc,
+        amount=payment_amount,
+        date=exp_date,
+    )
+    db.add(expense)
+
+    db.commit()
+    db.refresh(debt)
+    return debt
 
 
 # ==========================================

@@ -20,6 +20,7 @@ export const EXPENSE_CATEGORIES = [
   "Mantenimiento del Hogar",
   "Regalos & Celebraciones",
   "Impuestos & Tasas",
+  "Pago de Deudas & Préstamos",
   "Imprevistos & Emergencias",
   "Inversiones",
   "Ahorro Programado",
