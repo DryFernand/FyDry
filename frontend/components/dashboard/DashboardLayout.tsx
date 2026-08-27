@@ -192,56 +192,59 @@ export default function DashboardLayout() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50/60 flex flex-col md:flex-row antialiased font-sans text-zinc-900">
-      {/* Desktop Left Sidebar Estático y Fijo */}
-      <aside className="hidden md:flex flex-col w-64 min-w-[256px] max-w-[256px] border-r border-zinc-200/80 bg-white min-h-screen p-4 sticky top-0 z-20 print:hidden shrink-0">
-        {/* Brand Header */}
-        <div className="flex items-center gap-3 px-2 py-4 mb-6">
-          <div className="w-9 h-9 rounded-2xl bg-zinc-950 text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
-            FD
+    <div className="min-h-screen bg-zinc-50/60 antialiased font-sans text-zinc-900">
+      {/* Desktop Left Sidebar 100% Fijo, Estático y Siempre Visible Completo */}
+      <aside className="hidden md:flex flex-col w-64 min-w-[256px] max-w-[256px] border-r border-zinc-200/80 bg-white h-screen h-dvh p-4 fixed top-0 left-0 bottom-0 z-30 print:hidden shrink-0 justify-between overflow-hidden">
+        {/* Top: Brand Header & Nav */}
+        <div className="flex flex-col min-h-0 flex-1">
+          {/* Brand Header */}
+          <div className="flex items-center gap-3 px-2 py-3 mb-3">
+            <div className="w-9 h-9 rounded-2xl bg-zinc-950 text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
+              FD
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="font-bold text-sm tracking-tight text-zinc-950 truncate">
+                {t.brand.name}
+              </span>
+              <span className="text-[10px] text-zinc-400 font-medium">
+                {t.brand.tagline}
+              </span>
+            </div>
           </div>
-          <div className="flex flex-col min-w-0">
-            <span className="font-bold text-sm tracking-tight text-zinc-950 truncate">
-              {t.brand.name}
-            </span>
-            <span className="text-[10px] text-zinc-400 font-medium">
-              {t.brand.tagline}
-            </span>
-          </div>
+
+          {/* Navigation Items */}
+          <nav className="space-y-1 flex-1 overflow-y-auto pr-1">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => {
+                    setActiveTab(item.id);
+                    setActiveDraft(null);
+                  }}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-xs font-semibold transition-all group cursor-pointer ${
+                    isActive
+                      ? "bg-zinc-950 text-white shadow-xs"
+                      : "text-zinc-500 hover:text-zinc-950 hover:bg-zinc-100/70"
+                  }`}
+                >
+                  <Icon
+                    className={`w-4 h-4 shrink-0 transition-transform group-hover:scale-105 ${
+                      isActive ? "text-white" : "text-zinc-400 group-hover:text-zinc-950"
+                    }`}
+                  />
+                  <span className="truncate">{item.label}</span>
+                </button>
+              );
+            })}
+          </nav>
         </div>
 
-        {/* Navigation Items */}
-        <nav className="space-y-1 flex-1">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => {
-                  setActiveTab(item.id);
-                  setActiveDraft(null);
-                }}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-xs font-semibold transition-all group cursor-pointer ${
-                  isActive
-                    ? "bg-zinc-950 text-white shadow-xs"
-                    : "text-zinc-500 hover:text-zinc-950 hover:bg-zinc-100/70"
-                }`}
-              >
-                <Icon
-                  className={`w-4 h-4 shrink-0 transition-transform group-hover:scale-105 ${
-                    isActive ? "text-white" : "text-zinc-400 group-hover:text-zinc-950"
-                  }`}
-                />
-                <span className="truncate">{item.label}</span>
-              </button>
-            );
-          })}
-        </nav>
-
-        {/* User Card & Settings */}
-        <div className="pt-4 border-t border-zinc-100 space-y-2">
+        {/* Bottom: User Card & Settings Fijo */}
+        <div className="pt-3 border-t border-zinc-100 space-y-2 shrink-0">
           {/* Settings Trigger */}
           <button
             type="button"
@@ -363,8 +366,8 @@ export default function DashboardLayout() {
         )}
       </AnimatePresence>
 
-      {/* Main Content Area */}
-      <div className="flex-1 min-w-0 flex flex-col">
+      {/* Main Content Area con md:pl-64 para que el contenido fluya con el scroll de la página de forma totalmente independiente */}
+      <div className="flex-1 min-w-0 flex flex-col md:pl-64">
         {/* Desktop Top Bar with NotificationBell */}
         <div className="hidden md:flex items-center justify-end px-6 lg:px-8 pt-6 pb-2 print:hidden">
           <div className="flex items-center gap-3">

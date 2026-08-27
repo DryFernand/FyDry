@@ -470,6 +470,13 @@
   - La revalidación con el servidor se realiza en segundo plano protegida con un timeout de 3.5 segundos (`AbortController`), impidiendo que caídas de red o demoras atrapen al usuario en el spinner de carga.
 - **Despliegue a Producción**: Verificado con `npx tsc --noEmit` (0 errores) y desplegado en Vercel (`READY`).
 
+### 2026-08-27 - Menú Lateral Fijo y Bloqueo de Scroll en Sidebar
+- **Anclaje Fijo del Sidebar (`DashboardLayout.tsx`)**:
+  - Configurado el sidebar con posicionamiento `fixed top-0 left-0 bottom-0 h-screen w-64`, garantizando que permanezca 100% visible, estático e inmutable en su posición mientras el usuario hace scroll en páginas largas de transacciones, informes o presupuestos.
+  - El área de contenido principal se adaptó con `md:pl-64`, permitiendo un desplazamiento vertical fluido sin empujar ni desfasar el menú lateral.
+- **Despliegue a Producción**: Verificado con `npx tsc --noEmit` (0 errores) y desplegado en Vercel (`READY`).
+
+
 
 
 
