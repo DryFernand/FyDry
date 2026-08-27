@@ -1,5 +1,6 @@
 export type DashboardTab =
   | "home"
+  | "movements"
   | "accounts"
   | "expenses"
   | "incomes"

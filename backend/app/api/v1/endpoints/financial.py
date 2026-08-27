@@ -119,11 +119,33 @@ def create_transaction(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Create a new income or expense transaction."""
+    """Create a new income or expense transaction and apply balance to account."""
+    # Find matching account
+    account = None
+    if tx_in.account_id:
+        account = db.query(Account).filter(
+            Account.id == tx_in.account_id, Account.user_id == current_user.id
+        ).first()
+    if not account and tx_in.account_name:
+        account = db.query(Account).filter(
+            Account.user_id == current_user.id,
+            Account.name.ilike(tx_in.account_name.strip()),
+        ).first()
+
+    account_id = account.id if account else tx_in.account_id
+    account_name = account.name if account else (tx_in.account_name or "Efectivo Principal")
+
+    # Apply accounting balance effect
+    if account:
+        if tx_in.type == "income":
+            account.balance += tx_in.amount
+        elif tx_in.type == "expense":
+            account.balance -= tx_in.amount
+
     tx = Transaction(
         user_id=current_user.id,
-        account_id=tx_in.account_id,
-        account_name=tx_in.account_name,
+        account_id=account_id,
+        account_name=account_name,
         type=tx_in.type,
         category=tx_in.category,
         description=tx_in.description,
@@ -143,16 +165,55 @@ def update_transaction(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Update an existing transaction."""
+    """Update an existing transaction and recalculate account balance."""
     tx = db.query(Transaction).filter(
         Transaction.id == tx_id, Transaction.user_id == current_user.id
     ).first()
     if not tx:
         raise HTTPException(status_code=404, detail="Transacción no encontrada.")
 
+    # 1. Revert previous effect on old account
+    old_account = None
+    if tx.account_id:
+        old_account = db.query(Account).filter(
+            Account.id == tx.account_id, Account.user_id == current_user.id
+        ).first()
+    elif tx.account_name:
+        old_account = db.query(Account).filter(
+            Account.user_id == current_user.id,
+            Account.name.ilike(tx.account_name.strip()),
+        ).first()
+
+    if old_account:
+        if tx.type == "income":
+            old_account.balance -= tx.amount
+        elif tx.type == "expense":
+            old_account.balance += tx.amount
+
+    # 2. Update transaction fields
     update_data = tx_in.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(tx, field, value)
+
+    # 3. Apply new effect to target account
+    new_account = None
+    if tx.account_id:
+        new_account = db.query(Account).filter(
+            Account.id == tx.account_id, Account.user_id == current_user.id
+        ).first()
+    elif tx.account_name:
+        new_account = db.query(Account).filter(
+            Account.user_id == current_user.id,
+            Account.name.ilike(tx.account_name.strip()),
+        ).first()
+
+    if new_account:
+        if tx.type == "income":
+            new_account.balance += tx.amount
+        elif tx.type == "expense":
+            new_account.balance -= tx.amount
+        tx.account_id = new_account.id
+        tx.account_name = new_account.name
 
     db.commit()
     db.refresh(tx)
@@ -165,16 +226,35 @@ def delete_transaction(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Delete a transaction."""
+    """Delete a transaction and restore account balance."""
     tx = db.query(Transaction).filter(
         Transaction.id == tx_id, Transaction.user_id == current_user.id
     ).first()
     if not tx:
         raise HTTPException(status_code=404, detail="Transacción no encontrada.")
 
+    # Revert effect on account
+    account = None
+    if tx.account_id:
+        account = db.query(Account).filter(
+            Account.id == tx.account_id, Account.user_id == current_user.id
+        ).first()
+    elif tx.account_name:
+        account = db.query(Account).filter(
+            Account.user_id == current_user.id,
+            Account.name.ilike(tx.account_name.strip()),
+        ).first()
+
+    if account:
+        if tx.type == "income":
+            account.balance -= tx.amount
+        elif tx.type == "expense":
+            account.balance += tx.amount
+
     db.delete(tx)
     db.commit()
-    return {"status": "success", "message": "Transacción eliminada exitosamente."}
+    return {"status": "success", "message": "Transacción eliminada exitosamente y saldo de cuenta restaurado."}
+
 
 
 # ==========================================

@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { DashboardTab } from "./types";
 import DashboardHome from "./views/DashboardHome";
+import MovementsView from "./views/MovementsView";
 import AccountsView from "./views/AccountsView";
 import ExpensesView from "./views/ExpensesView";
 import IncomesView from "./views/IncomesView";
@@ -30,6 +31,7 @@ import ReportsView from "./views/ReportsView";
 import SettingsModal from "./SettingsModal";
 import { apiRequest } from "@/lib/api";
 import { useLanguage } from "@/context/LanguageContext";
+import { ArrowLeftRight } from "lucide-react";
 
 export default function DashboardLayout() {
   const router = useRouter();
@@ -47,6 +49,7 @@ export default function DashboardLayout() {
 
   const navItems = [
     { id: "home" as DashboardTab, label: t.nav.home, icon: Home },
+    { id: "movements" as DashboardTab, label: t.nav.movements, icon: ArrowLeftRight },
     { id: "accounts" as DashboardTab, label: t.nav.accounts, icon: CreditCard },
     { id: "expenses" as DashboardTab, label: t.nav.expenses, icon: ArrowDownRight },
     { id: "incomes" as DashboardTab, label: t.nav.incomes, icon: ArrowUpRight },
@@ -354,6 +357,7 @@ export default function DashboardLayout() {
             {activeTab === "home" && (
               <DashboardHome onNavigate={(tab) => setActiveTab(tab)} />
             )}
+            {activeTab === "movements" && <MovementsView />}
             {activeTab === "accounts" && <AccountsView />}
             {activeTab === "expenses" && <ExpensesView />}
             {activeTab === "incomes" && <IncomesView />}
