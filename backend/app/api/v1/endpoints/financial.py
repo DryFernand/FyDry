@@ -452,7 +452,7 @@ def create_movement(
     from_name = from_acc.name if from_acc else (mov_in.from_account_name or "Cuenta Origen")
     to_name = to_acc.name if to_acc else (mov_in.to_account_name or "Cuenta Destino")
 
-    # Check if user has an active budget for taxes/fees
+    # Always record the tax expense under the tax category so it computes in budget limits & alerts
     tax_expense_id = None
     if tax_val > 0:
         tax_budget = db.query(Budget).filter(
@@ -461,23 +461,24 @@ def create_movement(
                 Budget.category.ilike("%impuesto%"),
                 Budget.category.ilike("%tax%"),
                 Budget.category.ilike("%comision%"),
+                Budget.category.ilike("%tasa%"),
             ),
         ).first()
 
-        # If budget exists and has an allocated limit, record the tax expense against this budget
-        if tax_budget and tax_budget.allocated_amount > 0:
-            tax_exp = Expense(
-                user_id=current_user.id,
-                account_id=from_acc.id if from_acc else None,
-                account_name=from_name,
-                category=tax_budget.category,
-                description=f"Impuesto por traspaso {from_name} ➔ {to_name}",
-                amount=tax_val,
-                date=mov_in.date,
-            )
-            db.add(tax_exp)
-            db.flush()
-            tax_expense_id = tax_exp.id
+        category_name = tax_budget.category if (tax_budget and tax_budget.allocated_amount > 0) else "Impuestos & Tasas"
+
+        tax_exp = Expense(
+            user_id=current_user.id,
+            account_id=from_acc.id if from_acc else None,
+            account_name=from_name,
+            category=category_name,
+            description=f"Impuesto por traspaso {from_name} ➔ {to_name}",
+            amount=tax_val,
+            date=mov_in.date,
+        )
+        db.add(tax_exp)
+        db.flush()
+        tax_expense_id = tax_exp.id
 
     mov = Movement(
         user_id=current_user.id,
@@ -539,7 +540,7 @@ def update_movement(
     if new_to:
         new_to.balance += mov.amount
 
-    # Check budget for tax expense
+    # Record updated tax expense
     if new_tax > 0:
         tax_budget = db.query(Budget).filter(
             Budget.user_id == current_user.id,
@@ -547,21 +548,22 @@ def update_movement(
                 Budget.category.ilike("%impuesto%"),
                 Budget.category.ilike("%tax%"),
                 Budget.category.ilike("%comision%"),
+                Budget.category.ilike("%tasa%"),
             ),
         ).first()
-        if tax_budget and tax_budget.allocated_amount > 0:
-            tax_exp = Expense(
-                user_id=current_user.id,
-                account_id=new_from.id if new_from else None,
-                account_name=new_from.name if new_from else mov.from_account_name,
-                category=tax_budget.category,
-                description=f"Impuesto por traspaso {mov.from_account_name} ➔ {mov.to_account_name}",
-                amount=new_tax,
-                date=mov.date,
-            )
-            db.add(tax_exp)
-            db.flush()
-            mov.tax_expense_id = tax_exp.id
+        category_name = tax_budget.category if (tax_budget and tax_budget.allocated_amount > 0) else "Impuestos & Tasas"
+        tax_exp = Expense(
+            user_id=current_user.id,
+            account_id=new_from.id if new_from else None,
+            account_name=new_from.name if new_from else mov.from_account_name,
+            category=category_name,
+            description=f"Impuesto por traspaso {mov.from_account_name} ➔ {mov.to_account_name}",
+            amount=new_tax,
+            date=mov.date,
+        )
+        db.add(tax_exp)
+        db.flush()
+        mov.tax_expense_id = tax_exp.id
 
     db.commit()
     db.refresh(mov)

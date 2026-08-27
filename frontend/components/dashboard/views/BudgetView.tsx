@@ -45,14 +45,30 @@ export default function BudgetView() {
     return () => window.removeEventListener("fydry_storage_updated", loadData);
   }, []);
 
-  // Calcular gasto real acumulado por cada categoría presupuestada
+  // Calcular gasto real acumulado por cada categoría presupuestada (incluye gastos e impuestos de transferencias)
   const budgetsWithSpent = budgets.map((b) => {
+    const isTax =
+      b.category.toLowerCase().includes("impuesto") ||
+      b.category.toLowerCase().includes("tax") ||
+      b.category.toLowerCase().includes("tasa") ||
+      b.category.toLowerCase().includes("comisi");
+
     const actualSpent = expenses
-      .filter((e) => e.category.toLowerCase() === b.category.toLowerCase())
+      .filter((e) => {
+        if (e.category.toLowerCase() === b.category.toLowerCase()) return true;
+        if (isTax && (
+          e.category.toLowerCase().includes("impuesto") ||
+          e.category.toLowerCase().includes("tax") ||
+          e.category.toLowerCase().includes("tasa")
+        )) return true;
+        return false;
+      })
       .reduce((acc, curr) => acc + curr.amount, 0);
+
     return {
       ...b,
       spent: actualSpent,
+      isTaxCategory: isTax,
     };
   });
 
@@ -196,9 +212,14 @@ export default function BudgetView() {
                     </h3>
                     <Edit3 className="w-3 h-3 text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
-                  <span className="text-[11px] text-zinc-400">
-                    {t.budget.assignedLimit}
-                  </span>
+                  <div className="flex items-center gap-1 text-[11px] text-zinc-400">
+                    <span>{t.budget.assignedLimit}</span>
+                    {b.isTaxCategory && (
+                      <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.2 rounded-md">
+                        • Incluye impuestos de transferencias
+                      </span>
+                    )}
+                  </div>
                 </div>
                 {isExceeded ? (
                   <span className="px-2 py-0.5 rounded-md bg-rose-50 border border-rose-200/60 text-rose-700 text-[10px] font-bold">
