@@ -457,12 +457,9 @@ def create_movement(
     if tax_val > 0:
         tax_budget = db.query(Budget).filter(
             Budget.user_id == current_user.id,
-            or_(
-                Budget.category.ilike("%impuesto%"),
-                Budget.category.ilike("%tax%"),
-                Budget.category.ilike("%comision%"),
-                Budget.category.ilike("%tasa%"),
-            ),
+            Budget.category.ilike("%impuesto%"),
+            ~Budget.category.ilike("%taxi%"),
+            ~Budget.category.ilike("%transporte%"),
         ).first()
 
         category_name = tax_budget.category if (tax_budget and tax_budget.allocated_amount > 0) else "Impuestos & Tasas"
@@ -544,12 +541,9 @@ def update_movement(
     if new_tax > 0:
         tax_budget = db.query(Budget).filter(
             Budget.user_id == current_user.id,
-            or_(
-                Budget.category.ilike("%impuesto%"),
-                Budget.category.ilike("%tax%"),
-                Budget.category.ilike("%comision%"),
-                Budget.category.ilike("%tasa%"),
-            ),
+            Budget.category.ilike("%impuesto%"),
+            ~Budget.category.ilike("%taxi%"),
+            ~Budget.category.ilike("%transporte%"),
         ).first()
         category_name = tax_budget.category if (tax_budget and tax_budget.allocated_amount > 0) else "Impuestos & Tasas"
         tax_exp = Expense(

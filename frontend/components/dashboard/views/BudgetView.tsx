@@ -45,22 +45,26 @@ export default function BudgetView() {
     return () => window.removeEventListener("fydry_storage_updated", loadData);
   }, []);
 
-  // Calcular gasto real acumulado por cada categoría presupuestada (incluye gastos e impuestos de transferencias)
+  // Calcular gasto real acumulado por cada categoría presupuestada de forma exacta
   const budgetsWithSpent = budgets.map((b) => {
     const isTax =
-      b.category.toLowerCase().includes("impuesto") ||
-      b.category.toLowerCase().includes("tax") ||
-      b.category.toLowerCase().includes("tasa") ||
-      b.category.toLowerCase().includes("comisi");
+      b.category.toLowerCase().includes("impuesto") &&
+      !b.category.toLowerCase().includes("transporte") &&
+      !b.category.toLowerCase().includes("taxi");
 
     const actualSpent = expenses
       .filter((e) => {
-        if (e.category.toLowerCase() === b.category.toLowerCase()) return true;
-        if (isTax && (
-          e.category.toLowerCase().includes("impuesto") ||
-          e.category.toLowerCase().includes("tax") ||
-          e.category.toLowerCase().includes("tasa")
-        )) return true;
+        // Coincidencia exacta de categoría
+        if (e.category.toLowerCase().trim() === b.category.toLowerCase().trim()) return true;
+        // Solo si esta tarjeta es de Impuestos y el gasto también es estrictamente de impuesto
+        if (
+          isTax &&
+          e.category.toLowerCase().includes("impuesto") &&
+          !e.category.toLowerCase().includes("transporte") &&
+          !e.category.toLowerCase().includes("taxi")
+        ) {
+          return true;
+        }
         return false;
       })
       .reduce((acc, curr) => acc + curr.amount, 0);
