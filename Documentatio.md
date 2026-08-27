@@ -349,6 +349,22 @@
   - Normalizada la base de datos de PostgreSQL para asegurar que los asientos de impuestos pertenezcan únicamente a `"Impuestos & Tasas"`.
 - **Despliegue a Producción**: Verificado con `npx tsc --noEmit` (0 errores) y desplegado en Vercel (`READY`).
 
+### 2026-08-27 - Configuración Dinámica de Tarjetas de Crédito y Reglas de Numeración por Tipo de Cuenta
+- **Configuración Específica por Tipo de Cuenta**:
+  - **Tarjeta de Crédito (`credit_card`)**:
+    - Campos requeridos y específicos: **Número de Tarjeta**, **Día de Corte del Mes (1-31)**, **Días para el Pago (Plazo tras corte)** y **Monto de Sobregiro / Límite de Crédito**.
+    - Tarjeta visual en `AccountsView.tsx` con desglose de corte, días de gracia y límite de crédito.
+  - **Tarjeta de Débito (`debit_card`)**:
+    - Solicita **Número de Tarjeta** (no número de cuenta).
+  - **Cuenta Bancaria (`bank`)**:
+    - Solicita **Número de Cuenta / IBAN / Clave Interbancaria**.
+  - **Cuentas de Ahorros (`savings`), Efectivo (`cash`) y Billeteras Digitales (`wallet`)**:
+    - No solicitan ningún número de cuenta ni tarjeta.
+- **Base de Datos & Backend**:
+  - Añadidas columnas `card_number`, `cutoff_day`, `grace_days`, `overdraft_limit` a la tabla `accounts` en Supabase PostgreSQL.
+- **Despliegue a Producción**: Verificado con `npx tsc --noEmit` (0 errores) y desplegado en Vercel (`READY`).
+
+
 
 
 
