@@ -101,3 +101,38 @@ class Debt(Base, TimestampMixin):
     due_date = Column(String(100), default="Fin de mes", nullable=False)
 
     user = relationship("User", backref="debts")
+
+
+class EmailIntegration(Base, TimestampMixin):
+    """Configuración de conexión con Google Gmail para escaneo de transacciones bancarias."""
+    __tablename__ = "email_integrations"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), index=True)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
+    provider = Column(String(50), default="google", nullable=False)
+    email = Column(String(255), nullable=False)
+    access_token = Column(String(1000), nullable=True)
+    refresh_token = Column(String(1000), nullable=True)
+    token_expiry = Column(DateTime, nullable=True)
+    is_active = Column(String(10), default="true", nullable=False)  # "true" | "false"
+    last_synced_at = Column(DateTime, nullable=True)
+
+    user = relationship("User", backref="email_integration")
+
+
+class PendingNotification(Base, TimestampMixin):
+    """Notificación con borrador detectado desde correo bancario pendiente de confirmación."""
+    __tablename__ = "pending_notifications"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), index=True)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    title = Column(String(255), nullable=False)
+    message = Column(String(1000), nullable=False)
+    source = Column(String(50), default="gmail", nullable=False)
+    target_type = Column(String(50), default="expense", nullable=False)  # "expense" | "income" | "movement"
+    draft_data = Column(String(2000), nullable=False)  # JSON string con datos precargados
+    is_read = Column(String(10), default="false", nullable=False)  # "true" | "false"
+    is_processed = Column(String(10), default="false", nullable=False)  # "true" | "false"
+    email_message_id = Column(String(255), nullable=True, index=True)
+
+    user = relationship("User", backref="notifications")

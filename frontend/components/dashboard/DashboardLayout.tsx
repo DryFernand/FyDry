@@ -18,8 +18,9 @@ import {
   Loader2,
   ChevronLeft,
   ChevronRight,
+  ArrowLeftRight,
 } from "lucide-react";
-import { DashboardTab } from "./types";
+import { DashboardTab, NotificationItem } from "./types";
 import DashboardHome from "./views/DashboardHome";
 import MovementsView from "./views/MovementsView";
 import AccountsView from "./views/AccountsView";
@@ -29,9 +30,9 @@ import BudgetView from "./views/BudgetView";
 import DebtsView from "./views/DebtsView";
 import ReportsView from "./views/ReportsView";
 import SettingsModal from "./SettingsModal";
+import NotificationBell from "./NotificationBell";
 import { apiRequest } from "@/lib/api";
 import { useLanguage } from "@/context/LanguageContext";
-import { ArrowLeftRight } from "lucide-react";
 
 export default function DashboardLayout() {
   const router = useRouter();
@@ -45,6 +46,18 @@ export default function DashboardLayout() {
     id?: string;
     full_name?: string;
     email?: string;
+  } | null>(null);
+
+  // Borrador activo seleccionado desde una notificación de correo
+  const [activeDraft, setActiveDraft] = useState<{
+    notifId: string;
+    targetType: "expense" | "income" | "movement";
+    amount?: number;
+    description?: string;
+    category?: string;
+    from_account_name?: string;
+    to_account_name?: string;
+    date?: string;
   } | null>(null);
 
   const navItems = [
@@ -111,24 +124,38 @@ export default function DashboardLayout() {
   const handleLogout = () => {
     if (typeof window !== "undefined") {
       localStorage.removeItem("fydry_token");
+      localStorage.removeItem("fydry_access_token");
     }
     router.push("/login");
+  };
+
+  const handleOpenDraft = (item: NotificationItem) => {
+    setActiveDraft({
+      notifId: item.id,
+      targetType: item.targetType,
+      ...item.draftData,
+    });
+    if (item.targetType === "income") {
+      setActiveTab("incomes");
+    } else if (item.targetType === "movement") {
+      setActiveTab("movements");
+    } else {
+      setActiveTab("expenses");
+    }
   };
 
   if (isLoadingAuth) {
     return (
       <div className="min-h-screen bg-zinc-50 flex flex-col items-center justify-center p-4">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="text-center space-y-3"
-        >
-          <div className="w-10 h-10 rounded-2xl bg-zinc-950 text-white flex items-center justify-center font-bold text-xs mx-auto shadow-xs">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-zinc-950 text-white flex items-center justify-center font-bold text-sm shadow-md">
             FD
           </div>
-          <Loader2 className="w-5 h-5 animate-spin text-zinc-900 mx-auto" />
-          <p className="text-xs text-zinc-500 font-medium">FyDry Secure Access...</p>
-        </motion.div>
+          <div className="flex items-center gap-2 text-zinc-500 text-xs font-medium">
+            <Loader2 className="w-4 h-4 animate-spin text-zinc-900" />
+            <span>Cargando tu espacio financiero...</span>
+          </div>
+        </div>
       </div>
     );
   }
@@ -137,55 +164,43 @@ export default function DashboardLayout() {
     currentUser?.full_name
       ?.split(" ")
       .map((n) => n[0])
-      .slice(0, 2)
       .join("")
+      .substring(0, 2)
       .toUpperCase() || "FD";
 
   return (
-    <div className="min-h-screen bg-zinc-50 flex flex-col md:flex-row text-zinc-900 selection:bg-zinc-900 selection:text-white">
+    <div className="min-h-screen bg-zinc-50/60 flex flex-col md:flex-row text-zinc-900 selection:bg-zinc-900 selection:text-white">
       {/* Settings Modal */}
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
-        userName={currentUser?.full_name || "Fernando Gómez"}
-        userEmail={currentUser?.email || "daryfernand7@gmail.com"}
       />
 
-      {/* Desktop Sidebar (Fija a la ventana h-screen sticky top-0 con ancho adaptable) */}
+      {/* Desktop Sidebar */}
       <motion.aside
         animate={{ width: isSidebarCollapsed ? 80 : 256 }}
-        transition={{ duration: 0.25, ease: "easeInOut" }}
-        className="hidden md:flex bg-white border-r border-zinc-200/80 flex-col justify-between p-4 shrink-0 h-screen sticky top-0 overflow-y-auto print:hidden z-20 shadow-2xs"
+        transition={{ duration: 0.2, ease: "easeInOut" }}
+        className="hidden md:flex flex-col justify-between bg-white border-r border-zinc-200/80 p-4 sticky top-0 h-screen z-30 select-none shrink-0 print:hidden"
       >
         <div className="space-y-6">
-          {/* Logo Brand & Collapse Toggle */}
-          <div className="flex items-center justify-between px-1">
-            <div className="flex items-center gap-2.5 overflow-hidden">
+          {/* Brand Header */}
+          <div className="flex items-center justify-between px-2 pt-2">
+            <div className="flex items-center gap-3 overflow-hidden">
               <div className="w-8 h-8 rounded-xl bg-zinc-950 text-white flex items-center justify-center font-bold text-xs shadow-xs shrink-0">
                 FD
               </div>
               {!isSidebarCollapsed && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="overflow-hidden"
-                >
-                  <span className="font-bold text-sm tracking-tight text-zinc-950 block truncate">
-                    {t.brand.name}
-                  </span>
-                  <span className="text-[10px] text-zinc-400 block -mt-0.5 truncate">
-                    {t.brand.tagline}
-                  </span>
-                </motion.div>
+                <div className="truncate font-bold text-base tracking-tight text-zinc-950">
+                  {t.brand.name}
+                </div>
               )}
             </div>
 
             <button
               type="button"
               onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-              className="p-1 rounded-lg text-zinc-400 hover:text-zinc-800 hover:bg-zinc-100 transition-colors cursor-pointer shrink-0"
-              title={isSidebarCollapsed ? "Expandir menú" : "Colapsar menú"}
+              className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 transition-colors cursor-pointer"
+              title={isSidebarCollapsed ? "Expandir" : "Colapsar"}
             >
               {isSidebarCollapsed ? (
                 <ChevronRight className="w-4 h-4" />
@@ -195,7 +210,7 @@ export default function DashboardLayout() {
             </button>
           </div>
 
-          {/* Nav Items */}
+          {/* Navigation Links */}
           <nav className="space-y-1">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -204,9 +219,12 @@ export default function DashboardLayout() {
                 <button
                   key={item.id}
                   type="button"
-                  onClick={() => setActiveTab(item.id)}
+                  onClick={() => {
+                    setActiveTab(item.id);
+                    setActiveDraft(null);
+                  }}
                   title={isSidebarCollapsed ? item.label : undefined}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-xs font-semibold transition-all cursor-pointer ${
                     isActive
                       ? "bg-zinc-950 text-white shadow-xs"
                       : "text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100/80"
@@ -279,17 +297,20 @@ export default function DashboardLayout() {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Campanita de Notificaciones Mobile */}
+          <NotificationBell onOpenDraft={handleOpenDraft} />
+
           <button
             type="button"
             onClick={() => setIsSettingsOpen(true)}
-            className="p-2 rounded-xl border border-zinc-200 text-zinc-600 cursor-pointer"
+            className="p-2.5 rounded-2xl border border-zinc-200 text-zinc-600 cursor-pointer"
           >
             <Settings className="w-4 h-4" />
           </button>
           <button
             type="button"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="p-2 rounded-xl bg-zinc-950 text-white cursor-pointer"
+            className="p-2.5 rounded-2xl bg-zinc-950 text-white cursor-pointer"
           >
             {isMobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
           </button>
@@ -315,6 +336,7 @@ export default function DashboardLayout() {
                     type="button"
                     onClick={() => {
                       setActiveTab(item.id);
+                      setActiveDraft(null);
                       setIsMobileMenuOpen(false);
                     }}
                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold ${
@@ -345,28 +367,52 @@ export default function DashboardLayout() {
       </AnimatePresence>
 
       {/* Main Content Area */}
-      <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full print:p-0 print:m-0 print:max-w-none">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.2 }}
-          >
-            {activeTab === "home" && (
-              <DashboardHome onNavigate={(tab) => setActiveTab(tab)} />
-            )}
-            {activeTab === "movements" && <MovementsView />}
-            {activeTab === "accounts" && <AccountsView />}
-            {activeTab === "expenses" && <ExpensesView />}
-            {activeTab === "incomes" && <IncomesView />}
-            {activeTab === "budget" && <BudgetView />}
-            {activeTab === "debts" && <DebtsView />}
-            {activeTab === "reports" && <ReportsView />}
-          </motion.div>
-        </AnimatePresence>
-      </main>
+      <div className="flex-1 min-w-0 flex flex-col">
+        {/* Desktop Top Bar with NotificationBell */}
+        <div className="hidden md:flex items-center justify-end px-6 lg:px-8 pt-6 pb-2 print:hidden">
+          <div className="flex items-center gap-3">
+            <NotificationBell onOpenDraft={handleOpenDraft} />
+          </div>
+        </div>
+
+        <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full print:p-0 print:m-0 print:max-w-none">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2 }}
+            >
+              {activeTab === "home" && (
+                <DashboardHome onNavigate={(tab) => setActiveTab(tab)} />
+              )}
+              {activeTab === "movements" && (
+                <MovementsView
+                  initialDraft={activeDraft?.targetType === "movement" ? activeDraft : null}
+                  onClearDraft={() => setActiveDraft(null)}
+                />
+              )}
+              {activeTab === "accounts" && <AccountsView />}
+              {activeTab === "expenses" && (
+                <ExpensesView
+                  initialDraft={activeDraft?.targetType === "expense" ? activeDraft : null}
+                  onClearDraft={() => setActiveDraft(null)}
+                />
+              )}
+              {activeTab === "incomes" && (
+                <IncomesView
+                  initialDraft={activeDraft?.targetType === "income" ? activeDraft : null}
+                  onClearDraft={() => setActiveDraft(null)}
+                />
+              )}
+              {activeTab === "budget" && <BudgetView />}
+              {activeTab === "debts" && <DebtsView />}
+              {activeTab === "reports" && <ReportsView />}
+            </motion.div>
+          </AnimatePresence>
+        </main>
+      </div>
     </div>
   );
 }

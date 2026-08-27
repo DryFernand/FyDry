@@ -19,9 +19,19 @@ import {
   Trash2,
   KeyRound,
   RefreshCw,
+  Sparkles,
 } from "lucide-react";
 import { apiForgotPassword, apiVerifyResetOtp, apiResetPassword } from "@/lib/auth";
-import { fetchUserSettingsApi, updateUserSettingsApi, resetUserDataApi } from "@/lib/api";
+import {
+  fetchUserSettingsApi,
+  updateUserSettingsApi,
+  resetUserDataApi,
+  fetchEmailSyncStatusApi,
+  connectEmailSyncApi,
+  disconnectEmailSyncApi,
+  scanEmailsNowApi,
+} from "@/lib/api";
+import { EmailIntegrationData } from "./types";
 import { useLanguage } from "@/context/LanguageContext";
 
 interface SettingsModalProps {
@@ -33,6 +43,7 @@ interface SettingsModalProps {
 
 type SettingsTab =
   | "profile"
+  | "email_sync"
   | "security"
   | "languages"
   | "notifications"
@@ -84,6 +95,13 @@ export default function SettingsModal({
   const [isResettingData, setIsResettingData] = useState(false);
   const [resetSuccess, setResetSuccess] = useState(false);
 
+  // Email Sync (Google Gmail) State
+  const [emailSyncData, setEmailSyncData] = useState<EmailIntegrationData | null>(null);
+  const [syncGmailEmail, setSyncGmailEmail] = useState(userEmail);
+  const [isConnectingEmail, setIsConnectingEmail] = useState(false);
+  const [isScanningEmails, setIsScanningEmails] = useState(false);
+  const [scanFeedback, setScanFeedback] = useState("");
+
   // Cargar configuraciones reales del backend al abrir el modal
   useEffect(() => {
     if (isOpen) {
@@ -100,6 +118,11 @@ export default function SettingsModal({
           if (settings.budget_alerts !== undefined) setBudgetWarnings(settings.budget_alerts);
           if (settings.weekly_digest !== undefined) setWeeklyDigest(settings.weekly_digest);
         }
+      });
+
+      fetchEmailSyncStatusApi().then((sync) => {
+        setEmailSyncData(sync);
+        if (sync?.email) setSyncGmailEmail(sync.email);
       });
     }
   }, [isOpen, setLanguage]);
@@ -128,6 +151,38 @@ export default function SettingsModal({
       window.dispatchEvent(new Event("fydry_storage_updated"));
     }
     setTimeout(() => setIsSavedProfile(false), 2000);
+  };
+
+  const handleConnectGmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!syncGmailEmail) return;
+    setIsConnectingEmail(true);
+    const sync = await connectEmailSyncApi(syncGmailEmail);
+    setEmailSyncData(sync);
+    setIsConnectingEmail(false);
+    setScanFeedback("Cuenta de Google vinculada correctamente para escaneo de transacciones.");
+    setTimeout(() => setScanFeedback(""), 4000);
+  };
+
+  const handleDisconnectGmail = async () => {
+    if (confirm("¿Deseas desvincular tu cuenta de correo?")) {
+      await disconnectEmailSyncApi();
+      setEmailSyncData(null);
+      setScanFeedback("Cuenta de correo desvinculada.");
+      setTimeout(() => setScanFeedback(""), 3000);
+    }
+  };
+
+  const handleRunEmailScan = async () => {
+    setIsScanningEmails(true);
+    setScanFeedback("");
+    const res = await scanEmailsNowApi();
+    setIsScanningEmails(false);
+    setScanFeedback(res.message);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("fydry_storage_updated"));
+    }
+    setTimeout(() => setScanFeedback(""), 5000);
   };
 
   const handleLanguageChange = async (newLang: "es" | "en") => {
@@ -262,6 +317,7 @@ export default function SettingsModal({
 
   const tabs = [
     { id: "profile", label: t.settings.tabs.profile, icon: User },
+    { id: "email_sync", label: "Sincronización Gmail", icon: Mail },
     { id: "security", label: t.settings.tabs.security, icon: Shield },
     { id: "languages", label: t.settings.tabs.languages, icon: Globe },
     { id: "notifications", label: t.settings.tabs.notifications, icon: Bell },
@@ -419,6 +475,132 @@ export default function SettingsModal({
                   </button>
                 </div>
               </form>
+            )}
+
+            {/* TAB: SINCRONIZACIÓN GMAIL */}
+            {activeTab === "email_sync" && (
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-sm font-bold text-zinc-950">
+                    Automatización de Correos Bancarios (Google Gmail)
+                  </h3>
+                  <p className="text-xs text-zinc-500 mt-1">
+                    Detecta automáticamente notificaciones bancarias de compras, nóminas y traspasos para crear borradores instantáneos.
+                  </p>
+                </div>
+
+                {scanFeedback && (
+                  <div className="p-3 rounded-2xl bg-purple-50 border border-purple-200 text-xs text-purple-900 flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-purple-600 shrink-0" />
+                    <span>{scanFeedback}</span>
+                  </div>
+                )}
+
+                {emailSyncData ? (
+                  <div className="space-y-4">
+                    <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200 space-y-3">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-2xl bg-white border border-zinc-200 flex items-center justify-center text-rose-500 shadow-2xs font-bold text-sm">
+                            G
+                          </div>
+                          <div>
+                            <div className="text-xs font-bold text-zinc-950 flex items-center gap-2">
+                              <span>Google Gmail Conectado</span>
+                              <span className="px-2 py-0.2 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-semibold">
+                                Activo
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-zinc-500">{emailSyncData.email}</p>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={handleDisconnectGmail}
+                          className="text-[11px] font-semibold text-rose-600 hover:text-rose-800 cursor-pointer"
+                        >
+                          Desvincular
+                        </button>
+                      </div>
+
+                      <div className="pt-2 border-t border-zinc-200/60 flex items-center justify-between text-[11px] text-zinc-500">
+                        <span>Último escaneo:</span>
+                        <span className="font-semibold text-zinc-800">
+                          {emailSyncData.lastSyncedAt
+                            ? new Date(emailSyncData.lastSyncedAt).toLocaleString()
+                            : "Reciente"}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={handleRunEmailScan}
+                        disabled={isScanningEmails}
+                        className="py-2.5 px-4 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-semibold flex items-center gap-2 shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+                      >
+                        {isScanningEmails ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            <span>Escaneando bandeja de correos...</span>
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="w-3.5 h-3.5" />
+                            <span>Escanear Correos Ahora</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <form onSubmit={handleConnectGmail} className="space-y-4">
+                    <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200 space-y-2 text-xs text-zinc-600">
+                      <div className="font-semibold text-zinc-900 flex items-center gap-1.5">
+                        <Mail className="w-4 h-4 text-purple-600" />
+                        <span>¿Cómo funciona la automatización?</span>
+                      </div>
+                      <p className="text-[11px] text-zinc-500 leading-relaxed">
+                        FyDry busca correos de tus bancos (cargos con tarjeta, transferencias, abonos de sueldo) y extrae el monto y concepto para crear borradores en tu campanita de notificaciones. Nunca se asienta nada sin tu confirmación previa.
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-zinc-700 mb-1">
+                        Tu Cuenta de Google Gmail
+                      </label>
+                      <input
+                        type="email"
+                        required
+                        value={syncGmailEmail}
+                        onChange={(e) => setSyncGmailEmail(e.target.value)}
+                        placeholder="ejemplo@gmail.com"
+                        className="w-full px-3 py-2 rounded-xl border border-zinc-200 text-xs text-zinc-900 focus:outline-none focus:border-zinc-900"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={isConnectingEmail}
+                      className="py-2.5 px-4 rounded-xl bg-zinc-950 text-white text-xs font-semibold hover:bg-zinc-800 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                    >
+                      {isConnectingEmail ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span>Conectando con Google...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                          <span>Conectar Google Gmail & Activar Automatización</span>
+                        </>
+                      )}
+                    </button>
+                  </form>
+                )}
+              </div>
             )}
 
             {/* TAB 2: CONTRASEÑA & OTP */}

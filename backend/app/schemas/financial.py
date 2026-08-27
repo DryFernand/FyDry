@@ -215,3 +215,50 @@ class DebtResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ==========================================
+# EMAIL SYNC & NOTIFICATIONS
+# ==========================================
+class EmailIntegrationResponse(BaseModel):
+    id: str
+    provider: str
+    email: str
+    is_active: bool
+    last_synced_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class EmailSyncConnectRequest(BaseModel):
+    email: str
+    code: Optional[str] = None
+    access_token: Optional[str] = None
+    refresh_token: Optional[str] = None
+
+
+class NotificationResponse(BaseModel):
+    id: str
+    title: str
+    message: str
+    source: str
+    target_type: str
+    draft_data: dict
+    is_read: bool
+    is_processed: bool
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class NotificationUpdate(BaseModel):
+    is_read: Optional[bool] = None
+    is_processed: Optional[bool] = None
+
+
+class EmailScanResult(BaseModel):
+    scanned_count: int
+    new_found: int
+    message: str

@@ -62,3 +62,30 @@ export interface DebtItem {
   interestRate: number;
   dueDate: string;
 }
+
+export interface NotificationItem {
+  id: string;
+  title: string;
+  message: string;
+  source: string;
+  targetType: "expense" | "income" | "movement";
+  draftData: {
+    amount?: number;
+    description?: string;
+    category?: string;
+    from_account_name?: string;
+    to_account_name?: string;
+    date?: string;
+  };
+  isRead: boolean;
+  isProcessed: boolean;
+  createdAt?: string;
+}
+
+export interface EmailIntegrationData {
+  id: string;
+  provider: string;
+  email: string;
+  isActive: boolean;
+  lastSyncedAt?: string;
+}

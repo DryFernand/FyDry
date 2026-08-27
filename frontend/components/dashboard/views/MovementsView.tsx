@@ -22,9 +22,22 @@ import {
   updateMovementApi,
   deleteMovementApi,
   fetchAccountsApi,
+  markNotificationProcessedApi,
 } from "@/lib/api";
 
-export default function MovementsView() {
+interface MovementsViewProps {
+  initialDraft?: {
+    amount?: number;
+    description?: string;
+    from_account_name?: string;
+    to_account_name?: string;
+    date?: string;
+    notifId?: string;
+  } | null;
+  onClearDraft?: () => void;
+}
+
+export default function MovementsView({ initialDraft, onClearDraft }: MovementsViewProps = {}) {
   const { language } = useLanguage();
   const [movements, setMovements] = useState<MovementItem[]>([]);
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
@@ -66,6 +79,17 @@ export default function MovementsView() {
     window.addEventListener("fydry_storage_updated", loadData);
     return () => window.removeEventListener("fydry_storage_updated", loadData);
   }, []);
+
+  useEffect(() => {
+    if (initialDraft) {
+      setEditingMovement(null);
+      setAmount(initialDraft.amount ? initialDraft.amount.toString() : "");
+      setDescription(initialDraft.description || "");
+      if (initialDraft.from_account_name) setFromAccount(initialDraft.from_account_name);
+      if (initialDraft.to_account_name) setToAccount(initialDraft.to_account_name);
+      setIsModalOpen(true);
+    }
+  }, [initialDraft]);
 
   const openCreateModal = () => {
     setEditingMovement(null);
@@ -152,6 +176,11 @@ export default function MovementsView() {
         }),
       });
       setMovements((prev) => [created, ...prev]);
+    }
+
+    if (initialDraft?.notifId) {
+      await markNotificationProcessedApi(initialDraft.notifId);
+      if (onClearDraft) onClearDraft();
     }
 
     if (typeof window !== "undefined") {

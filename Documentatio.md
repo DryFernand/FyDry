@@ -364,6 +364,25 @@
   - Añadidas columnas `card_number`, `cutoff_day`, `grace_days`, `overdraft_limit` a la tabla `accounts` en Supabase PostgreSQL.
 - **Despliegue a Producción**: Verificado con `npx tsc --noEmit` (0 errores) y desplegado en Vercel (`READY`).
 
+### 2026-08-27 - Automatización de Correos Bancarios (Google Gmail) y Campanita de Notificaciones Inteligentes
+- **Motor de Escaneo y Extracción Financiera (`backend/app/api/v1/endpoints/notifications.py`)**:
+  - Parser heurístico y regex multi-formato para correos bancarios que detecta cargos de tarjetas, traspasos interbancarios y nóminas/salarios.
+  - Inferencia inteligente de categorías (`Supermercado & Alimentación`, `Restaurantes & Bares`, `Transporte Público & Taxi`, `Salario / Nómina Principal`, etc.).
+  - Generación de borradores automáticos guardados en la tabla `pending_notifications` de PostgreSQL.
+- **Base de Datos & Backend**:
+  - Creadas tablas `email_integrations` y `pending_notifications` vinculadas a los usuarios en Supabase PostgreSQL.
+  - Endpoints REST para consultar notificaciones, marcar como leídas/procesadas, descartar borradores y sincronizar cuenta de Google.
+- **Campanita de Notificaciones Interactiva (`NotificationBell.tsx` & `DashboardLayout.tsx`)**:
+  - Icono de campanita en el Header (móvil y desktop) con contador en vivo y animación de pulsación.
+  - Menú desplegable con listado de transacciones bancarias detectadas.
+  - Al pulsar en cualquier notificación, redirige a la pestaña correspondiente (**Gastos**, **Ingresos** o **Movimientos**) y abre el modal pre-cargado con monto, concepto, cuenta y categoría para que el usuario confirme o modifique el asiento con 1 clic.
+  - Al guardar la transacción confirmada, el borrador se marca automáticamente como procesado.
+  - Soporte para notificaciones nativas del navegador (`Notification.requestPermission()`).
+- **Configuración de Cuenta (`SettingsModal.tsx`)**:
+  - Nueva pestaña **"Sincronización Gmail"** para conectar la cuenta de Google con servicios de lectura bancaria, ver el estado en tiempo real y botón para disparar escaneo manual instantáneo.
+- **Despliegue a Producción**: Verificado con `npx tsc --noEmit` (0 errores) y desplegado en Vercel (`READY`).
+
+
 
 
 

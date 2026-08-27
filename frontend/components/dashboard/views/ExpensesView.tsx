@@ -21,9 +21,22 @@ import {
   updateTransactionApi,
   deleteTransactionApi,
   fetchAccountsApi,
+  markNotificationProcessedApi,
 } from "@/lib/api";
 
-export default function ExpensesView() {
+interface ExpensesViewProps {
+  initialDraft?: {
+    amount?: number;
+    description?: string;
+    category?: string;
+    from_account_name?: string;
+    date?: string;
+    notifId?: string;
+  } | null;
+  onClearDraft?: () => void;
+}
+
+export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesViewProps = {}) {
   const { t, language } = useLanguage();
   const [expenses, setExpenses] = useState<TransactionItem[]>([]);
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
@@ -55,6 +68,18 @@ export default function ExpensesView() {
     window.addEventListener("fydry_storage_updated", loadData);
     return () => window.removeEventListener("fydry_storage_updated", loadData);
   }, []);
+
+  useEffect(() => {
+    if (initialDraft) {
+      setEditingExpense(null);
+      setDesc(initialDraft.description || "");
+      setAmount(initialDraft.amount ? initialDraft.amount.toString() : "");
+      if (initialDraft.category && EXPENSE_CATEGORIES.includes(initialDraft.category as any)) {
+        setCat(initialDraft.category);
+      }
+      setIsModalOpen(true);
+    }
+  }, [initialDraft]);
 
   // Dinámicamente obtener SOLO las categorías en las que realmente se ha consumido
   const activeExpenseCategories = useMemo(() => {
@@ -123,6 +148,11 @@ export default function ExpensesView() {
         }),
       });
       setExpenses((prev) => [created, ...prev]);
+    }
+
+    if (initialDraft?.notifId) {
+      await markNotificationProcessedApi(initialDraft.notifId);
+      if (onClearDraft) onClearDraft();
     }
 
     if (typeof window !== "undefined") {

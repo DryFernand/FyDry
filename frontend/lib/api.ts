@@ -1,4 +1,12 @@
-import { AccountItem, TransactionItem, MovementItem, BudgetItem, DebtItem } from "@/components/dashboard/types";
+import {
+  AccountItem,
+  TransactionItem,
+  MovementItem,
+  BudgetItem,
+  DebtItem,
+  NotificationItem,
+  EmailIntegrationData,
+} from "@/components/dashboard/types";
 
 export const getApiBase = () => {
   if (typeof window !== "undefined") {
@@ -830,6 +838,7 @@ export async function resetUserDataApi(): Promise<boolean> {
         localStorage.removeItem("fydry_incomes");
         localStorage.removeItem("fydry_budgets");
         localStorage.removeItem("fydry_debts");
+        localStorage.removeItem("fydry_notifications");
         window.dispatchEvent(new Event("fydry_storage_updated"));
       }
       return true;
@@ -838,5 +847,160 @@ export async function resetUserDataApi(): Promise<boolean> {
     console.warn("Error resetting user data on backend:", err);
   }
   return false;
+}
+
+// ==========================================
+// NOTIFICATIONS API
+// ==========================================
+export async function fetchNotificationsApi(): Promise<NotificationItem[]> {
+  try {
+    const res = await fetch(`${getApiBase()}/notifications`, {
+      headers: getAuthHeaders(),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const items: NotificationItem[] = data.map((d: any) => ({
+        id: d.id,
+        title: d.title,
+        message: d.message,
+        source: d.source,
+        targetType: d.target_type,
+        draftData: d.draft_data || {},
+        isRead: d.is_read,
+        isProcessed: d.is_processed,
+        createdAt: d.created_at,
+      }));
+      if (typeof window !== "undefined") {
+        localStorage.setItem("fydry_notifications", JSON.stringify(items));
+      }
+      return items;
+    }
+  } catch (err) {
+    console.warn("Backend unavailable, using cached notifications:", err);
+  }
+
+  if (typeof window !== "undefined") {
+    const cached = localStorage.getItem("fydry_notifications");
+    if (cached) return JSON.parse(cached);
+  }
+  return [];
+}
+
+export async function markNotificationReadApi(id: string): Promise<void> {
+  try {
+    await fetch(`${getApiBase()}/notifications/${id}/read`, {
+      method: "PUT",
+      headers: getAuthHeaders(),
+    });
+  } catch (err) {
+    console.warn("Error marking notification read:", err);
+  }
+}
+
+export async function markNotificationProcessedApi(id: string): Promise<void> {
+  try {
+    await fetch(`${getApiBase()}/notifications/${id}/process`, {
+      method: "PUT",
+      headers: getAuthHeaders(),
+    });
+  } catch (err) {
+    console.warn("Error marking notification processed:", err);
+  }
+}
+
+export async function deleteNotificationApi(id: string): Promise<void> {
+  try {
+    await fetch(`${getApiBase()}/notifications/${id}`, {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+    });
+  } catch (err) {
+    console.warn("Error deleting notification:", err);
+  }
+}
+
+// ==========================================
+// EMAIL SYNC (GMAIL) API
+// ==========================================
+export async function fetchEmailSyncStatusApi(): Promise<EmailIntegrationData | null> {
+  try {
+    const res = await fetch(`${getApiBase()}/email-sync/status`, {
+      headers: getAuthHeaders(),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (!data) return null;
+      return {
+        id: data.id,
+        provider: data.provider,
+        email: data.email,
+        isActive: data.is_active,
+        lastSyncedAt: data.last_synced_at,
+      };
+    }
+  } catch (err) {
+    console.warn("Error fetching email sync status:", err);
+  }
+  return null;
+}
+
+export async function connectEmailSyncApi(email: string, code?: string, accessToken?: string): Promise<EmailIntegrationData | null> {
+  try {
+    const res = await fetch(`${getApiBase()}/email-sync/connect`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ email, code, access_token: accessToken }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return {
+        id: data.id,
+        provider: data.provider,
+        email: data.email,
+        isActive: data.is_active,
+        lastSyncedAt: data.last_synced_at,
+      };
+    }
+  } catch (err) {
+    console.warn("Error connecting email sync:", err);
+  }
+  return null;
+}
+
+export async function disconnectEmailSyncApi(): Promise<boolean> {
+  try {
+    const res = await fetch(`${getApiBase()}/email-sync/disconnect`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+    });
+    return res.ok;
+  } catch (err) {
+    console.warn("Error disconnecting email sync:", err);
+    return false;
+  }
+}
+
+export async function scanEmailsNowApi(): Promise<{ scannedCount: number; newFound: number; message: string }> {
+  try {
+    const res = await fetch(`${getApiBase()}/email-sync/scan-now`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return {
+        scannedCount: data.scanned_count,
+        newFound: data.new_found,
+        message: data.message,
+      };
+    }
+  } catch (err) {
+    console.warn("Error running scan-now:", err);
+  }
+  return {
+    scannedCount: 0,
+    newFound: 0,
+    message: "No se pudo conectar con el servidor para escanear correos.",
+  };
 }
 
