@@ -16,6 +16,8 @@ class AccountCreate(BaseModel):
     cutoff_day: Optional[float] = None
     grace_days: Optional[float] = None
     overdraft_limit: Optional[float] = 0.0
+    credit_limit: Optional[float] = 0.0
+    min_balance: Optional[float] = 0.0
 
 
 class AccountUpdate(BaseModel):
@@ -28,6 +30,8 @@ class AccountUpdate(BaseModel):
     cutoff_day: Optional[float] = None
     grace_days: Optional[float] = None
     overdraft_limit: Optional[float] = None
+    credit_limit: Optional[float] = None
+    min_balance: Optional[float] = None
 
 
 class AccountResponse(BaseModel):
@@ -41,6 +45,8 @@ class AccountResponse(BaseModel):
     cutoff_day: Optional[float] = None
     grace_days: Optional[float] = None
     overdraft_limit: Optional[float] = 0.0
+    credit_limit: Optional[float] = 0.0
+    min_balance: Optional[float] = 0.0
 
     class Config:
         from_attributes = True

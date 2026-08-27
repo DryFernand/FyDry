@@ -382,6 +382,25 @@
   - Nueva pestaña **"Sincronización Gmail"** para conectar la cuenta de Google con servicios de lectura bancaria, ver el estado en tiempo real y botón para disparar escaneo manual instantáneo.
 - **Despliegue a Producción**: Verificado con `npx tsc --noEmit` (0 errores) y desplegado en Vercel (`READY`).
 
+### 2026-08-27 - Reglas de Tarjetas de Crédito, Saldo Mínimo y Sistema de Alertas Nativas (PC & Teléfono)
+- **Tarjetas de Crédito (`AccountsView.tsx`)**:
+  - Removido el recuadro de detalles incrustado en el card para mantener una vista limpia, uniforme y estética.
+  - Agregado el campo obligatorio **Límite de la Tarjeta ($)** (`credit_limit`) en el formulario de creación/edición de tarjetas de crédito.
+- **Saldo Mínimo por Cuenta**:
+  - Agregado el campo **Saldo Mínimo Aceptado ($)** (`min_balance`) en el formulario para todos los tipos de cuenta, permitiendo configurar un umbral de seguridad.
+- **Sistema de 5 Alertas Financieras Automáticas (`backend/app/api/v1/endpoints/notifications.py`)**:
+  1. 📅 **Día de corte de la tarjeta**: Notifica cuando se aproxima o llega el día de corte mensual.
+  2. ⏰ **Día final de pago**: Notifica cuando vence el plazo de pago tras el corte.
+  3. 🚨 **Alerta de sobregiro**: Notifica cuando el consumo de la tarjeta de crédito excede su cupo/límite.
+  4. 📉 **Saldo mínimo alcanzado**: Notifica cuando cualquier cuenta baja a o por debajo de su mínimo aceptado.
+  5. 📊 **Presupuesto > 80%**: Notifica cuando cualquier categoría presupuestada consume el 80% o más de su asignación.
+- **Notificaciones Push Nativas a PC y Teléfono (`frontend/lib/pushNotifications.ts`)**:
+  - Despachador de notificaciones web (`Notification API` / `ServiceWorker.showNotification`) que proyecta las alertas como notificaciones emergentes del sistema con sonido/vibración en computadoras (Windows/macOS) y dispositivos móviles (Android/iOS), además de la campanita del Dashboard.
+- **Base de Datos**:
+  - Agregadas columnas `credit_limit` y `min_balance` a la tabla `accounts` en Supabase PostgreSQL.
+- **Despliegue a Producción**: Verificado con `npx tsc --noEmit` (0 errores) y desplegado en Vercel (`READY`).
+
+
 
 
 

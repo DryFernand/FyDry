@@ -42,6 +42,8 @@ export interface AccountItem {
   cutoffDay?: number;
   graceDays?: number;
   overdraftLimit?: number;
+  creditLimit?: number;
+  minBalance?: number;
 }
 
 export interface BudgetItem {
@@ -68,7 +70,7 @@ export interface NotificationItem {
   title: string;
   message: string;
   source: string;
-  targetType: "expense" | "income" | "movement";
+  targetType: "expense" | "income" | "movement" | "budget" | "account";
   draftData: {
     amount?: number;
     description?: string;

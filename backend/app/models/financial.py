@@ -19,7 +19,9 @@ class Account(Base, TimestampMixin):
     card_number = Column(String(100), nullable=True)     # Número de tarjeta para crédito / débito
     cutoff_day = Column(Float, nullable=True)            # Día de corte (ej. 15)
     grace_days = Column(Float, nullable=True)            # Días de gracia para pago (ej. 20)
-    overdraft_limit = Column(Float, default=0.0, nullable=True)  # Monto de sobregiro / Límite de crédito
+    overdraft_limit = Column(Float, default=0.0, nullable=True)  # Monto de sobregiro
+    credit_limit = Column(Float, default=0.0, nullable=True)     # Límite total de crédito de la tarjeta
+    min_balance = Column(Float, default=0.0, nullable=True)      # Saldo mínimo aceptado para alertas
 
     user = relationship("User", backref="accounts")
 

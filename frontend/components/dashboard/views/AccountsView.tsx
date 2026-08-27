@@ -15,6 +15,7 @@ import {
   Calendar,
   Clock,
   ShieldAlert,
+  ArrowDownCircle,
 } from "lucide-react";
 import { AccountItem } from "../types";
 import { useLanguage } from "@/context/LanguageContext";
@@ -42,6 +43,8 @@ export default function AccountsView() {
   const [cutoffDay, setCutoffDay] = useState("");
   const [graceDays, setGraceDays] = useState("");
   const [overdraftLimit, setOverdraftLimit] = useState("");
+  const [creditLimit, setCreditLimit] = useState("");
+  const [minBalance, setMinBalance] = useState("");
 
   const loadAccounts = async () => {
     const data = await fetchAccountsApi();
@@ -80,6 +83,8 @@ export default function AccountsView() {
     setCutoffDay("");
     setGraceDays("");
     setOverdraftLimit("");
+    setCreditLimit("");
+    setMinBalance("");
     setIsModalOpen(true);
   };
 
@@ -93,6 +98,8 @@ export default function AccountsView() {
     setCutoffDay(acc.cutoffDay ? acc.cutoffDay.toString() : "");
     setGraceDays(acc.graceDays ? acc.graceDays.toString() : "");
     setOverdraftLimit(acc.overdraftLimit ? acc.overdraftLimit.toString() : "");
+    setCreditLimit(acc.creditLimit ? acc.creditLimit.toString() : "");
+    setMinBalance(acc.minBalance ? acc.minBalance.toString() : "");
     setIsModalOpen(true);
   };
 
@@ -104,6 +111,8 @@ export default function AccountsView() {
     const parsedCutoff = cutoffDay ? parseFloat(cutoffDay) : undefined;
     const parsedGrace = graceDays ? parseFloat(graceDays) : undefined;
     const parsedOverdraft = overdraftLimit ? parseFloat(overdraftLimit) : 0;
+    const parsedCreditLimit = creditLimit ? parseFloat(creditLimit) : 0;
+    const parsedMinBalance = minBalance ? parseFloat(minBalance) : 0;
 
     const itemPayload: Partial<AccountItem> = {
       name,
@@ -115,6 +124,8 @@ export default function AccountsView() {
       cutoffDay: type === "credit_card" ? parsedCutoff : undefined,
       graceDays: type === "credit_card" ? parsedGrace : undefined,
       overdraftLimit: type === "credit_card" ? parsedOverdraft : undefined,
+      creditLimit: type === "credit_card" ? parsedCreditLimit : undefined,
+      minBalance: parsedMinBalance,
     };
 
     if (editingAccount) {
@@ -128,13 +139,15 @@ export default function AccountsView() {
         type,
         balance: parsedBalance,
         currency: "USD",
-        accountNumber: itemPayload.accountNumber,
-        cardNumber: itemPayload.cardNumber,
-        cutoffDay: itemPayload.cutoffDay,
-        graceDays: itemPayload.graceDays,
-        overdraftLimit: itemPayload.overdraftLimit,
+        accountNumber: type === "bank" ? accountNum : undefined,
+        cardNumber: (type === "credit_card" || type === "debit_card" || type === "card") ? cardNum : undefined,
+        cutoffDay: type === "credit_card" ? parsedCutoff : undefined,
+        graceDays: type === "credit_card" ? parsedGrace : undefined,
+        overdraftLimit: type === "credit_card" ? parsedOverdraft : undefined,
+        creditLimit: type === "credit_card" ? parsedCreditLimit : undefined,
+        minBalance: parsedMinBalance,
       });
-      setAccounts((prev) => [...prev, created]);
+      setAccounts((prev) => [created, ...prev]);
     }
 
     if (typeof window !== "undefined") {
@@ -145,7 +158,7 @@ export default function AccountsView() {
   };
 
   const handleDeleteAccount = async (id: string) => {
-    if (confirm("¿Estás seguro de eliminar esta cuenta?")) {
+    if (confirm("¿Estás seguro de eliminar esta cuenta? Los registros asociados no se perderán.")) {
       setAccounts((prev) => prev.filter((a) => a.id !== id));
       await deleteAccountApi(id);
       if (typeof window !== "undefined") {
@@ -164,15 +177,14 @@ export default function AccountsView() {
         return <CreditCard className="w-5 h-5 text-purple-600" />;
       case "debit_card":
       case "card":
-        return <CreditCard className="w-5 h-5 text-zinc-700" />;
+        return <CreditCard className="w-5 h-5 text-zinc-600" />;
       case "savings":
         return <PiggyBank className="w-5 h-5 text-emerald-600" />;
       case "wallet":
         return <Wallet className="w-5 h-5 text-amber-600" />;
       case "cash":
-        return <Banknote className="w-5 h-5 text-zinc-700" />;
       default:
-        return <CreditCard className="w-5 h-5 text-zinc-800" />;
+        return <Banknote className="w-5 h-5 text-zinc-600" />;
     }
   };
 
@@ -190,9 +202,8 @@ export default function AccountsView() {
       case "wallet":
         return "Billetera";
       case "cash":
-        return "Efectivo";
       default:
-        return accType;
+        return "Efectivo";
     }
   };
 
@@ -205,37 +216,37 @@ export default function AccountsView() {
             {t.accounts.title}
           </h1>
           <p className="text-xs text-zinc-500 mt-1">
-            Administra tus cuentas bancarias, tarjetas de crédito con corte y sobregiro, fondos de ahorro y efectivo.
+            {t.accounts.subtitle}
           </p>
         </div>
 
         <button
           type="button"
           onClick={openCreateModal}
-          className="flex items-center gap-1.5 py-2 px-3.5 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-zinc-950 text-white hover:bg-zinc-800 transition-all font-semibold text-xs shadow-xs cursor-pointer"
         >
-          <Plus className="w-3.5 h-3.5" />
+          <Plus className="w-4 h-4" />
           <span>{t.accounts.addAccount}</span>
         </button>
       </div>
 
-      {/* Summary Cards Grid */}
+      {/* Overview Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Bank Total */}
         <div className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-zinc-500">{t.accounts.bankBalance}</span>
+            <span className="text-xs font-semibold text-zinc-500">Cuentas Bancarias</span>
             <Building2 className="w-4 h-4 text-blue-600" />
           </div>
           <div className="text-2xl font-bold tracking-tight text-zinc-950">
             ${bankTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}
           </div>
           <div className="text-[11px] text-zinc-400">
-            {accounts.filter((a) => a.type === "bank").length} cuentas bancarias
+            {accounts.filter((a) => a.type === "bank").length} cuentas activas
           </div>
         </div>
 
-        {/* Credit Cards Total */}
+        {/* Credit Card Total */}
         <div className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-zinc-500">Tarjetas de Crédito</span>
@@ -245,7 +256,7 @@ export default function AccountsView() {
             ${creditCardTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}
           </div>
           <div className="text-[11px] text-zinc-400">
-            {accounts.filter((a) => a.type === "credit_card").length} tarjetas de crédito activas
+            {accounts.filter((a) => a.type === "credit_card").length} tarjetas registradas
           </div>
         </div>
 
@@ -336,42 +347,11 @@ export default function AccountsView() {
                   {getAccountTypeLabel(acc.type)}
                 </span>
               </div>
-
-              {/* Credit card parameters pill */}
-              {acc.type === "credit_card" && (
-                <div className="bg-purple-50/50 rounded-2xl p-2.5 border border-purple-100 space-y-1 text-[11px] text-purple-950">
-                  <div className="flex items-center justify-between">
-                    <span className="text-zinc-500 flex items-center gap-1">
-                      <Calendar className="w-3 h-3 text-purple-600" />
-                      Corte:
-                    </span>
-                    <span className="font-semibold">{acc.cutoffDay ? `Día ${acc.cutoffDay} de cada mes` : "Sin definir"}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-zinc-500 flex items-center gap-1">
-                      <Clock className="w-3 h-3 text-purple-600" />
-                      Plazo para pago:
-                    </span>
-                    <span className="font-semibold">{acc.graceDays ? `${acc.graceDays} días después` : "Sin definir"}</span>
-                  </div>
-                  {acc.overdraftLimit && acc.overdraftLimit > 0 ? (
-                    <div className="flex items-center justify-between pt-1 border-t border-purple-100/80">
-                      <span className="text-zinc-500 flex items-center gap-1">
-                        <ShieldAlert className="w-3 h-3 text-purple-600" />
-                        Límite / Sobregiro:
-                      </span>
-                      <span className="font-bold text-purple-700">${acc.overdraftLimit.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
-                    </div>
-                  ) : null}
-                </div>
-              )}
             </div>
 
             <div className="pt-2 border-t border-zinc-100 flex items-baseline justify-between">
-              <span className="text-[11px] text-zinc-400 font-medium">
-                {t.accounts.availableBalance}
-              </span>
-              <span className={`text-xl font-bold ${
+              <span className="text-xs font-semibold text-zinc-400">Saldo Disponible</span>
+              <span className={`text-lg font-bold tracking-tight ${
                 acc.type === "credit_card"
                   ? "text-purple-600"
                   : acc.type === "savings"
@@ -385,27 +365,26 @@ export default function AccountsView() {
         ))}
 
         {accounts.length === 0 && (
-          <div className="col-span-full py-16 text-center bg-white rounded-3xl border border-zinc-200/80 p-8 space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-zinc-100 text-zinc-400 flex items-center justify-center mx-auto">
-              <Wallet className="w-6 h-6" />
+          <div className="col-span-full bg-white p-12 rounded-3xl border border-zinc-200 text-center space-y-3">
+            <div className="w-12 h-12 rounded-2xl bg-zinc-100 flex items-center justify-center mx-auto text-zinc-400">
+              <Building2 className="w-6 h-6" />
             </div>
-            <div className="text-sm font-bold text-zinc-900">No tienes cuentas registradas aún</div>
-            <p className="text-xs text-zinc-400 max-w-sm mx-auto">
-              Añade tus cuentas de banco, tarjetas de crédito, fondos de ahorro o efectivo para llevar el control financiero.
+            <h3 className="font-bold text-zinc-900 text-sm">No tienes cuentas registradas</h3>
+            <p className="text-xs text-zinc-500 max-w-sm mx-auto">
+              Crea tus cuentas bancarias, tarjetas de crédito, débito, billeteras o ahorros para gestionar tus finanzas.
             </p>
             <button
               type="button"
               onClick={openCreateModal}
-              className="inline-flex items-center gap-1.5 py-2.5 px-4 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer mt-2"
+              className="py-2 px-4 rounded-xl bg-zinc-950 text-white text-xs font-semibold hover:bg-zinc-800 transition-all cursor-pointer"
             >
-              <Plus className="w-4 h-4" />
-              <span>{t.accounts.addAccount}</span>
+              Crear primera cuenta
             </button>
           </div>
         )}
       </div>
 
-      {/* Add / Edit Account Modal */}
+      {/* Modal Crear / Editar Cuenta */}
       <AnimatePresence>
         {isModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
@@ -413,18 +392,23 @@ export default function AccountsView() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-md bg-white rounded-3xl border border-zinc-200 p-6 shadow-xl space-y-4 max-h-[90vh] overflow-y-auto"
+              className="w-full max-w-md bg-white rounded-3xl border border-zinc-200 shadow-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto"
             >
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-bold text-zinc-950">
-                  {editingAccount ? "Editar Cuenta / Tarjeta" : t.accounts.modalTitle}
-                </h3>
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-zinc-100 flex items-center justify-center text-zinc-900">
+                    <Building2 className="w-4 h-4" />
+                  </div>
+                  <h3 className="font-bold text-zinc-950 text-sm">
+                    {editingAccount ? "Editar Cuenta" : t.accounts.modalTitle}
+                  </h3>
+                </div>
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="p-1 rounded-lg text-zinc-400 hover:text-zinc-700 cursor-pointer"
+                  className="p-1 rounded-lg text-zinc-400 hover:text-zinc-900 transition-colors cursor-pointer"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-4 h-4" />
                 </button>
               </div>
 
@@ -434,18 +418,31 @@ export default function AccountsView() {
                   <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
                     {t.accounts.accountType}
                   </label>
-                  <select
-                    value={type}
-                    onChange={(e) => setType(e.target.value as AccountType)}
-                    className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 bg-white text-zinc-900 text-xs focus:outline-none focus:border-zinc-900 transition-colors shadow-2xs cursor-pointer"
-                  >
-                    <option value="bank">Cuenta Bancaria</option>
-                    <option value="credit_card">Tarjeta de Crédito</option>
-                    <option value="debit_card">Tarjeta de Débito</option>
-                    <option value="savings">Cuenta de Ahorros</option>
-                    <option value="cash">Efectivo Físico</option>
-                    <option value="wallet">Billetera Digital</option>
-                  </select>
+                  <div className="grid grid-cols-3 gap-1.5 p-1 bg-zinc-100/80 rounded-2xl border border-zinc-200/50">
+                    {(
+                      [
+                        { id: "bank", label: "Banco" },
+                        { id: "credit_card", label: "T. Crédito" },
+                        { id: "debit_card", label: "T. Débito" },
+                        { id: "savings", label: "Ahorros" },
+                        { id: "wallet", label: "Billetera" },
+                        { id: "cash", label: "Efectivo" },
+                      ] as const
+                    ).map((tOpt) => (
+                      <button
+                        key={tOpt.id}
+                        type="button"
+                        onClick={() => setType(tOpt.id)}
+                        className={`py-2 px-2 rounded-xl text-xs font-semibold transition-all cursor-pointer truncate ${
+                          type === tOpt.id
+                            ? "bg-white text-zinc-950 shadow-2xs"
+                            : "text-zinc-500 hover:text-zinc-900"
+                        }`}
+                      >
+                        {tOpt.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 {/* Account / Card Name */}
@@ -494,6 +491,28 @@ export default function AccountsView() {
                   />
                 </div>
 
+                {/* Saldo Mínimo Aceptado (Para todos los tipos de cuenta) */}
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-800 mb-1.5 flex items-center justify-between">
+                    <span className="flex items-center gap-1">
+                      <ArrowDownCircle className="w-3.5 h-3.5 text-zinc-500" />
+                      <span>Saldo Mínimo Aceptado ($)</span>
+                    </span>
+                    <span className="text-[10px] text-zinc-400 font-normal">Para alertas automáticas</span>
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={minBalance}
+                    onChange={(e) => setMinBalance(e.target.value)}
+                    placeholder="Ej. 100.00 (Opcional)"
+                    className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 bg-white text-zinc-900 text-xs placeholder:text-zinc-400 focus:outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 transition-colors shadow-2xs"
+                  />
+                  <span className="text-[10px] text-zinc-400 mt-1 block">
+                    Te notificaremos a tu PC y teléfono cuando el saldo descienda a este monto o menos.
+                  </span>
+                </div>
+
                 {/* Conditional Fields: BANK -> Account Number */}
                 {type === "bank" && (
                   <div>
@@ -526,7 +545,7 @@ export default function AccountsView() {
                   </div>
                 )}
 
-                {/* Conditional Fields: CREDIT CARD -> Card Number + Cutoff + Grace Days + Overdraft */}
+                {/* Conditional Fields: CREDIT CARD -> Card Number + Credit Limit + Cutoff + Grace Days + Overdraft */}
                 {type === "credit_card" && (
                   <div className="space-y-3 pt-1 border-t border-zinc-100">
                     <div>
@@ -540,6 +559,24 @@ export default function AccountsView() {
                         placeholder="Ej. 5421 •••• •••• 9912"
                         className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 bg-white text-zinc-900 text-xs placeholder:text-zinc-400 focus:outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 transition-colors shadow-2xs"
                       />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
+                        Límite de la Tarjeta ($) *
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        required
+                        value={creditLimit}
+                        onChange={(e) => setCreditLimit(e.target.value)}
+                        placeholder="Ej. 3000.00"
+                        className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 bg-white text-zinc-900 text-xs placeholder:text-zinc-400 focus:outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 transition-colors shadow-2xs"
+                      />
+                      <span className="text-[10px] text-zinc-400 mt-0.5 block">
+                        Cupo total asignado a la tarjeta por el banco
+                      </span>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
@@ -578,18 +615,18 @@ export default function AccountsView() {
 
                     <div>
                       <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
-                        Monto de Sobregiro / Límite de Crédito ($)
+                        Monto de Sobregiro Permitido ($)
                       </label>
                       <input
                         type="number"
                         step="0.01"
                         value={overdraftLimit}
                         onChange={(e) => setOverdraftLimit(e.target.value)}
-                        placeholder="Ej. 2500.00"
+                        placeholder="Ej. 500.00 (Opcional)"
                         className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 bg-white text-zinc-900 text-xs placeholder:text-zinc-400 focus:outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 transition-colors shadow-2xs"
                       />
                       <span className="text-[10px] text-zinc-400 mt-0.5 block">
-                        Cupo máximo autorizado por el banco emisor
+                        Margen adicional permitido antes de rechazar transacciones
                       </span>
                     </div>
                   </div>

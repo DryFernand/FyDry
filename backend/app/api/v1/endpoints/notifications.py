@@ -381,3 +381,173 @@ def scan_emails_now(
         new_found=new_found,
         message=f"Escaneo completado en {email_account}. Se encontraron {new_found} nuevas transacciones para confirmar.",
     )
+
+
+# ==========================================
+# MOTOR DE ALERTAS AUTOMÁTICAS (CORTE, PAGO, SOBREGIRO, MÍNIMO, PRESUPUESTO >80%)
+# ==========================================
+@router.post("/notifications/check-alerts", response_model=List[NotificationResponse])
+def check_financial_alerts(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Evalúa las 5 reglas financieras y emite alertas automáticas para PC/Móvil."""
+    from app.models.financial import Account, Budget, Expense
+
+    today = datetime.now()
+    today_day = today.day
+    today_str = today.strftime("%Y-%m-%d")
+
+    # IDs de alertas ya generadas hoy para no duplicar en el mismo día
+    existing_alert_ids = {
+        n.email_message_id for n in db.query(PendingNotification).filter(
+            PendingNotification.user_id == current_user.id
+        ).all() if n.email_message_id
+    }
+
+    new_alerts = []
+
+    # 1. Evaluar Cuentas y Tarjetas de Crédito
+    accounts = db.query(Account).filter(Account.user_id == current_user.id).all()
+    for acc in accounts:
+        # a) Tarjeta de crédito: Día de corte
+        if acc.type == "credit_card" and acc.cutoff_day:
+            c_day = int(acc.cutoff_day)
+            if abs(today_day - c_day) <= 1:
+                alert_key = f"alert-cutoff-{acc.id}-{today_str}"
+                if alert_key not in existing_alert_ids:
+                    notif = PendingNotification(
+                        user_id=current_user.id,
+                        title=f"📅 Día de corte: {acc.name}",
+                        message=f"El día de corte de tu tarjeta es el día {c_day}. Revisa tus consumos de este periodo.",
+                        source="system",
+                        target_type="account",
+                        draft_data=json.dumps({"account_id": acc.id, "account_name": acc.name, "type": "credit_card"}),
+                        is_read="false",
+                        is_processed="false",
+                        email_message_id=alert_key,
+                    )
+                    db.add(notif)
+                    new_alerts.append(notif)
+
+        # b) Tarjeta de crédito: Día final de pago
+        if acc.type == "credit_card" and acc.cutoff_day and acc.grace_days:
+            c_day = int(acc.cutoff_day)
+            g_days = int(acc.grace_days)
+            pay_day = ((c_day + g_days - 1) % 30) + 1
+            if abs(today_day - pay_day) <= 1:
+                alert_key = f"alert-payment-{acc.id}-{today_str}"
+                if alert_key not in existing_alert_ids:
+                    notif = PendingNotification(
+                        user_id=current_user.id,
+                        title=f"⏰ Fecha límite de pago: {acc.name}",
+                        message=f"El plazo de pago de tu tarjeta vence el día {pay_day}. Realiza tu pago para evitar intereses y mora.",
+                        source="system",
+                        target_type="account",
+                        draft_data=json.dumps({"account_id": acc.id, "account_name": acc.name, "type": "credit_card"}),
+                        is_read="false",
+                        is_processed="false",
+                        email_message_id=alert_key,
+                    )
+                    db.add(notif)
+                    new_alerts.append(notif)
+
+        # c) Tarjeta de crédito: Sobregiro
+        if acc.type == "credit_card" and (acc.credit_limit or 0) > 0:
+            limit = acc.credit_limit or 0.0
+            # Si el saldo es negativo (consumo) y excede el límite
+            if acc.balance < 0 and abs(acc.balance) > limit:
+                alert_key = f"alert-overdraft-{acc.id}-{today_str}"
+                if alert_key not in existing_alert_ids:
+                    notif = PendingNotification(
+                        user_id=current_user.id,
+                        title=f"🚨 Alerta de Sobregiro: {acc.name}",
+                        message=f"Has sobregirado tu tarjeta. Consumo: ${abs(acc.balance):.2f} (Límite: ${limit:.2f}).",
+                        source="system",
+                        target_type="account",
+                        draft_data=json.dumps({"account_id": acc.id, "account_name": acc.name, "type": "credit_card"}),
+                        is_read="false",
+                        is_processed="false",
+                        email_message_id=alert_key,
+                    )
+                    db.add(notif)
+                    new_alerts.append(notif)
+
+        # d) Saldo mínimo de cuenta (Cualquier tipo de cuenta)
+        if (acc.min_balance or 0) > 0:
+            min_b = acc.min_balance or 0.0
+            if acc.balance <= min_b:
+                alert_key = f"alert-minbal-{acc.id}-{today_str}"
+                if alert_key not in existing_alert_ids:
+                    notif = PendingNotification(
+                        user_id=current_user.id,
+                        title=f"📉 Saldo mínimo alcanzado: {acc.name}",
+                        message=f"El saldo de tu cuenta (${acc.balance:.2f}) ha bajado de tu mínimo aceptado (${min_b:.2f}).",
+                        source="system",
+                        target_type="account",
+                        draft_data=json.dumps({"account_id": acc.id, "account_name": acc.name, "balance": acc.balance}),
+                        is_read="false",
+                        is_processed="false",
+                        email_message_id=alert_key,
+                    )
+                    db.add(notif)
+                    new_alerts.append(notif)
+
+    # 2. Evaluar Presupuestos > 80%
+    budgets = db.query(Budget).filter(Budget.user_id == current_user.id).all()
+    expenses = db.query(Expense).filter(Expense.user_id == current_user.id).all()
+
+    for b in budgets:
+        if b.allocated_amount > 0:
+            # Calcular gasto en esta categoría
+            cat_expenses = [e.amount for e in expenses if e.category.strip().lower() == b.category.strip().lower()]
+            spent = sum(cat_expenses)
+            pct = (spent / b.allocated_amount) * 100.0
+
+            if pct >= 80.0:
+                alert_key = f"alert-budget80-{b.id}-{today_str}"
+                if alert_key not in existing_alert_ids:
+                    notif = PendingNotification(
+                        user_id=current_user.id,
+                        title=f"📊 Presupuesto al {pct:.0f}%: {b.category}",
+                        message=f"Has consumido ${spent:.2f} de tu límite de ${b.allocated_amount:.2f} ({pct:.0f}% consumido).",
+                        source="system",
+                        target_type="budget",
+                        draft_data=json.dumps({"budget_id": b.id, "category": b.category, "spent": spent, "allocated": b.allocated_amount}),
+                        is_read="false",
+                        is_processed="false",
+                        email_message_id=alert_key,
+                    )
+                    db.add(notif)
+                    new_alerts.append(notif)
+
+    if new_alerts:
+        db.commit()
+        for a in new_alerts:
+            db.refresh(a)
+
+    # Devolver todas las notificaciones pendientes actualizadas
+    all_notifs = db.query(PendingNotification).filter(
+        PendingNotification.user_id == current_user.id
+    ).order_by(PendingNotification.created_at.desc()).all()
+
+    result = []
+    for n in all_notifs:
+        try:
+            draft = json.loads(n.draft_data)
+        except Exception:
+            draft = {}
+        result.append(
+            NotificationResponse(
+                id=n.id,
+                title=n.title,
+                message=n.message,
+                source=n.source,
+                target_type=n.target_type,
+                draft_data=draft,
+                is_read=(n.is_read == "true"),
+                is_processed=(n.is_processed == "true"),
+                created_at=n.created_at,
+            )
+        )
+    return result

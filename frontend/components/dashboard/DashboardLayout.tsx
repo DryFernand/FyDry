@@ -48,10 +48,10 @@ export default function DashboardLayout() {
     email?: string;
   } | null>(null);
 
-  // Borrador activo seleccionado desde una notificación de correo
+  // Borrador activo seleccionado desde una notificación de correo o alerta
   const [activeDraft, setActiveDraft] = useState<{
     notifId: string;
-    targetType: "expense" | "income" | "movement";
+    targetType: "expense" | "income" | "movement" | "budget" | "account";
     amount?: number;
     description?: string;
     category?: string;
@@ -135,7 +135,11 @@ export default function DashboardLayout() {
       targetType: item.targetType,
       ...item.draftData,
     });
-    if (item.targetType === "income") {
+    if (item.targetType === "budget") {
+      setActiveTab("budget");
+    } else if (item.targetType === "account") {
+      setActiveTab("accounts");
+    } else if (item.targetType === "income") {
       setActiveTab("incomes");
     } else if (item.targetType === "movement") {
       setActiveTab("movements");

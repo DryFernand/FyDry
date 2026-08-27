@@ -75,6 +75,8 @@ export async function fetchAccountsApi(): Promise<AccountItem[]> {
         cutoffDay: d.cutoff_day,
         graceDays: d.grace_days,
         overdraftLimit: d.overdraft_limit,
+        creditLimit: d.credit_limit,
+        minBalance: d.min_balance,
       }));
       if (typeof window !== "undefined") {
         localStorage.setItem("fydry_accounts", JSON.stringify(accounts));
@@ -104,6 +106,8 @@ export async function createAccountApi(account: Omit<AccountItem, "id">): Promis
     cutoff_day: account.cutoffDay || null,
     grace_days: account.graceDays || null,
     overdraft_limit: account.overdraftLimit || 0.0,
+    credit_limit: account.creditLimit || 0.0,
+    min_balance: account.minBalance || 0.0,
   };
 
   try {
@@ -125,6 +129,8 @@ export async function createAccountApi(account: Omit<AccountItem, "id">): Promis
         cutoffDay: d.cutoff_day,
         graceDays: d.grace_days,
         overdraftLimit: d.overdraft_limit,
+        creditLimit: d.credit_limit,
+        minBalance: d.min_balance,
       };
     }
   } catch (err) {
@@ -149,6 +155,8 @@ export async function updateAccountApi(id: string, account: Partial<AccountItem>
     cutoff_day: account.cutoffDay !== undefined ? account.cutoffDay : null,
     grace_days: account.graceDays !== undefined ? account.graceDays : null,
     overdraft_limit: account.overdraftLimit !== undefined ? account.overdraftLimit : null,
+    credit_limit: account.creditLimit !== undefined ? account.creditLimit : null,
+    min_balance: account.minBalance !== undefined ? account.minBalance : null,
   };
 
   try {
@@ -1003,4 +1011,35 @@ export async function scanEmailsNowApi(): Promise<{ scannedCount: number; newFou
     message: "No se pudo conectar con el servidor para escanear correos.",
   };
 }
+
+export async function checkFinancialAlertsApi(): Promise<NotificationItem[]> {
+  try {
+    const res = await fetch(`${getApiBase()}/notifications/check-alerts`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const items: NotificationItem[] = data.map((d: any) => ({
+        id: d.id,
+        title: d.title,
+        message: d.message,
+        source: d.source,
+        targetType: d.target_type,
+        draftData: d.draft_data || {},
+        isRead: d.is_read,
+        isProcessed: d.is_processed,
+        createdAt: d.created_at,
+      }));
+      if (typeof window !== "undefined") {
+        localStorage.setItem("fydry_notifications", JSON.stringify(items));
+      }
+      return items;
+    }
+  } catch (err) {
+    console.warn("Error checking financial alerts:", err);
+  }
+  return [];
+}
+
 

@@ -11,13 +11,23 @@ import {
   ArrowLeftRight,
   Sparkles,
   ExternalLink,
+  Calendar,
+  Clock,
+  ShieldAlert,
+  PieChart,
+  ArrowDownCircle,
 } from "lucide-react";
 import { NotificationItem } from "./types";
 import {
   fetchNotificationsApi,
+  checkFinancialAlertsApi,
   markNotificationReadApi,
   deleteNotificationApi,
 } from "@/lib/api";
+import {
+  requestSystemNotificationPermission,
+  dispatchNativeAlerts,
+} from "@/lib/pushNotifications";
 
 interface NotificationBellProps {
   onOpenDraft: (item: NotificationItem) => void;
@@ -28,19 +38,24 @@ export default function NotificationBell({ onOpenDraft }: NotificationBellProps)
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const loadNotifications = async () => {
-    const data = await fetchNotificationsApi();
-    setNotifications(data.filter((n) => !n.isProcessed));
+  const loadNotificationsAndCheckAlerts = async () => {
+    // 1. Chequeo de alertas automáticas (corte, pago, sobregiro, saldo mínimo, presupuesto >80%)
+    const alerts = await checkFinancialAlertsApi();
+    const activeAlerts = alerts.filter((n) => !n.isProcessed);
+    setNotifications(activeAlerts);
+
+    // 2. Disparar notificaciones nativas a PC / Teléfono
+    dispatchNativeAlerts(activeAlerts);
   };
 
   useEffect(() => {
-    loadNotifications();
-    window.addEventListener("fydry_storage_updated", loadNotifications);
+    loadNotificationsAndCheckAlerts();
+    window.addEventListener("fydry_storage_updated", loadNotificationsAndCheckAlerts);
 
-    // Auto-solicitar permiso web de notificaciones si está en default
+    // Auto-solicitar permiso web de notificaciones suavemente
     if (typeof window !== "undefined" && "Notification" in window) {
       if (Notification.permission === "default") {
-        // Pedir permiso suavemente
+        requestSystemNotificationPermission();
       }
     }
 
@@ -52,7 +67,7 @@ export default function NotificationBell({ onOpenDraft }: NotificationBellProps)
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
-      window.removeEventListener("fydry_storage_updated", loadNotifications);
+      window.removeEventListener("fydry_storage_updated", loadNotificationsAndCheckAlerts);
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
@@ -74,16 +89,47 @@ export default function NotificationBell({ onOpenDraft }: NotificationBellProps)
     await deleteNotificationApi(id);
   };
 
-  const requestBrowserPermission = async () => {
-    if (typeof window !== "undefined" && "Notification" in window) {
-      const perm = await Notification.requestPermission();
-      if (perm === "granted") {
-        new Notification("FyDry — Notificaciones activadas", {
-          body: "Te avisaremos cuando detectemos nuevos movimientos o gastos en tu correo.",
-          icon: "/favicon.ico",
-        });
-      }
+  const handleEnableSystemNotifications = async () => {
+    const granted = await requestSystemNotificationPermission();
+    if (granted) {
+      dispatchNativeAlerts(notifications);
     }
+  };
+
+  const getItemIcon = (item: NotificationItem) => {
+    if (item.targetType === "budget") {
+      return <PieChart className="w-4 h-4 text-purple-600" />;
+    }
+    if (item.title.includes("corte")) {
+      return <Calendar className="w-4 h-4 text-indigo-600" />;
+    }
+    if (item.title.includes("pago") || item.title.includes("límite de pago")) {
+      return <Clock className="w-4 h-4 text-amber-600" />;
+    }
+    if (item.title.includes("Sobregiro")) {
+      return <ShieldAlert className="w-4 h-4 text-rose-600" />;
+    }
+    if (item.title.includes("mínimo")) {
+      return <ArrowDownCircle className="w-4 h-4 text-orange-600" />;
+    }
+    if (item.targetType === "income") {
+      return <ArrowUpRight className="w-4 h-4 text-emerald-600" />;
+    }
+    if (item.targetType === "movement") {
+      return <ArrowLeftRight className="w-4 h-4 text-blue-600" />;
+    }
+    return <ArrowDownRight className="w-4 h-4 text-rose-600" />;
+  };
+
+  const getItemBadgeBg = (item: NotificationItem) => {
+    if (item.targetType === "budget") return "bg-purple-50";
+    if (item.title.includes("corte")) return "bg-indigo-50";
+    if (item.title.includes("pago")) return "bg-amber-50";
+    if (item.title.includes("Sobregiro")) return "bg-rose-50";
+    if (item.title.includes("mínimo")) return "bg-orange-50";
+    if (item.targetType === "income") return "bg-emerald-50";
+    if (item.targetType === "movement") return "bg-blue-50";
+    return "bg-rose-50";
   };
 
   return (
@@ -93,7 +139,7 @@ export default function NotificationBell({ onOpenDraft }: NotificationBellProps)
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className="relative p-2.5 rounded-2xl bg-zinc-100/80 hover:bg-zinc-200/80 text-zinc-700 hover:text-zinc-950 transition-all cursor-pointer border border-zinc-200/60 flex items-center justify-center"
-        title="Notificaciones de correo bancario"
+        title="Notificaciones y alertas financieras"
       >
         <Bell className="w-4 h-4" />
         {unreadCount > 0 && (
@@ -120,17 +166,17 @@ export default function NotificationBell({ onOpenDraft }: NotificationBellProps)
                   <Sparkles className="w-3.5 h-3.5" />
                 </div>
                 <h3 className="text-xs font-bold text-zinc-950">
-                  Transacciones Detectadas
+                  Alertas y Notificaciones
                 </h3>
               </div>
 
               {typeof window !== "undefined" && "Notification" in window && Notification.permission !== "granted" && (
                 <button
                   type="button"
-                  onClick={requestBrowserPermission}
+                  onClick={handleEnableSystemNotifications}
                   className="text-[10px] font-semibold text-purple-600 hover:text-purple-800 cursor-pointer underline"
                 >
-                  Activar alertas
+                  Activar en PC y Celular
                 </button>
               )}
             </div>
@@ -146,21 +192,9 @@ export default function NotificationBell({ onOpenDraft }: NotificationBellProps)
                   }`}
                 >
                   <div
-                    className={`w-8 h-8 rounded-2xl flex items-center justify-center shrink-0 mt-0.5 ${
-                      item.targetType === "income"
-                        ? "bg-emerald-50 text-emerald-600"
-                        : item.targetType === "movement"
-                        ? "bg-blue-50 text-blue-600"
-                        : "bg-rose-50 text-rose-600"
-                    }`}
+                    className={`w-8 h-8 rounded-2xl flex items-center justify-center shrink-0 mt-0.5 ${getItemBadgeBg(item)}`}
                   >
-                    {item.targetType === "income" ? (
-                      <ArrowUpRight className="w-4 h-4" />
-                    ) : item.targetType === "movement" ? (
-                      <ArrowLeftRight className="w-4 h-4" />
-                    ) : (
-                      <ArrowDownRight className="w-4 h-4" />
-                    )}
+                    {getItemIcon(item)}
                   </div>
 
                   <div className="flex-1 min-w-0">
@@ -178,7 +212,7 @@ export default function NotificationBell({ onOpenDraft }: NotificationBellProps)
 
                     <div className="flex items-center justify-between pt-2 mt-1">
                       <span className="text-[10px] font-semibold text-purple-600 flex items-center gap-1 group-hover:underline">
-                        <span>Revisar & Asentar</span>
+                        <span>{item.source === "system" ? "Ver Detalle" : "Revisar & Asentar"}</span>
                         <ExternalLink className="w-2.5 h-2.5" />
                       </span>
 
@@ -200,9 +234,9 @@ export default function NotificationBell({ onOpenDraft }: NotificationBellProps)
                   <div className="w-10 h-10 rounded-2xl bg-zinc-100 text-zinc-400 flex items-center justify-center mx-auto">
                     <Check className="w-5 h-5" />
                   </div>
-                  <div className="text-xs font-bold text-zinc-900">Bandeja al día</div>
+                  <div className="text-xs font-bold text-zinc-900">Sin alertas pendientes</div>
                   <p className="text-[11px] text-zinc-400 max-w-[220px] mx-auto">
-                    No hay correos bancarios pendientes de asentar en este momento.
+                    Tus tarjetas, presupuestos y saldos de cuentas están en orden.
                   </p>
                 </div>
               )}

@@ -61,6 +61,8 @@ def create_account(
         cutoff_day=account_in.cutoff_day,
         grace_days=account_in.grace_days,
         overdraft_limit=account_in.overdraft_limit or 0.0,
+        credit_limit=account_in.credit_limit or 0.0,
+        min_balance=account_in.min_balance or 0.0,
     )
     db.add(account)
     db.commit()
