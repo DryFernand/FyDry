@@ -286,6 +286,25 @@
   - Resuelto `NameError` en `backend/app/api/v1/endpoints/auth.py` importando `UserSettingsResponse`, `UserSettingsUpdate` y `UserProfile`.
   - Verificado el preflight `OPTIONS` devolviendo código `200 OK` con cabecera `access-control-allow-origin: https://fydry-dary.vercel.app`.
 
+### 2026-08-27 - Aplicación Contable Automática a Cuentas y Nueva Pantalla de Movimientos
+- **Aplicación Automática de Ingresos y Gastos sobre Saldos de Cuentas**:
+  - **Creación de Transacciones (`POST /api/v1/transactions`)**:
+    - Al registrar un ingreso (`type: "income"`), el saldo de la cuenta receptora se incrementa automáticamente (`balance += amount`).
+    - Al registrar un gasto (`type: "expense"`), el saldo de la cuenta origen se debita automáticamente (`balance -= amount`).
+  - **Edición y Recálculo (`PUT /api/v1/transactions/{id}`)**:
+    - Reversión automática del impacto contable en la cuenta original y aplicación del nuevo monto/tipo sobre la cuenta correspondiente.
+  - **Eliminación y Restauración (`DELETE /api/v1/transactions/{id}`)**:
+    - Al eliminar una transacción, su efecto se revierte de inmediato restaurando el saldo de la cuenta asociada.
+- **Nueva Pantalla de Movimientos (`MovementsView.tsx`)**:
+  - Libro mayor unificado con la cronología completa de ingresos y gastos consolidados.
+  - Tarjetas de resumen en vivo: Ingresos Totales, Gastos Totales y Flujo Neto Consolidado.
+  - Filtros avanzados: selector de tipo (Todos, Ingresos, Gastos), categorías con consumos reales y selector por cuenta bancaria.
+  - Modal interactivo para crear y editar movimientos con selector reactivo de tipo (Gasto/Ingreso) y cuenta aplicada.
+- **Integración de Navegación e Internacionalización**:
+  - Añadida sección "Movimientos" / "Movements" en la barra lateral con icono interactivo y soporte bilingüe (Español / Inglés).
+- **Despliegue a Producción**: Compilado con 0 errores en TypeScript y desplegado en los proyectos `fydry` y `fydry-api` en Vercel.
+
+
 
 
 
