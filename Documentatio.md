@@ -489,6 +489,17 @@
   - Actualizado el motor de expresiones regulares para identificar montos expresados en `RD$`, `DOP` y `RD` procedentes de notificaciones de bancos dominicanos (Banreservas, Banco Popular, BHD, APAP, etc.).
 - **Despliegue a Producción**: Verificado con `npx tsc --noEmit` (0 errores) y desplegado en Vercel (`READY`).
 
+### 2026-08-27 - Calibración de Rangos Salariales Reales para República Dominicana (DOP)
+- **Rangos de Ingresos Dinámicos en Onboarding (`StepFinancial.tsx`)**:
+  - Sustituidos los rangos genéricos en dólares por rangos de mercado reales de República Dominicana en Pesos Dominicanos (`RD$`):
+    - *Menos de RD$ 25,000 / mes*
+    - *RD$ 25,000 - RD$ 60,000 / mes*
+    - *RD$ 60,000 - RD$ 150,000 / mes*
+    - *Más de RD$ 150,000 / mes*
+  - Adaptación automática contextual si el usuario elige USD, EUR, COP o MXN.
+- **Despliegue a Producción**: Verificado con `npx tsc --noEmit` (0 errores) y desplegado en Vercel (`READY`).
+
+
 
 
 

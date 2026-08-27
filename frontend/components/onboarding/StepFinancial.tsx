@@ -11,12 +11,46 @@ interface StepFinancialProps {
   onPrev: () => void;
 }
 
-const incomeRanges = [
-  { id: "under_800", label: "Menos de $800 / mes" },
-  { id: "800_2000", label: "$800 - $2,000 / mes" },
-  { id: "2000_4500", label: "$2,000 - $4,500 / mes" },
-  { id: "over_4500", label: "Más de $4,500 / mes" },
-];
+const getIncomeRanges = (currency?: string, country?: string) => {
+  if (currency === "DOP" || country === "República Dominicana") {
+    return [
+      { id: "under_25k", label: "Menos de RD$ 25,000 / mes" },
+      { id: "25k_60k", label: "RD$ 25,000 - RD$ 60,000 / mes" },
+      { id: "60k_150k", label: "RD$ 60,000 - RD$ 150,000 / mes" },
+      { id: "over_150k", label: "Más de RD$ 150,000 / mes" },
+    ];
+  }
+  if (currency === "COP" || country === "Colombia") {
+    return [
+      { id: "under_1_5m", label: "Menos de $1.5M COP / mes" },
+      { id: "1_5m_3_5m", label: "$1.5M - $3.5M COP / mes" },
+      { id: "3_5m_8m", label: "$3.5M - $8M COP / mes" },
+      { id: "over_8m", label: "Más de $8M COP / mes" },
+    ];
+  }
+  if (currency === "MXN" || country === "México") {
+    return [
+      { id: "under_12k", label: "Menos de $12,000 MXN / mes" },
+      { id: "12k_30k", label: "$12,000 - $30,000 MXN / mes" },
+      { id: "30k_70k", label: "$30,000 - $70,000 MXN / mes" },
+      { id: "over_70k", label: "Más de $70,000 MXN / mes" },
+    ];
+  }
+  if (currency === "EUR" || country === "España") {
+    return [
+      { id: "under_1200", label: "Menos de 1.200 € / mes" },
+      { id: "1200_2500", label: "1.200 € - 2.500 € / mes" },
+      { id: "2500_4500", label: "2.500 € - 4.500 € / mes" },
+      { id: "over_4500", label: "Más de 4.500 € / mes" },
+    ];
+  }
+  return [
+    { id: "under_1000", label: "Menos de $1,000 USD / mes" },
+    { id: "1000_2500", label: "$1,000 - $2,500 USD / mes" },
+    { id: "2500_5000", label: "$2,500 - $5,000 USD / mes" },
+    { id: "over_5000", label: "Más de $5,000 USD / mes" },
+  ];
+};
 
 const incomeSourcesList = [
   { id: "salary", label: "Sueldo o Nómina fija" },
@@ -39,6 +73,8 @@ export default function StepFinancial({
   onNext,
   onPrev,
 }: StepFinancialProps) {
+  const incomeRanges = getIncomeRanges(formData.preferred_currency, formData.country);
+
   const toggleSource = (sourceId: string) => {
     const current = formData.income_sources || [];
     if (current.includes(sourceId)) {
@@ -68,7 +104,7 @@ export default function StepFinancial({
       {/* Rango de Ingresos */}
       <div>
         <label className="block text-xs font-semibold text-zinc-800 mb-2">
-          Rango aproximado de ingresos mensuales
+          Rango aproximado de ingresos mensuales ({formData.preferred_currency || "DOP"})
         </label>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           {incomeRanges.map((range) => {
