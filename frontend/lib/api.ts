@@ -1,4 +1,4 @@
-import { AccountItem, TransactionItem, BudgetItem, DebtItem } from "@/components/dashboard/types";
+import { AccountItem, TransactionItem, MovementItem, BudgetItem, DebtItem } from "@/components/dashboard/types";
 
 export const getApiBase = () => {
   if (typeof window !== "undefined") {
@@ -150,12 +150,11 @@ export async function deleteAccountApi(id: string): Promise<void> {
 }
 
 // ==========================================
-// TRANSACTIONS API (Expenses & Incomes)
+// EXPENSES API (Gastos)
 // ==========================================
-export async function fetchTransactionsApi(type?: "expense" | "income"): Promise<TransactionItem[]> {
+export async function fetchExpensesApi(): Promise<TransactionItem[]> {
   try {
-    const url = type ? `${getApiBase()}/transactions?type=${type}` : `${getApiBase()}/transactions`;
-    const res = await fetch(url, {
+    const res = await fetch(`${getApiBase()}/expenses`, {
       headers: getAuthHeaders(),
     });
     if (res.ok) {
@@ -164,40 +163,38 @@ export async function fetchTransactionsApi(type?: "expense" | "income"): Promise
         id: d.id,
         description: d.description,
         amount: d.amount,
-        type: d.type,
+        type: "expense" as const,
         category: d.category,
         account: d.account_name,
         date: d.date,
       }));
+      if (typeof window !== "undefined") {
+        localStorage.setItem("fydry_expenses", JSON.stringify(items));
+      }
       return items;
     }
   } catch (err) {
-    console.warn("Backend unavailable, using cached transactions:", err);
+    console.warn("Backend unavailable, using cached expenses:", err);
   }
 
-  // Fallback to cache
   if (typeof window !== "undefined") {
-    const key = type === "expense" ? "fydry_expenses" : type === "income" ? "fydry_incomes" : "";
-    if (key) {
-      const cached = localStorage.getItem(key);
-      if (cached) return JSON.parse(cached);
-    }
+    const cached = localStorage.getItem("fydry_expenses");
+    if (cached) return JSON.parse(cached);
   }
   return [];
 }
 
-export async function createTransactionApi(tx: Omit<TransactionItem, "id">): Promise<TransactionItem> {
+export async function createExpenseApi(exp: Omit<TransactionItem, "id" | "type">): Promise<TransactionItem> {
   const payload = {
-    description: tx.description,
-    amount: tx.amount,
-    type: tx.type,
-    category: tx.category,
-    account_name: tx.account,
-    date: tx.date,
+    description: exp.description,
+    amount: exp.amount,
+    category: exp.category,
+    account_name: exp.account,
+    date: exp.date,
   };
 
   try {
-    const res = await fetch(`${getApiBase()}/transactions`, {
+    const res = await fetch(`${getApiBase()}/expenses`, {
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify(payload),
@@ -208,51 +205,320 @@ export async function createTransactionApi(tx: Omit<TransactionItem, "id">): Pro
         id: d.id,
         description: d.description,
         amount: d.amount,
-        type: d.type,
+        type: "expense",
         category: d.category,
         account: d.account_name,
         date: d.date,
       };
     }
   } catch (err) {
-    console.warn("Error creating transaction on backend:", err);
+    console.warn("Error creating expense on backend:", err);
   }
 
   return {
-    id: `tx-${Date.now()}`,
-    ...tx,
+    id: `exp-${Date.now()}`,
+    type: "expense",
+    ...exp,
   };
 }
 
-export async function updateTransactionApi(id: string, tx: Partial<TransactionItem>): Promise<void> {
+export async function updateExpenseApi(id: string, exp: Partial<TransactionItem>): Promise<void> {
   const payload = {
-    description: tx.description,
-    amount: tx.amount,
-    type: tx.type,
-    category: tx.category,
-    account_name: tx.account,
-    date: tx.date,
+    description: exp.description,
+    amount: exp.amount,
+    category: exp.category,
+    account_name: exp.account,
+    date: exp.date,
   };
 
   try {
-    await fetch(`${getApiBase()}/transactions/${id}`, {
+    await fetch(`${getApiBase()}/expenses/${id}`, {
       method: "PUT",
       headers: getAuthHeaders(),
       body: JSON.stringify(payload),
     });
   } catch (err) {
-    console.warn("Error updating transaction on backend:", err);
+    console.warn("Error updating expense on backend:", err);
   }
 }
 
-export async function deleteTransactionApi(id: string): Promise<void> {
+export async function deleteExpenseApi(id: string): Promise<void> {
   try {
-    await fetch(`${getApiBase()}/transactions/${id}`, {
+    await fetch(`${getApiBase()}/expenses/${id}`, {
       method: "DELETE",
       headers: getAuthHeaders(),
     });
   } catch (err) {
-    console.warn("Error deleting transaction on backend:", err);
+    console.warn("Error deleting expense on backend:", err);
+  }
+}
+
+// ==========================================
+// INCOMES API (Ingresos)
+// ==========================================
+export async function fetchIncomesApi(): Promise<TransactionItem[]> {
+  try {
+    const res = await fetch(`${getApiBase()}/incomes`, {
+      headers: getAuthHeaders(),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const items: TransactionItem[] = data.map((d: any) => ({
+        id: d.id,
+        description: d.description,
+        amount: d.amount,
+        type: "income" as const,
+        category: d.category,
+        account: d.account_name,
+        date: d.date,
+      }));
+      if (typeof window !== "undefined") {
+        localStorage.setItem("fydry_incomes", JSON.stringify(items));
+      }
+      return items;
+    }
+  } catch (err) {
+    console.warn("Backend unavailable, using cached incomes:", err);
+  }
+
+  if (typeof window !== "undefined") {
+    const cached = localStorage.getItem("fydry_incomes");
+    if (cached) return JSON.parse(cached);
+  }
+  return [];
+}
+
+export async function createIncomeApi(inc: Omit<TransactionItem, "id" | "type">): Promise<TransactionItem> {
+  const payload = {
+    description: inc.description,
+    amount: inc.amount,
+    category: inc.category,
+    account_name: inc.account,
+    date: inc.date,
+  };
+
+  try {
+    const res = await fetch(`${getApiBase()}/incomes`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    });
+    if (res.ok) {
+      const d = await res.json();
+      return {
+        id: d.id,
+        description: d.description,
+        amount: d.amount,
+        type: "income",
+        category: d.category,
+        account: d.account_name,
+        date: d.date,
+      };
+    }
+  } catch (err) {
+    console.warn("Error creating income on backend:", err);
+  }
+
+  return {
+    id: `inc-${Date.now()}`,
+    type: "income",
+    ...inc,
+  };
+}
+
+export async function updateIncomeApi(id: string, inc: Partial<TransactionItem>): Promise<void> {
+  const payload = {
+    description: inc.description,
+    amount: inc.amount,
+    category: inc.category,
+    account_name: inc.account,
+    date: inc.date,
+  };
+
+  try {
+    await fetch(`${getApiBase()}/incomes/${id}`, {
+      method: "PUT",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    });
+  } catch (err) {
+    console.warn("Error updating income on backend:", err);
+  }
+}
+
+export async function deleteIncomeApi(id: string): Promise<void> {
+  try {
+    await fetch(`${getApiBase()}/incomes/${id}`, {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+    });
+  } catch (err) {
+    console.warn("Error deleting income on backend:", err);
+  }
+}
+
+// ==========================================
+// MOVEMENTS API (Transferencias entre Cuentas)
+// ==========================================
+export async function fetchMovementsApi(): Promise<MovementItem[]> {
+  try {
+    const res = await fetch(`${getApiBase()}/movements`, {
+      headers: getAuthHeaders(),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const items: MovementItem[] = data.map((d: any) => ({
+        id: d.id,
+        fromAccount: d.from_account_name,
+        fromAccountId: d.from_account_id,
+        toAccount: d.to_account_name,
+        toAccountId: d.to_account_id,
+        amount: d.amount,
+        description: d.description,
+        date: d.date,
+      }));
+      if (typeof window !== "undefined") {
+        localStorage.setItem("fydry_movements", JSON.stringify(items));
+      }
+      return items;
+    }
+  } catch (err) {
+    console.warn("Backend unavailable, using cached movements:", err);
+  }
+
+  if (typeof window !== "undefined") {
+    const cached = localStorage.getItem("fydry_movements");
+    if (cached) return JSON.parse(cached);
+  }
+  return [];
+}
+
+export async function createMovementApi(mov: Omit<MovementItem, "id">): Promise<MovementItem> {
+  const payload = {
+    from_account_id: mov.fromAccountId || null,
+    from_account_name: mov.fromAccount,
+    to_account_id: mov.toAccountId || null,
+    to_account_name: mov.toAccount,
+    amount: mov.amount,
+    description: mov.description,
+    date: mov.date,
+  };
+
+  try {
+    const res = await fetch(`${getApiBase()}/movements`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    });
+    if (res.ok) {
+      const d = await res.json();
+      return {
+        id: d.id,
+        fromAccount: d.from_account_name,
+        fromAccountId: d.from_account_id,
+        toAccount: d.to_account_name,
+        toAccountId: d.to_account_id,
+        amount: d.amount,
+        description: d.description,
+        date: d.date,
+      };
+    }
+  } catch (err) {
+    console.warn("Error creating movement on backend:", err);
+  }
+
+  return {
+    id: `mov-${Date.now()}`,
+    ...mov,
+  };
+}
+
+export async function updateMovementApi(id: string, mov: Partial<MovementItem>): Promise<void> {
+  const payload = {
+    from_account_id: mov.fromAccountId || null,
+    from_account_name: mov.fromAccount,
+    to_account_id: mov.toAccountId || null,
+    to_account_name: mov.toAccount,
+    amount: mov.amount,
+    description: mov.description,
+    date: mov.date,
+  };
+
+  try {
+    await fetch(`${getApiBase()}/movements/${id}`, {
+      method: "PUT",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    });
+  } catch (err) {
+    console.warn("Error updating movement on backend:", err);
+  }
+}
+
+export async function deleteMovementApi(id: string): Promise<void> {
+  try {
+    await fetch(`${getApiBase()}/movements/${id}`, {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+    });
+  } catch (err) {
+    console.warn("Error deleting movement on backend:", err);
+  }
+}
+
+// ==========================================
+// TRANSACTIONS COMPATIBILITY BRIDGE
+// ==========================================
+export async function fetchTransactionsApi(type?: "expense" | "income"): Promise<TransactionItem[]> {
+  if (type === "expense") {
+    return fetchExpensesApi();
+  }
+  if (type === "income") {
+    return fetchIncomesApi();
+  }
+  const [exp, inc] = await Promise.all([fetchExpensesApi(), fetchIncomesApi()]);
+  return [...exp, ...inc].sort((a, b) => b.id.localeCompare(a.id));
+}
+
+export async function createTransactionApi(tx: Omit<TransactionItem, "id">): Promise<TransactionItem> {
+  if (tx.type === "expense") {
+    return createExpenseApi({
+      description: tx.description,
+      amount: tx.amount,
+      category: tx.category,
+      account: tx.account,
+      date: tx.date,
+    });
+  } else {
+    return createIncomeApi({
+      description: tx.description,
+      amount: tx.amount,
+      category: tx.category,
+      account: tx.account,
+      date: tx.date,
+    });
+  }
+}
+
+export async function updateTransactionApi(id: string, tx: Partial<TransactionItem>): Promise<void> {
+  if (tx.type === "expense") {
+    return updateExpenseApi(id, tx);
+  } else {
+    return updateIncomeApi(id, tx);
+  }
+}
+
+export async function deleteTransactionApi(id: string, type?: "expense" | "income"): Promise<void> {
+  if (type === "expense") {
+    return deleteExpenseApi(id);
+  } else if (type === "income") {
+    return deleteIncomeApi(id);
+  }
+  // Try expense then income
+  try {
+    await deleteExpenseApi(id);
+  } catch {
+    await deleteIncomeApi(id);
   }
 }
 

@@ -1,17 +1,25 @@
-from typing import List, Optional
+from typing import List, Optional, Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy import or_
+
 from app.core.database import get_db
 from app.api.deps import get_current_user
 from app.models.user import User
-from app.models.financial import Account, Transaction, Budget, Debt
+from app.models.financial import Account, Expense, Income, Movement, Budget, Debt
 from app.schemas.financial import (
     AccountCreate,
     AccountUpdate,
     AccountResponse,
-    TransactionCreate,
-    TransactionUpdate,
-    TransactionResponse,
+    ExpenseCreate,
+    ExpenseUpdate,
+    ExpenseResponse,
+    IncomeCreate,
+    IncomeUpdate,
+    IncomeResponse,
+    MovementCreate,
+    MovementUpdate,
+    MovementResponse,
     BudgetCreate,
     BudgetUpdate,
     BudgetResponse,
@@ -31,7 +39,7 @@ def get_accounts(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Retrieve all accounts owned by the authenticated user."""
+    """Retrieve all accounts owned by the user."""
     return db.query(Account).filter(Account.user_id == current_user.id).all()
 
 
@@ -41,7 +49,7 @@ def create_account(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Create a new financial account (bank, card, wallet, cash)."""
+    """Create a new financial account."""
     account = Account(
         user_id=current_user.id,
         name=account_in.name,
@@ -63,7 +71,7 @@ def update_account(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Update an existing account owned by the user."""
+    """Update an existing financial account."""
     account = db.query(Account).filter(
         Account.id == account_id, Account.user_id == current_user.id
     ).first()
@@ -98,163 +106,429 @@ def delete_account(
 
 
 # ==========================================
-# TRANSACTIONS CRUD (Expenses & Incomes)
+# EXPENSES (Gastos) CRUD
 # ==========================================
-@router.get("/transactions", response_model=List[TransactionResponse])
-def get_transactions(
-    type: Optional[str] = None,
+@router.get("/expenses", response_model=List[ExpenseResponse])
+def get_expenses(
+    category: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Retrieve transactions (filter by type='expense' or 'income')."""
-    query = db.query(Transaction).filter(Transaction.user_id == current_user.id)
-    if type:
-        query = query.filter(Transaction.type == type)
-    return query.order_by(Transaction.created_at.desc()).all()
+    """Retrieve all expenses."""
+    query = db.query(Expense).filter(Expense.user_id == current_user.id)
+    if category:
+        query = query.filter(Expense.category == category)
+    return query.order_by(Expense.created_at.desc()).all()
 
 
-@router.post("/transactions", response_model=TransactionResponse, status_code=status.HTTP_201_CREATED)
-def create_transaction(
-    tx_in: TransactionCreate,
+@router.post("/expenses", response_model=ExpenseResponse, status_code=status.HTTP_201_CREATED)
+def create_expense(
+    exp_in: ExpenseCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Create a new income or expense transaction and apply balance to account."""
-    # Find matching account
+    """Create a new expense and debit the amount from the chosen account."""
     account = None
-    if tx_in.account_id:
+    if exp_in.account_id:
         account = db.query(Account).filter(
-            Account.id == tx_in.account_id, Account.user_id == current_user.id
+            Account.id == exp_in.account_id, Account.user_id == current_user.id
         ).first()
-    if not account and tx_in.account_name:
+    if not account and exp_in.account_name:
         account = db.query(Account).filter(
             Account.user_id == current_user.id,
-            Account.name.ilike(tx_in.account_name.strip()),
+            Account.name.ilike(exp_in.account_name.strip()),
         ).first()
 
-    account_id = account.id if account else tx_in.account_id
-    account_name = account.name if account else (tx_in.account_name or "Efectivo Principal")
+    account_id = account.id if account else exp_in.account_id
+    account_name = account.name if account else (exp_in.account_name or "Efectivo Principal")
 
-    # Apply accounting balance effect
+    # Debit balance from account
     if account:
-        if tx_in.type == "income":
-            account.balance += tx_in.amount
-        elif tx_in.type == "expense":
-            account.balance -= tx_in.amount
+        account.balance -= exp_in.amount
 
-    tx = Transaction(
+    expense = Expense(
         user_id=current_user.id,
         account_id=account_id,
         account_name=account_name,
-        type=tx_in.type,
-        category=tx_in.category,
-        description=tx_in.description,
-        amount=tx_in.amount,
-        date=tx_in.date,
+        category=exp_in.category,
+        description=exp_in.description,
+        amount=exp_in.amount,
+        date=exp_in.date,
     )
-    db.add(tx)
+    db.add(expense)
     db.commit()
-    db.refresh(tx)
-    return tx
+    db.refresh(expense)
+    return expense
 
 
-@router.put("/transactions/{tx_id}", response_model=TransactionResponse)
-def update_transaction(
-    tx_id: str,
-    tx_in: TransactionUpdate,
+@router.put("/expenses/{expense_id}", response_model=ExpenseResponse)
+def update_expense(
+    expense_id: str,
+    exp_in: ExpenseUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Update an existing transaction and recalculate account balance."""
-    tx = db.query(Transaction).filter(
-        Transaction.id == tx_id, Transaction.user_id == current_user.id
+    """Update an existing expense and adjust account balance."""
+    expense = db.query(Expense).filter(
+        Expense.id == expense_id, Expense.user_id == current_user.id
     ).first()
-    if not tx:
-        raise HTTPException(status_code=404, detail="Transacción no encontrada.")
+    if not expense:
+        raise HTTPException(status_code=404, detail="Gasto no encontrado.")
 
-    # 1. Revert previous effect on old account
+    # 1. Restore previous amount to old account
     old_account = None
-    if tx.account_id:
+    if expense.account_id:
         old_account = db.query(Account).filter(
-            Account.id == tx.account_id, Account.user_id == current_user.id
+            Account.id == expense.account_id, Account.user_id == current_user.id
         ).first()
-    elif tx.account_name:
+    elif expense.account_name:
         old_account = db.query(Account).filter(
             Account.user_id == current_user.id,
-            Account.name.ilike(tx.account_name.strip()),
+            Account.name.ilike(expense.account_name.strip()),
         ).first()
 
     if old_account:
-        if tx.type == "income":
-            old_account.balance -= tx.amount
-        elif tx.type == "expense":
-            old_account.balance += tx.amount
+        old_account.balance += expense.amount
 
-    # 2. Update transaction fields
-    update_data = tx_in.model_dump(exclude_unset=True)
+    # 2. Update fields
+    update_data = exp_in.model_dump(exclude_unset=True)
     for field, value in update_data.items():
-        setattr(tx, field, value)
+        setattr(expense, field, value)
 
-    # 3. Apply new effect to target account
+    # 3. Apply new debit to target account
     new_account = None
-    if tx.account_id:
+    if expense.account_id:
         new_account = db.query(Account).filter(
-            Account.id == tx.account_id, Account.user_id == current_user.id
+            Account.id == expense.account_id, Account.user_id == current_user.id
         ).first()
-    elif tx.account_name:
+    elif expense.account_name:
         new_account = db.query(Account).filter(
             Account.user_id == current_user.id,
-            Account.name.ilike(tx.account_name.strip()),
+            Account.name.ilike(expense.account_name.strip()),
         ).first()
 
     if new_account:
-        if tx.type == "income":
-            new_account.balance += tx.amount
-        elif tx.type == "expense":
-            new_account.balance -= tx.amount
-        tx.account_id = new_account.id
-        tx.account_name = new_account.name
+        new_account.balance -= expense.amount
+        expense.account_id = new_account.id
+        expense.account_name = new_account.name
 
     db.commit()
-    db.refresh(tx)
-    return tx
+    db.refresh(expense)
+    return expense
 
 
-@router.delete("/transactions/{tx_id}")
-def delete_transaction(
-    tx_id: str,
+@router.delete("/expenses/{expense_id}")
+def delete_expense(
+    expense_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Delete a transaction and restore account balance."""
-    tx = db.query(Transaction).filter(
-        Transaction.id == tx_id, Transaction.user_id == current_user.id
+    """Delete an expense and restore account balance."""
+    expense = db.query(Expense).filter(
+        Expense.id == expense_id, Expense.user_id == current_user.id
     ).first()
-    if not tx:
-        raise HTTPException(status_code=404, detail="Transacción no encontrada.")
+    if not expense:
+        raise HTTPException(status_code=404, detail="Gasto no encontrado.")
 
-    # Revert effect on account
+    # Restore account balance
     account = None
-    if tx.account_id:
+    if expense.account_id:
         account = db.query(Account).filter(
-            Account.id == tx.account_id, Account.user_id == current_user.id
+            Account.id == expense.account_id, Account.user_id == current_user.id
         ).first()
-    elif tx.account_name:
+    elif expense.account_name:
         account = db.query(Account).filter(
             Account.user_id == current_user.id,
-            Account.name.ilike(tx.account_name.strip()),
+            Account.name.ilike(expense.account_name.strip()),
         ).first()
 
     if account:
-        if tx.type == "income":
-            account.balance -= tx.amount
-        elif tx.type == "expense":
-            account.balance += tx.amount
+        account.balance += expense.amount
 
-    db.delete(tx)
+    db.delete(expense)
     db.commit()
-    return {"status": "success", "message": "Transacción eliminada exitosamente y saldo de cuenta restaurado."}
+    return {"status": "success", "message": "Gasto eliminado exitosamente y saldo restaurado."}
 
+
+# ==========================================
+# INCOMES (Ingresos) CRUD
+# ==========================================
+@router.get("/incomes", response_model=List[IncomeResponse])
+def get_incomes(
+    category: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Retrieve all incomes."""
+    query = db.query(Income).filter(Income.user_id == current_user.id)
+    if category:
+        query = query.filter(Income.category == category)
+    return query.order_by(Income.created_at.desc()).all()
+
+
+@router.post("/incomes", response_model=IncomeResponse, status_code=status.HTTP_201_CREATED)
+def create_income(
+    inc_in: IncomeCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Create a new income and credit the amount to the chosen account."""
+    account = None
+    if inc_in.account_id:
+        account = db.query(Account).filter(
+            Account.id == inc_in.account_id, Account.user_id == current_user.id
+        ).first()
+    if not account and inc_in.account_name:
+        account = db.query(Account).filter(
+            Account.user_id == current_user.id,
+            Account.name.ilike(inc_in.account_name.strip()),
+        ).first()
+
+    account_id = account.id if account else inc_in.account_id
+    account_name = account.name if account else (inc_in.account_name or "Efectivo Principal")
+
+    # Credit balance to account
+    if account:
+        account.balance += inc_in.amount
+
+    income = Income(
+        user_id=current_user.id,
+        account_id=account_id,
+        account_name=account_name,
+        category=inc_in.category,
+        description=inc_in.description,
+        amount=inc_in.amount,
+        date=inc_in.date,
+    )
+    db.add(income)
+    db.commit()
+    db.refresh(income)
+    return income
+
+
+@router.put("/incomes/{income_id}", response_model=IncomeResponse)
+def update_income(
+    income_id: str,
+    inc_in: IncomeUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Update an existing income and adjust account balance."""
+    income = db.query(Income).filter(
+        Income.id == income_id, Income.user_id == current_user.id
+    ).first()
+    if not income:
+        raise HTTPException(status_code=404, detail="Ingreso no encontrado.")
+
+    # 1. Deduct previous amount from old account
+    old_account = None
+    if income.account_id:
+        old_account = db.query(Account).filter(
+            Account.id == income.account_id, Account.user_id == current_user.id
+        ).first()
+    elif income.account_name:
+        old_account = db.query(Account).filter(
+            Account.user_id == current_user.id,
+            Account.name.ilike(income.account_name.strip()),
+        ).first()
+
+    if old_account:
+        old_account.balance -= income.amount
+
+    # 2. Update fields
+    update_data = inc_in.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(income, field, value)
+
+    # 3. Apply new credit to target account
+    new_account = None
+    if income.account_id:
+        new_account = db.query(Account).filter(
+            Account.id == income.account_id, Account.user_id == current_user.id
+        ).first()
+    elif income.account_name:
+        new_account = db.query(Account).filter(
+            Account.user_id == current_user.id,
+            Account.name.ilike(income.account_name.strip()),
+        ).first()
+
+    if new_account:
+        new_account.balance += income.amount
+        income.account_id = new_account.id
+        income.account_name = new_account.name
+
+    db.commit()
+    db.refresh(income)
+    return income
+
+
+@router.delete("/incomes/{income_id}")
+def delete_income(
+    income_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Delete an income and deduct amount from account balance."""
+    income = db.query(Income).filter(
+        Income.id == income_id, Income.user_id == current_user.id
+    ).first()
+    if not income:
+        raise HTTPException(status_code=404, detail="Ingreso no encontrado.")
+
+    # Revert account balance
+    account = None
+    if income.account_id:
+        account = db.query(Account).filter(
+            Account.id == income.account_id, Account.user_id == current_user.id
+        ).first()
+    elif income.account_name:
+        account = db.query(Account).filter(
+            Account.user_id == current_user.id,
+            Account.name.ilike(income.account_name.strip()),
+        ).first()
+
+    if account:
+        account.balance -= income.amount
+
+    db.delete(income)
+    db.commit()
+    return {"status": "success", "message": "Ingreso eliminado exitosamente y saldo ajustado."}
+
+
+# ==========================================
+# MOVEMENTS (Transferencias entre Cuentas) CRUD
+# ==========================================
+@router.get("/movements", response_model=List[MovementResponse])
+def get_movements(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Retrieve all account-to-account transfer movements."""
+    return db.query(Movement).filter(
+        Movement.user_id == current_user.id
+    ).order_by(Movement.created_at.desc()).all()
+
+
+@router.post("/movements", response_model=MovementResponse, status_code=status.HTTP_201_CREATED)
+def create_movement(
+    mov_in: MovementCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Create a movement/transfer between two accounts and update both balances."""
+    # Find from_account
+    from_acc = None
+    if mov_in.from_account_id:
+        from_acc = db.query(Account).filter(
+            Account.id == mov_in.from_account_id, Account.user_id == current_user.id
+        ).first()
+    if not from_acc and mov_in.from_account_name:
+        from_acc = db.query(Account).filter(
+            Account.user_id == current_user.id,
+            Account.name.ilike(mov_in.from_account_name.strip()),
+        ).first()
+
+    # Find to_account
+    to_acc = None
+    if mov_in.to_account_id:
+        to_acc = db.query(Account).filter(
+            Account.id == mov_in.to_account_id, Account.user_id == current_user.id
+        ).first()
+    if not to_acc and mov_in.to_account_name:
+        to_acc = db.query(Account).filter(
+            Account.user_id == current_user.id,
+            Account.name.ilike(mov_in.to_account_name.strip()),
+        ).first()
+
+    # Apply double accounting transfer
+    if from_acc:
+        from_acc.balance -= mov_in.amount
+    if to_acc:
+        to_acc.balance += mov_in.amount
+
+    from_name = from_acc.name if from_acc else (mov_in.from_account_name or "Cuenta Origen")
+    to_name = to_acc.name if to_acc else (mov_in.to_account_name or "Cuenta Destino")
+
+    mov = Movement(
+        user_id=current_user.id,
+        from_account_id=from_acc.id if from_acc else mov_in.from_account_id,
+        from_account_name=from_name,
+        to_account_id=to_acc.id if to_acc else mov_in.to_account_id,
+        to_account_name=to_name,
+        amount=mov_in.amount,
+        description=mov_in.description or f"Traspaso de {from_name} a {to_name}",
+        date=mov_in.date,
+    )
+    db.add(mov)
+    db.commit()
+    db.refresh(mov)
+    return mov
+
+
+@router.put("/movements/{mov_id}", response_model=MovementResponse)
+def update_movement(
+    mov_id: str,
+    mov_in: MovementUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Update a movement and recalculate balances of origin and destination accounts."""
+    mov = db.query(Movement).filter(
+        Movement.id == mov_id, Movement.user_id == current_user.id
+    ).first()
+    if not mov:
+        raise HTTPException(status_code=404, detail="Movimiento no encontrado.")
+
+    # 1. Revert previous transfer
+    prev_from = db.query(Account).filter(Account.id == mov.from_account_id).first() if mov.from_account_id else None
+    prev_to = db.query(Account).filter(Account.id == mov.to_account_id).first() if mov.to_account_id else None
+    if prev_from:
+        prev_from.balance += mov.amount
+    if prev_to:
+        prev_to.balance -= mov.amount
+
+    # 2. Update fields
+    update_data = mov_in.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(mov, field, value)
+
+    # 3. Apply new transfer
+    new_from = db.query(Account).filter(Account.id == mov.from_account_id).first() if mov.from_account_id else None
+    new_to = db.query(Account).filter(Account.id == mov.to_account_id).first() if mov.to_account_id else None
+    if new_from:
+        new_from.balance -= mov.amount
+    if new_to:
+        new_to.balance += mov.amount
+
+    db.commit()
+    db.refresh(mov)
+    return mov
+
+
+@router.delete("/movements/{mov_id}")
+def delete_movement(
+    mov_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Delete a transfer movement and restore balances to origin and destination accounts."""
+    mov = db.query(Movement).filter(
+        Movement.id == mov_id, Movement.user_id == current_user.id
+    ).first()
+    if not mov:
+        raise HTTPException(status_code=404, detail="Movimiento no encontrado.")
+
+    # Revert transfer
+    from_acc = db.query(Account).filter(Account.id == mov.from_account_id).first() if mov.from_account_id else None
+    to_acc = db.query(Account).filter(Account.id == mov.to_account_id).first() if mov.to_account_id else None
+    if from_acc:
+        from_acc.balance += mov.amount
+    if to_acc:
+        to_acc.balance -= mov.amount
+
+    db.delete(mov)
+    db.commit()
+    return {"status": "success", "message": "Movimiento eliminado y saldos de ambas cuentas restaurados."}
 
 
 # ==========================================
@@ -275,12 +549,12 @@ def create_budget(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Create or allocate a new category budget."""
+    """Create a new budget allocation."""
     budget = Budget(
         user_id=current_user.id,
         category=budget_in.category,
         allocated_amount=budget_in.allocated_amount,
-        color=budget_in.color,
+        color=budget_in.color or "bg-zinc-900",
     )
     db.add(budget)
     db.commit()
@@ -295,7 +569,7 @@ def update_budget(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Update a budget limit."""
+    """Update a budget allocation."""
     budget = db.query(Budget).filter(
         Budget.id == budget_id, Budget.user_id == current_user.id
     ).first()
@@ -317,7 +591,7 @@ def delete_budget(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Delete a budget goal."""
+    """Delete a budget allocation."""
     budget = db.query(Budget).filter(
         Budget.id == budget_id, Budget.user_id == current_user.id
     ).first()
@@ -337,7 +611,7 @@ def get_debts(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Retrieve all debts/liabilities owned by the user."""
+    """Retrieve all debts registered by the user."""
     return db.query(Debt).filter(Debt.user_id == current_user.id).all()
 
 
@@ -347,7 +621,7 @@ def create_debt(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Create a new debt/liability record."""
+    """Create a new debt item."""
     debt = Debt(
         user_id=current_user.id,
         creditor=debt_in.creditor,
@@ -371,7 +645,7 @@ def update_debt(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Update an existing debt record."""
+    """Update a debt item."""
     debt = db.query(Debt).filter(
         Debt.id == debt_id, Debt.user_id == current_user.id
     ).first()
@@ -393,7 +667,7 @@ def delete_debt(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Delete a debt record."""
+    """Delete a debt item."""
     debt = db.query(Debt).filter(
         Debt.id == debt_id, Debt.user_id == current_user.id
     ).first()
@@ -406,22 +680,23 @@ def delete_debt(
 
 
 # ==========================================
-# RESET USER FINANCIAL DATA
+# RESET DATA (Zona de Peligro)
 # ==========================================
-@router.post("/reset-data")
-def reset_user_data(
+@router.post("/reset-data", status_code=status.HTTP_200_OK)
+def reset_financial_data(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Safely wipe only the financial records owned by this user."""
-    db.query(Transaction).filter(Transaction.user_id == current_user.id).delete()
-    db.query(Account).filter(Account.user_id == current_user.id).delete()
+    """Reset all financial data for the authenticated user."""
+    db.query(Expense).filter(Expense.user_id == current_user.id).delete()
+    db.query(Income).filter(Income.user_id == current_user.id).delete()
+    db.query(Movement).filter(Movement.user_id == current_user.id).delete()
     db.query(Budget).filter(Budget.user_id == current_user.id).delete()
     db.query(Debt).filter(Debt.user_id == current_user.id).delete()
-    db.commit()
+    db.query(Account).filter(Account.user_id == current_user.id).delete()
 
+    db.commit()
     return {
         "status": "success",
-        "message": "Todos los datos financieros del usuario han sido restablecidos exitosamente.",
+        "message": "Todos los datos financieros han sido restablecidos con éxito.",
     }
-

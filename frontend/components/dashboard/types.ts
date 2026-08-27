@@ -18,6 +18,17 @@ export interface TransactionItem {
   date: string;
 }
 
+export interface MovementItem {
+  id: string;
+  fromAccount: string;
+  fromAccountId?: string;
+  toAccount: string;
+  toAccountId?: string;
+  amount: number;
+  description: string;
+  date: string;
+}
+
 export interface AccountItem {
   id: string;
   name: string;

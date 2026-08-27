@@ -20,21 +20,53 @@ class Account(Base, TimestampMixin):
     user = relationship("User", backref="accounts")
 
 
-class Transaction(Base, TimestampMixin):
-    __tablename__ = "transactions"
+class Expense(Base, TimestampMixin):
+    __tablename__ = "expenses"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), index=True)
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     account_id = Column(String(36), ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True, index=True)
     account_name = Column(String(255), nullable=False)
-    type = Column(String(20), nullable=False)  # "expense" o "income"
     category = Column(String(100), nullable=False, index=True)
     description = Column(String(255), nullable=False)
     amount = Column(Float, nullable=False)
     date = Column(String(50), nullable=False)
 
-    user = relationship("User", backref="transactions")
-    account = relationship("Account", backref="transactions")
+    user = relationship("User", backref="expenses")
+    account = relationship("Account", backref="expenses")
+
+
+class Income(Base, TimestampMixin):
+    __tablename__ = "incomes"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), index=True)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    account_id = Column(String(36), ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True, index=True)
+    account_name = Column(String(255), nullable=False)
+    category = Column(String(100), nullable=False, index=True)
+    description = Column(String(255), nullable=False)
+    amount = Column(Float, nullable=False)
+    date = Column(String(50), nullable=False)
+
+    user = relationship("User", backref="incomes")
+    account = relationship("Account", backref="incomes")
+
+
+class Movement(Base, TimestampMixin):
+    """Transferencia de dinero entre dos cuentas (traspasos/movimientos internos)."""
+    __tablename__ = "movements"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), index=True)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    from_account_id = Column(String(36), ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True, index=True)
+    from_account_name = Column(String(255), nullable=False)
+    to_account_id = Column(String(36), ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True, index=True)
+    to_account_name = Column(String(255), nullable=False)
+    amount = Column(Float, nullable=False)
+    description = Column(String(255), default="Traspaso entre cuentas", nullable=False)
+    date = Column(String(50), nullable=False)
+
+    user = relationship("User", backref="movements")
 
 
 class Budget(Base, TimestampMixin):

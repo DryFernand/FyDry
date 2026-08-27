@@ -1,19 +1,17 @@
 from typing import Optional, List
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
 from datetime import datetime
 
 
-# --- Account Schemas ---
-class AccountBase(BaseModel):
+# ==========================================
+# ACCOUNTS
+# ==========================================
+class AccountCreate(BaseModel):
     name: str
-    type: str = "bank"
+    type: str = "bank"  # "bank", "card", "wallet", "cash"
     balance: float = 0.0
     currency: str = "USD"
     account_number: Optional[str] = None
-
-
-class AccountCreate(AccountBase):
-    pass
 
 
 class AccountUpdate(BaseModel):
@@ -24,56 +22,130 @@ class AccountUpdate(BaseModel):
     account_number: Optional[str] = None
 
 
-class AccountResponse(AccountBase):
+class AccountResponse(BaseModel):
     id: str
-    user_id: str
-    created_at: Optional[datetime] = None
+    name: str
+    type: str
+    balance: float
+    currency: str
+    account_number: Optional[str] = None
 
-    model_config = ConfigDict(from_attributes=True)
+    class Config:
+        from_attributes = True
 
 
-# --- Transaction Schemas (Expenses & Incomes) ---
-class TransactionBase(BaseModel):
+# ==========================================
+# EXPENSES (Gastos)
+# ==========================================
+class ExpenseCreate(BaseModel):
+    account_id: Optional[str] = None
+    account_name: Optional[str] = None
+    category: str
     description: str
     amount: float
-    type: str  # "expense" | "income"
-    category: str
-    account_name: str
-    account_id: Optional[str] = None
     date: str
 
 
-class TransactionCreate(TransactionBase):
-    pass
-
-
-class TransactionUpdate(BaseModel):
+class ExpenseUpdate(BaseModel):
+    account_id: Optional[str] = None
+    account_name: Optional[str] = None
+    category: Optional[str] = None
     description: Optional[str] = None
     amount: Optional[float] = None
-    type: Optional[str] = None
-    category: Optional[str] = None
-    account_name: Optional[str] = None
-    account_id: Optional[str] = None
     date: Optional[str] = None
 
 
-class TransactionResponse(TransactionBase):
+class ExpenseResponse(BaseModel):
     id: str
-    user_id: str
-    created_at: Optional[datetime] = None
+    account_id: Optional[str] = None
+    account_name: str
+    category: str
+    description: str
+    amount: float
+    date: str
 
-    model_config = ConfigDict(from_attributes=True)
+    class Config:
+        from_attributes = True
 
 
-# --- Budget Schemas ---
-class BudgetBase(BaseModel):
+# ==========================================
+# INCOMES (Ingresos)
+# ==========================================
+class IncomeCreate(BaseModel):
+    account_id: Optional[str] = None
+    account_name: Optional[str] = None
+    category: str
+    description: str
+    amount: float
+    date: str
+
+
+class IncomeUpdate(BaseModel):
+    account_id: Optional[str] = None
+    account_name: Optional[str] = None
+    category: Optional[str] = None
+    description: Optional[str] = None
+    amount: Optional[float] = None
+    date: Optional[str] = None
+
+
+class IncomeResponse(BaseModel):
+    id: str
+    account_id: Optional[str] = None
+    account_name: str
+    category: str
+    description: str
+    amount: float
+    date: str
+
+    class Config:
+        from_attributes = True
+
+
+# ==========================================
+# MOVEMENTS (Transferencias entre Cuentas)
+# ==========================================
+class MovementCreate(BaseModel):
+    from_account_id: Optional[str] = None
+    from_account_name: Optional[str] = None
+    to_account_id: Optional[str] = None
+    to_account_name: Optional[str] = None
+    amount: float
+    description: Optional[str] = "Traspaso entre cuentas"
+    date: str
+
+
+class MovementUpdate(BaseModel):
+    from_account_id: Optional[str] = None
+    from_account_name: Optional[str] = None
+    to_account_id: Optional[str] = None
+    to_account_name: Optional[str] = None
+    amount: Optional[float] = None
+    description: Optional[str] = None
+    date: Optional[str] = None
+
+
+class MovementResponse(BaseModel):
+    id: str
+    from_account_id: Optional[str] = None
+    from_account_name: str
+    to_account_id: Optional[str] = None
+    to_account_name: str
+    amount: float
+    description: str
+    date: str
+
+    class Config:
+        from_attributes = True
+
+
+# ==========================================
+# BUDGETS
+# ==========================================
+class BudgetCreate(BaseModel):
     category: str
     allocated_amount: float
-    color: str = "bg-zinc-900"
-
-
-class BudgetCreate(BudgetBase):
-    pass
+    color: Optional[str] = "bg-zinc-900"
 
 
 class BudgetUpdate(BaseModel):
@@ -82,27 +154,27 @@ class BudgetUpdate(BaseModel):
     color: Optional[str] = None
 
 
-class BudgetResponse(BudgetBase):
+class BudgetResponse(BaseModel):
     id: str
-    user_id: str
-    created_at: Optional[datetime] = None
+    category: str
+    allocated_amount: float
+    color: str
 
-    model_config = ConfigDict(from_attributes=True)
+    class Config:
+        from_attributes = True
 
 
-# --- Debt Schemas ---
-class DebtBase(BaseModel):
+# ==========================================
+# DEBTS
+# ==========================================
+class DebtCreate(BaseModel):
     creditor: str
-    type: str
+    type: str = "Préstamo Personal"
     total_amount: float
     remaining_amount: float
     monthly_payment: float = 0.0
     interest_rate: float = 0.0
     due_date: str = "Fin de mes"
-
-
-class DebtCreate(DebtBase):
-    pass
 
 
 class DebtUpdate(BaseModel):
@@ -115,9 +187,15 @@ class DebtUpdate(BaseModel):
     due_date: Optional[str] = None
 
 
-class DebtResponse(DebtBase):
+class DebtResponse(BaseModel):
     id: str
-    user_id: str
-    created_at: Optional[datetime] = None
+    creditor: str
+    type: str
+    total_amount: float
+    remaining_amount: float
+    monthly_payment: float
+    interest_rate: float
+    due_date: str
 
-    model_config = ConfigDict(from_attributes=True)
+    class Config:
+        from_attributes = True
