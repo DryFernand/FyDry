@@ -328,16 +328,16 @@ def scan_emails_now(
     new_found = 0
     scanned_count = 5
 
-    # Muestras representativas de correos bancarios para detección inicial
+    # Muestras representativas de correos bancarios con IDs fijos determinísticos por usuario
     sample_emails = [
         {
-            "id": f"mail-{int(datetime.now().timestamp())}-1",
+            "id": f"mail-sample-supermarket-4850-{current_user.id}",
             "subject": "Notificación de compra con tarjeta débito por $48.50 en Supermercado",
             "body": "Estimado cliente, se ha registrado un cargo por $48.50 USD en Supermercado Central con su tarjeta terminada en 4821.",
             "sender": "notificaciones@banco.com",
         },
         {
-            "id": f"mail-{int(datetime.now().timestamp())}-2",
+            "id": f"mail-sample-payroll-1850-{current_user.id}",
             "subject": "Abono de Nómina / Salario mensual recibido por $1,850.00",
             "body": "Ha recibido un depósito por concepto de Nómina Quincenal por el importe de $1,850.00 USD.",
             "sender": "pagos@empresa.com",

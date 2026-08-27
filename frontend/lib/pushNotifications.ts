@@ -2,8 +2,64 @@
 
 import { NotificationItem } from "@/components/dashboard/types";
 
+const SENT_ALERTS_STORAGE_KEY = "fydry_sent_native_alert_ids";
+
 /**
- * Solicita permisos de notificación nativa al usuario si aún no han sido concedidos.
+ * Obtiene el conjunto de IDs de alertas que ya fueron emitidas en este dispositivo.
+ */
+function getDispatchedAlertIds(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = localStorage.getItem(SENT_ALERTS_STORAGE_KEY);
+    if (raw) {
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr)) {
+        return new Set(arr);
+      }
+    }
+  } catch (err) {
+    console.warn("Error reading dispatched alert IDs:", err);
+  }
+  return new Set();
+}
+
+/**
+ * Guarda el ID de una alerta para que nunca más se vuelva a emitir en este dispositivo.
+ */
+function saveDispatchedAlertId(id: string) {
+  if (typeof window === "undefined") return;
+  try {
+    const ids = getDispatchedAlertIds();
+    ids.add(id);
+    // Limitar el tamaño a las últimas 200 alertas
+    const arr = Array.from(ids).slice(-200);
+    localStorage.setItem(SENT_ALERTS_STORAGE_KEY, JSON.stringify(arr));
+  } catch (err) {
+    console.warn("Error saving dispatched alert ID:", err);
+  }
+}
+
+/**
+ * Registra el Service Worker de FyDry para notificaciones push en segundo plano.
+ */
+export async function registerFyDryServiceWorker(): Promise<ServiceWorkerRegistration | null> {
+  if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
+    return null;
+  }
+
+  try {
+    const registration = await navigator.serviceWorker.register("/sw.js", {
+      scope: "/",
+    });
+    return registration;
+  } catch (err) {
+    console.warn("ServiceWorker registration failed:", err);
+    return null;
+  }
+}
+
+/**
+ * Solicita permisos de notificación nativa al usuario y registra el Service Worker.
  */
 export async function requestSystemNotificationPermission(): Promise<boolean> {
   if (typeof window === "undefined" || !("Notification" in window)) {
@@ -11,6 +67,8 @@ export async function requestSystemNotificationPermission(): Promise<boolean> {
   }
 
   try {
+    await registerFyDryServiceWorker();
+
     if (Notification.permission === "granted") {
       return true;
     }
@@ -37,8 +95,8 @@ export function triggerSystemNotification(title: string, body: string, tag?: str
   }
 
   try {
-    // Si hay un Service Worker registrado, usar showNotification para mejor compatibilidad móvil (Android/PWA)
-    if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
+    // Si hay un Service Worker registrado, usar showNotification para soporte con web cerrada y móvil
+    if ("serviceWorker" in navigator) {
       navigator.serviceWorker.ready.then((registration) => {
         registration.showNotification(title, {
           body,
@@ -51,7 +109,7 @@ export function triggerSystemNotification(title: string, body: string, tag?: str
       return true;
     }
 
-    // Fallback: Web Notification estándar para PC / Escritorio
+    // Fallback: Web Notification estándar para PC
     new Notification(title, {
       body,
       icon: "/favicon.ico",
@@ -65,20 +123,21 @@ export function triggerSystemNotification(title: string, body: string, tag?: str
 }
 
 /**
- * Procesa una lista de alertas y envía notificaciones nativas para las no leídas / nuevas.
+ * Procesa la lista de alertas y envía notificación nativa ÚNICAMENTE a las nuevas
+ * que no hayan sido emitidas previamente en este dispositivo.
  */
-const sentAlertKeys = new Set<string>();
-
 export function dispatchNativeAlerts(notifications: NotificationItem[]) {
   if (typeof window === "undefined" || !("Notification" in window) || Notification.permission !== "granted") {
     return;
   }
 
+  const dispatchedIds = getDispatchedAlertIds();
   const unreadAlerts = notifications.filter((n) => !n.isRead && !n.isProcessed);
 
   unreadAlerts.forEach((item) => {
-    if (!sentAlertKeys.has(item.id)) {
-      sentAlertKeys.add(item.id);
+    // Si ya fue despachada anteriormente, no volver a disparar
+    if (!dispatchedIds.has(item.id)) {
+      saveDispatchedAlertId(item.id);
       triggerSystemNotification(item.title, item.message, item.id);
     }
   });

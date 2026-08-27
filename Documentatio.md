@@ -400,6 +400,17 @@
   - Agregadas columnas `credit_limit` y `min_balance` a la tabla `accounts` en Supabase PostgreSQL.
 - **Despliegue a Producción**: Verificado con `npx tsc --noEmit` (0 errores) y desplegado en Vercel (`READY`).
 
+### 2026-08-27 - Corrección de Duplicación Cíclica de Notificaciones y Soporte de Notificaciones con Web Cerrada (Service Worker)
+- **Eliminación de la Duplicación en Backend (`notifications.py`)**:
+  - Reemplazados los IDs con timestamps dinámicos por identificadores fijos y determinísticos vinculados al usuario, evitando que se generen transacciones de prueba repetidas cada vez que se abre la app.
+  - Ejecutada limpieza de registros duplicados antiguos en Supabase PostgreSQL.
+- **Persistencia de Alertas Mostradas en Dispositivo (`pushNotifications.ts`)**:
+  - Implementado almacenamiento en `localStorage` (`fydry_sent_native_alert_ids`) para registrar qué notificaciones ya fueron emitidas en la pantalla de la computadora o del teléfono, garantizando que cada alerta se envíe **exactamente una sola vez** y que las alertas existentes no se vuelvan a disparar en bucle.
+- **Service Worker para Notificaciones en Segundo Plano (`public/sw.js`)**:
+  - Creado y registrado el Service Worker que escucha eventos `push` y `notificationclick` para recibir alertas cuando la pestaña o el navegador estén cerrados en teléfonos móviles (Android, iOS PWA) y computadoras, enfocando o abriendo automáticamente la app al pulsar la notificación.
+- **Despliegue a Producción**: Verificado con `npx tsc --noEmit` (0 errores) y desplegado en Vercel (`READY`).
+
+
 
 
 
