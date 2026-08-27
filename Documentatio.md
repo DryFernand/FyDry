@@ -304,6 +304,24 @@
   - Añadida sección "Movimientos" / "Movements" en la barra lateral con icono interactivo y soporte bilingüe (Español / Inglés).
 - **Despliegue a Producción**: Compilado con 0 errores en TypeScript y desplegado en los proyectos `fydry` y `fydry-api` en Vercel.
 
+### 2026-08-27 - Tablas Dedicadas en Supabase (Expenses, Incomes, Movements) y Traspasos entre Cuentas
+- **Creación y Verificación de Tablas Dedicadas en Supabase PostgreSQL**:
+  - `expenses`: Almacena exclusivamente los gastos debitados con su categoría, cuenta de débito, concepto y monto.
+  - `incomes`: Almacena exclusivamente los ingresos acreditados con su categoría, cuenta receptora, concepto y monto.
+  - `movements`: Almacena los traspasos y transferencias de dinero entre dos cuentas (`from_account` ➔ `to_account`).
+  - Verificadas las 10 tablas en la base de datos: `accounts`, `budgets`, `debts`, `expenses`, `incomes`, `movements`, `otp_codes`, `transactions`, `user_profiles`, `users`.
+- **Lógica Contable de Movimientos (Transferencias entre Cuentas)**:
+  - Al realizar un movimiento de $X de Cuenta Origen a Cuenta Destino:
+    - `Cuenta Origen`: Saldo debitado (`balance -= amount`).
+    - `Cuenta Destino`: Saldo acreditado (`balance += amount`).
+  - Al editar o eliminar un movimiento, ambos saldos se recalculan y restauran de inmediato.
+- **Rediseño de la Pantalla de Movimientos (`MovementsView.tsx`)**:
+  - Interfaz de transferencias y traspasos entre cuentas con visualización de flujo `[Cuenta Origen] ➔ [Cuenta Destino]`.
+  - Selector de cuenta origen y cuenta destino con visualización de saldo en tiempo real.
+  - Métricas de volumen transferido y cuentas involucradas.
+- **Despliegue a Producción**: Compilado con `npx tsc --noEmit` (0 errores) y desplegado con éxito en Vercel.
+
+
 
 
 
