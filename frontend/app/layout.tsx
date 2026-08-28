@@ -47,11 +47,13 @@ export const metadata: Metadata = {
   publisher: "FyDry Inc.",
   icons: {
     icon: [
-      { url: "/FyDry.jpeg" },
-      { url: "/FyDry.jpeg", type: "image/jpeg" },
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon.png", type: "image/png", sizes: "512x512" },
     ],
-    apple: [{ url: "/FyDry.jpeg" }],
-    shortcut: [{ url: "/FyDry.jpeg" }],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+    shortcut: [{ url: "/favicon.ico" }],
   },
   openGraph: {
     title: "FyDry — Ordena tus gastos, tranquiliza tu mente",
@@ -113,6 +115,9 @@ export default function RootLayout({
   return (
     <html lang="es" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <head>
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="icon" href="/icon.png" type="image/png" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

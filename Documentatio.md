@@ -529,6 +529,16 @@
   - **Autenticación (`AuthCard.tsx`)**: Cabecera visual con logo redondeado antes del formulario.
 - **Despliegue a Producción**: Verificado con `npx tsc --noEmit` (0 errores) y desplegado en Vercel (`READY`).
 
+### 2026-08-28 - Generación de Favicon Circular Multi-Resolución para Pestañas de Navegador
+- **Generación de Favicons Nativos (`app/favicon.ico`, `app/icon.png`, `public/`)**:
+  - Procesado `FyDry.jpeg` con máscara circular y antialiasing para crear archivos nativos de icono de pestaña:
+    - `favicon.ico` con capas de 16x16, 32x32, 48x48, 64x64, 128x128 y 256x256 píxeles con transparencia.
+    - `icon.png` (512x512) y `apple-touch-icon.png` (180x180).
+  - Eliminado el icono por defecto de Next.js/Vercel en la pestaña del navegador.
+  - Inclusión de etiquetas `<link rel="icon">` directas en el `<head>` de `layout.tsx`.
+- **Despliegue a Producción**: Verificado con `npx tsc --noEmit` (0 errores) y desplegado en Vercel (`READY`).
+
+
 
 
 
