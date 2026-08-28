@@ -297,11 +297,11 @@ export default function BudgetView() {
               {t.budget.title}
             </h1>
             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-zinc-100 text-zinc-700 border border-zinc-200/60 uppercase">
-              {periodView === "monthly" ? "Mensual" : periodView === "biweekly" ? "Quincenal (÷2)" : "Semanal (÷4)"}
+              {periodView === "monthly" ? "Mensual" : periodView === "biweekly" ? "Quincenal" : "Semanal"}
             </span>
           </div>
           <p className="text-xs text-zinc-500 mt-1">
-            {getPeriodSubLabel()} · {periodView === "monthly" ? "Límites base mensuales" : periodView === "biweekly" ? "Límites divididos en 2 quincenas" : "Límites divididos en 4 semanas"}
+            {getPeriodSubLabel()} · {periodView === "monthly" ? "Límites mensuales" : periodView === "biweekly" ? "Límites quincenales" : "Límites semanales"}
           </p>
         </div>
 
@@ -333,7 +333,6 @@ export default function BudgetView() {
             >
               <CalendarDays className="w-3.5 h-3.5" />
               <span>Quincenal</span>
-              <span className="text-[10px] px-1 py-0.2 rounded bg-zinc-200/70 text-zinc-700 font-bold">÷2</span>
             </button>
 
             <button
@@ -347,7 +346,6 @@ export default function BudgetView() {
             >
               <Clock className="w-3.5 h-3.5" />
               <span>Semanal</span>
-              <span className="text-[10px] px-1 py-0.2 rounded bg-zinc-200/70 text-zinc-700 font-bold">÷4</span>
             </button>
           </div>
 
@@ -468,10 +466,10 @@ export default function BudgetView() {
           <div className="space-y-1">
             <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
               {periodView === "monthly"
-                ? `Presupuesto Mensual Base (${monthLabel})`
+                ? `Presupuesto Mensual (${monthLabel})`
                 : periodView === "biweekly"
-                ? `Presupuesto Quincenal (÷2) · Q${selectedFortnight} (${monthLabel})`
-                : `Presupuesto Semanal (÷4) · S${selectedWeek} (${monthLabel})`}
+                ? `Presupuesto Quincenal · Q${selectedFortnight} (${monthLabel})`
+                : `Presupuesto Semanal · S${selectedWeek} (${monthLabel})`}
             </span>
             <div className="flex items-baseline gap-2">
               <span className="text-3xl font-bold tracking-tight text-zinc-950">
@@ -550,7 +548,7 @@ export default function BudgetView() {
                         <Edit3 className="w-3 h-3 text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                       </div>
                       <p className="text-[11px] text-zinc-400">
-                        {periodView === "monthly" ? "Tope Mensual" : periodView === "biweekly" ? `Quincena ${selectedFortnight} (÷2)` : `Semana ${selectedWeek} (÷4)`}
+                        {periodView === "monthly" ? "Tope Mensual" : periodView === "biweekly" ? `Quincena ${selectedFortnight}` : `Semana ${selectedWeek}`}
                       </p>
                     </div>
                   </div>
@@ -616,7 +614,7 @@ export default function BudgetView() {
             </div>
             <h3 className="font-bold text-zinc-900 text-sm">No tienes categorías presupuestadas</h3>
             <p className="text-xs text-zinc-500 max-w-sm mx-auto">
-              Define presupuestos mensuales y FyDry los dividirá automáticamente en metas quincenales (÷2) y semanales (÷4).
+              Define presupuestos mensuales y consulta tus metas en vistas quincenales y semanales.
             </p>
             <button
               type="button"
@@ -679,7 +677,7 @@ export default function BudgetView() {
                 {/* Allocated Amount (Mensual Principal) */}
                 <div>
                   <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
-                    Límite Mensual Principal ($) *
+                    Límite Mensual ($) *
                   </label>
                   <input
                     type="number"
@@ -695,13 +693,13 @@ export default function BudgetView() {
                   {parseFloat(newAllocated) > 0 && (
                     <div className="mt-2.5 p-2.5 rounded-xl bg-zinc-50 border border-zinc-100 text-[11px] text-zinc-600 space-y-1">
                       <div className="flex justify-between">
-                        <span>🌓 Quincenal (÷2):</span>
+                        <span>Quincenal:</span>
                         <span className="font-bold text-zinc-900">
                           ${(parseFloat(newAllocated) / 2).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span>📊 Semanal (÷4):</span>
+                        <span>Semanal:</span>
                         <span className="font-bold text-zinc-900">
                           ${(parseFloat(newAllocated) / 4).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                         </span>

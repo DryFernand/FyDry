@@ -510,6 +510,13 @@
   - Al ingresar el presupuesto mensual, el modal calcula y muestra en tiempo real su valor quincenal y semanal.
 - **Despliegue a Producción**: Verificado con `npx tsc --noEmit` (0 errores) y desplegado en Vercel (`READY`).
 
+### 2026-08-28 - Simplificación Visual de Etiquetas en Presupuestos Multivista
+- **Etiquetas Limpias (`BudgetView.tsx`)**:
+  - Eliminados los indicadores de división (`÷2`, `÷4`, `(÷2)`, `(÷4)`) de todas las vistas, botones de pestañas, badges y tarjetas de categoría.
+  - La interfaz muestra limpiamente los nombres puros de los períodos: **Mensual**, **Quincenal** y **Semanal**.
+- **Despliegue a Producción**: Verificado con `npx tsc --noEmit` (0 errores) y desplegado en Vercel (`READY`).
+
+
 
 
 
