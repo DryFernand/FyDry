@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
+import Image from "next/image";
+import Link from "next/link";
 import LoginForm from "./LoginForm";
 import RegisterForm from "./RegisterForm";
 import VerifyOtpView from "./VerifyOtpView";
@@ -88,6 +90,25 @@ export default function AuthCard({ initialView = "login" }: AuthCardProps) {
     <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 sm:p-6 bg-gradient-to-b from-zinc-50/70 via-white to-zinc-50/40 relative overflow-hidden">
       {/* Background Grid Pattern */}
       <div className="absolute inset-0 bg-grid-pattern opacity-40 pointer-events-none" />
+
+      {/* Brand Header */}
+      <div className="mb-6 text-center z-10">
+        <Link href="/" className="inline-flex items-center gap-2.5 group">
+          <div className="relative w-10 h-10 rounded-full overflow-hidden ring-1 ring-zinc-900/10 shadow-sm transition-transform duration-200 group-hover:scale-105 shrink-0">
+            <Image
+              src="/FyDry.jpeg"
+              alt="FyDry Logo"
+              fill
+              sizes="40px"
+              className="object-cover"
+              priority
+            />
+          </div>
+          <span className="font-bold text-xl tracking-tight text-zinc-950">
+            FyDry
+          </span>
+        </Link>
+      </div>
 
       {/* Auth Card Container */}
       <motion.div

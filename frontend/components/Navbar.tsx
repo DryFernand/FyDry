@@ -3,6 +3,7 @@
 import { motion } from "motion/react";
 import { ArrowRight, Sparkles } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 
 export default function Navbar() {
   return (
@@ -15,8 +16,15 @@ export default function Navbar() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
         {/* Brand Logo */}
         <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="w-8 h-8 rounded-lg bg-zinc-950 flex items-center justify-center text-white shadow-sm transition-transform duration-200 group-hover:scale-105">
-            <span className="font-bold text-sm tracking-tighter">FD</span>
+          <div className="relative w-8 h-8 rounded-full overflow-hidden ring-1 ring-zinc-900/10 shadow-xs transition-transform duration-200 group-hover:scale-105 shrink-0">
+            <Image
+              src="/FyDry.jpeg"
+              alt="FyDry Logo"
+              fill
+              sizes="32px"
+              className="object-cover"
+              priority
+            />
           </div>
           <span className="font-semibold text-lg tracking-tight text-zinc-900">
             FyDry

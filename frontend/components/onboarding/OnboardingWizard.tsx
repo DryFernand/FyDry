@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
+import Image from "next/image";
 import { User, Briefcase, Wallet, Target, Sparkles, CheckCircle2 } from "lucide-react";
 import { OnboardingFormData, initialOnboardingData } from "./types";
 import StepPersonal from "./StepPersonal";
@@ -53,6 +54,22 @@ export default function OnboardingWizard() {
 
     try {
       const res = await apiCompleteOnboarding(formData);
+      if (res.data?.user) {
+        if (typeof window !== "undefined") {
+          const userStr = localStorage.getItem("fydry_user");
+          if (userStr) {
+            try {
+              const u = JSON.parse(userStr);
+              u.onboarding_completed = true;
+              localStorage.setItem("fydry_user", JSON.stringify(u));
+            } catch {}
+          }
+        }
+      }
+      setIsFinished(true);
+    } catch (err: any) {
+      console.error("Error al completar onboarding:", err);
+      // Marcamos localmente completado como fallback
       if (typeof window !== "undefined") {
         const userStr = localStorage.getItem("fydry_user");
         if (userStr) {
@@ -64,30 +81,12 @@ export default function OnboardingWizard() {
         }
       }
       setIsFinished(true);
-      setTimeout(() => {
-        router.push("/dashboard");
-      }, 1200);
-    } catch {
-      if (typeof window !== "undefined") {
-        const userStr = localStorage.getItem("fydry_user");
-        if (userStr) {
-          try {
-            const u = JSON.parse(userStr);
-            u.onboarding_completed = true;
-            localStorage.setItem("fydry_user", JSON.stringify(u));
-          } catch {}
-        }
-      }
-      setIsFinished(true);
-      setTimeout(() => {
-        router.push("/dashboard");
-      }, 1200);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const progressPercentage = ((currentStep - 1) / (steps.length - 1)) * 100;
+  const progressPercentage = (currentStep / 5) * 100;
 
   const slideVariants = {
     enter: (dir: number) => ({
@@ -109,12 +108,44 @@ export default function OnboardingWizard() {
     }),
   };
 
+  if (isFinished) {
+    return (
+      <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 sm:p-6 bg-gradient-to-b from-zinc-50/70 via-white to-zinc-50/40 relative overflow-hidden">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.4 }}
+          className="w-full max-w-md bg-white rounded-3xl border border-zinc-200/90 shadow-xl p-8 text-center space-y-5"
+        >
+          <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
+            <CheckCircle2 className="w-8 h-8" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-zinc-950">
+              ¡Tu perfil financiero está listo!
+            </h2>
+            <p className="text-xs text-zinc-500 mt-1.5 leading-relaxed">
+              Hemos configurado tus categorías, presupuestos y objetivos con éxito. Bienvenido a una experiencia financiera tranquila y transparente.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => router.push("/dashboard")}
+            className="w-full py-3 rounded-xl bg-zinc-950 text-white text-xs font-semibold hover:bg-zinc-800 transition-all cursor-pointer shadow-xs"
+          >
+            Ir a mi Dashboard
+          </button>
+        </motion.div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 sm:p-6 bg-gradient-to-b from-zinc-50/70 via-white to-zinc-50/40 relative overflow-hidden">
-      {/* Background Grid */}
+      {/* Background Grid Pattern */}
       <div className="absolute inset-0 bg-grid-pattern opacity-40 pointer-events-none" />
 
-      {/* Main Wizard Card */}
+      {/* Main Container */}
       <motion.div
         layout
         transition={{ duration: 0.3, ease: "easeOut" }}
@@ -122,10 +153,17 @@ export default function OnboardingWizard() {
       >
         {/* Brand Header */}
         <div className="flex items-center justify-between mb-6 pb-4 border-b border-zinc-100">
-          <div className="flex items-center gap-2">
-            <span className="bg-zinc-950 text-white font-bold text-xs px-2 py-1 rounded-lg">
-              FD
-            </span>
+          <div className="flex items-center gap-2.5">
+            <div className="relative w-7 h-7 rounded-full overflow-hidden ring-1 ring-zinc-900/10 shrink-0">
+              <Image
+                src="/FyDry.jpeg"
+                alt="FyDry Logo"
+                fill
+                sizes="28px"
+                className="object-cover"
+                priority
+              />
+            </div>
             <span className="font-bold text-sm tracking-tight text-zinc-950">
               FyDry
             </span>

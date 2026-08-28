@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
+import Image from "next/image";
 import {
   Home,
   CreditCard,
@@ -199,8 +200,15 @@ export default function DashboardLayout() {
         <div className="flex flex-col min-h-0 flex-1">
           {/* Brand Header */}
           <div className="flex items-center gap-3 px-2 py-3 mb-3">
-            <div className="w-9 h-9 rounded-2xl bg-zinc-950 text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
-              FD
+            <div className="relative w-9 h-9 rounded-full overflow-hidden ring-1 ring-zinc-900/10 shadow-xs shrink-0">
+              <Image
+                src="/FyDry.jpeg"
+                alt="FyDry Logo"
+                fill
+                sizes="36px"
+                className="object-cover"
+                priority
+              />
             </div>
             <div className="flex flex-col min-w-0">
               <span className="font-bold text-sm tracking-tight text-zinc-950 truncate">
@@ -285,9 +293,15 @@ export default function DashboardLayout() {
 
       {/* Mobile Top Header */}
       <header className="md:hidden bg-white border-b border-zinc-200 p-4 flex items-center justify-between sticky top-0 z-30 print:hidden">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-zinc-950 text-white flex items-center justify-center font-bold text-xs">
-            FD
+        <div className="flex items-center gap-2.5">
+          <div className="relative w-7 h-7 rounded-full overflow-hidden ring-1 ring-zinc-900/10 shrink-0">
+            <Image
+              src="/FyDry.jpeg"
+              alt="FyDry Logo"
+              fill
+              sizes="28px"
+              className="object-cover"
+            />
           </div>
           <span className="font-bold text-sm text-zinc-950">{t.brand.name}</span>
         </div>

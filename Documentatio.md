@@ -516,6 +516,20 @@
   - La interfaz muestra limpiamente los nombres puros de los períodos: **Mensual**, **Quincenal** y **Semanal**.
 - **Despliegue a Producción**: Verificado con `npx tsc --noEmit` (0 errores) y desplegado en Vercel (`READY`).
 
+### 2026-08-28 - Integración de Logo Oficial Redondeado y Metadatos Globales (SEO & Redes Sociales)
+- **Metadatos y OpenGraph (`layout.tsx`)**:
+  - Configurados favicon y accesos directos con `/FyDry.jpeg`.
+  - Añadida metadata enriquecida para previsualizaciones en redes sociales (Open Graph y Twitter Cards) con `/FyDry.jpeg` a 800x800.
+  - Implementada estructura de datos Schema.org (JSON-LD) para indexación con logo en Google Search.
+- **Logo Redondeado en la Interfaz**:
+  - **Barra de Navegación (`Navbar.tsx`)**: Logo oficial redondeado con efecto hover y relieve.
+  - **Pie de Página (`Footer.tsx`)**: Logo redondeado oficial.
+  - **Panel de Control (`DashboardLayout.tsx`)**: Logo redondeado integrado en el Sidebar fijo de escritorio y en la cabecera móvil.
+  - **Asistente de Bienvenida (`OnboardingWizard.tsx`)**: Logo redondeado en el encabezado.
+  - **Autenticación (`AuthCard.tsx`)**: Cabecera visual con logo redondeado antes del formulario.
+- **Despliegue a Producción**: Verificado con `npx tsc --noEmit` (0 errores) y desplegado en Vercel (`READY`).
+
+
 
 
 
