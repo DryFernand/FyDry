@@ -499,6 +499,18 @@
   - Adaptación automática contextual si el usuario elige USD, EUR, COP o MXN.
 - **Despliegue a Producción**: Verificado con `npx tsc --noEmit` (0 errores) y desplegado en Vercel (`READY`).
 
+### 2026-08-28 - Sistema de Presupuestos Multivista (Mensual, Quincenal ÷2 y Semanal ÷4)
+- **3 Vistas de Periodicidad en Presupuestos (`BudgetView.tsx`)**:
+  - **Mensual (Principal / Base)**: Muestra el 100% del límite asignado y computa los gastos acumulados de todo el mes seleccionado.
+  - **Quincenal (÷2)**: Divide automáticamente el límite mensual entre 2 y permite monitorear el consumo de la 1ra Quincena (Días 1-15) o 2da Quincena (Días 16-Fin de mes).
+  - **Semanal (÷4)**: Divide automáticamente el límite mensual entre 4 y permite monitorear el consumo por cada semana del mes (S1: 1-7, S2: 8-14, S3: 15-21, S4: 22+).
+- **Sub-selectores Contextuales**:
+  - Selector dinámico de Quincenas y Semanas integrado en la cabecera para navegar cómodamente entre los diferentes períodos de corte.
+- **Modal de Presupuesto con Equivalencias**:
+  - Al ingresar el presupuesto mensual, el modal calcula y muestra en tiempo real su valor quincenal y semanal.
+- **Despliegue a Producción**: Verificado con `npx tsc --noEmit` (0 errores) y desplegado en Vercel (`READY`).
+
+
 
 
 
