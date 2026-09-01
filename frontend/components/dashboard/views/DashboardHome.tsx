@@ -14,24 +14,30 @@ import {
 } from "lucide-react";
 import { DashboardTab, TransactionItem, AccountItem } from "../types";
 import { useLanguage } from "@/context/LanguageContext";
-import { fetchAccountsApi, fetchTransactionsApi } from "@/lib/api";
+import { fetchAccountsApi, fetchTransactionsApi, fetchUserSettingsApi } from "@/lib/api";
+import { getCycleRange, isTransactionInPeriod, formatCycleLabel } from "@/lib/cycle";
 
 interface DashboardHomeProps {
   onNavigate: (tab: DashboardTab) => void;
 }
 
 export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [transactions, setTransactions] = useState<TransactionItem[]>([]);
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
+  const [budgetResetDay, setBudgetResetDay] = useState<number>(1);
 
   const loadData = async () => {
-    const [accData, txData] = await Promise.all([
+    const [accData, txData, settingsData] = await Promise.all([
       fetchAccountsApi(),
       fetchTransactionsApi(),
+      fetchUserSettingsApi(),
     ]);
     setAccounts(accData);
     setTransactions(txData);
+    if (settingsData?.budget_reset_day !== undefined && settingsData.budget_reset_day !== null) {
+      setBudgetResetDay(settingsData.budget_reset_day);
+    }
   };
 
   useEffect(() => {
@@ -40,13 +46,30 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
     return () => window.removeEventListener("fydry_storage_updated", loadData);
   }, []);
 
+  // Rango del ciclo mensual activo según el día de corte/reinicio (día 1 al 31)
+  const cycleRange = getCycleRange(new Date(), budgetResetDay);
+  const cycleLabel = formatCycleLabel(
+    cycleRange.startDate,
+    cycleRange.endDate,
+    budgetResetDay,
+    (language as "es" | "en") || "es"
+  );
+
   const totalBalance = accounts.reduce((acc, a) => acc + a.balance, 0);
-  const totalIncomes = transactions
+
+  // Filtrar estrictamente las transacciones del mes / ciclo actual
+  const currentCycleTransactions = transactions.filter((t) =>
+    isTransactionInPeriod(t, cycleRange.startDate, cycleRange.endDate)
+  );
+
+  const totalIncomes = currentCycleTransactions
     .filter((t) => t.type === "income")
     .reduce((acc, curr) => acc + curr.amount, 0);
-  const totalExpenses = transactions
+
+  const totalExpenses = currentCycleTransactions
     .filter((t) => t.type === "expense")
     .reduce((acc, curr) => acc + curr.amount, 0);
+
   const netSavings = Math.max(totalIncomes - totalExpenses, 0);
   const savingsRate = totalIncomes > 0 ? Math.round((netSavings / totalIncomes) * 100) : 0;
 
@@ -56,9 +79,14 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
       <div className="bg-white rounded-3xl border border-zinc-200/80 p-6 sm:p-8 shadow-xs relative overflow-hidden">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
           <div className="space-y-2">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200/60 text-emerald-800 text-xs font-semibold">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-              <span>{t.home.mentalPeace}</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200/60 text-emerald-800 text-xs font-semibold">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                <span>{t.home.mentalPeace}</span>
+              </div>
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-zinc-100 text-zinc-700 text-xs font-medium border border-zinc-200/60">
+                <span>Ciclo: {cycleLabel}</span>
+              </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-950">
               {t.home.title}
@@ -125,7 +153,7 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
             +${totalIncomes.toLocaleString("en-US", { minimumFractionDigits: 2 })}
           </div>
           <div className="text-[11px] text-zinc-400">
-            {transactions.filter((t) => t.type === "income").length} {t.home.activeSources}
+            {currentCycleTransactions.filter((t) => t.type === "income").length} {t.home.activeSources} este ciclo
           </div>
         </motion.div>
 
@@ -144,7 +172,7 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
             ${totalExpenses.toLocaleString("en-US", { minimumFractionDigits: 2 })}
           </div>
           <div className="text-[11px] text-zinc-400">
-            {transactions.filter((t) => t.type === "expense").length} {t.expenses.transactionsRegistered}
+            {currentCycleTransactions.filter((t) => t.type === "expense").length} {t.expenses.transactionsRegistered} este ciclo
           </div>
         </motion.div>
 

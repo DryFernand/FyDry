@@ -580,6 +580,10 @@
         - Implementado parser inteligente multi-formato (`YYYY-MM-DD`, `DD/MM/YYYY`, `28 ago`, timestamps ISO) con prioridad en la fecha contable de la transacción.
         - Los gastos efectuados antes del día de reinicio (ej. antes del día 1 del mes activo) se asignan estricta y automáticamente a su período anterior correspondiente y no computan en el nuevo ciclo activo.
         - Añadido soporte del campo `created_at` en `ExpenseResponse`, `IncomeResponse` y `MovementResponse` en el backend y mapeo en `frontend/lib/api.ts`.
+      - **Pantalla de Inicio (`DashboardHome.tsx`) y Reportes Auditados (`ReportsView.tsx`)**:
+        - Centralizada la lógica de ciclos y fechas en el nuevo módulo `frontend/lib/cycle.ts`.
+        - En la pantalla de inicio, las métricas de flujo (Ingresos del Mes, Gastos del Mes, Ahorro Neto y Tasa de Ahorro) calculan estrictamente las transacciones del ciclo mensual activo (desde el día 1 o día configurado en adelante), mientras que el balance acumulado preserva la liquidez total.
+        - En la vista de Reportes Auditados (`ReportsView.tsx`), se agregó un selector dinámico de alcance para auditar tanto el **Mes Actual** (con badge del ciclo activo y día de corte) como el **Histórico Completo Consolidado**.
     - **Verificación**: `npx tsc --noEmit` completado con 0 errores y módulos backend verificados.
 
 

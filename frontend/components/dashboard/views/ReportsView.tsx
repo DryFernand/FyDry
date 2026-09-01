@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import {
   Printer,
   FileText,
+  Calendar,
+  Layers,
 } from "lucide-react";
 import { AccountItem, TransactionItem, DebtItem } from "../types";
 import { useLanguage } from "@/context/LanguageContext";
@@ -11,7 +13,9 @@ import {
   fetchAccountsApi,
   fetchTransactionsApi,
   fetchDebtsApi,
+  fetchUserSettingsApi,
 } from "@/lib/api";
+import { getCycleRange, isTransactionInPeriod, formatCycleLabel } from "@/lib/cycle";
 
 export default function ReportsView() {
   const { t, language } = useLanguage();
@@ -20,18 +24,24 @@ export default function ReportsView() {
   const [expenses, setExpenses] = useState<TransactionItem[]>([]);
   const [incomes, setIncomes] = useState<TransactionItem[]>([]);
   const [debts, setDebts] = useState<DebtItem[]>([]);
+  const [budgetResetDay, setBudgetResetDay] = useState<number>(1);
+  const [reportScope, setReportScope] = useState<"current_cycle" | "all_time">("current_cycle");
 
   const loadData = async () => {
-    const [accData, expData, incData, debData] = await Promise.all([
+    const [accData, expData, incData, debData, settingsData] = await Promise.all([
       fetchAccountsApi(),
       fetchTransactionsApi("expense"),
       fetchTransactionsApi("income"),
       fetchDebtsApi(),
+      fetchUserSettingsApi(),
     ]);
     setAccounts(accData);
     setExpenses(expData);
     setIncomes(incData);
     setDebts(debData);
+    if (settingsData?.budget_reset_day !== undefined && settingsData.budget_reset_day !== null) {
+      setBudgetResetDay(settingsData.budget_reset_day);
+    }
   };
 
   useEffect(() => {
@@ -40,15 +50,33 @@ export default function ReportsView() {
     return () => window.removeEventListener("fydry_storage_updated", loadData);
   }, []);
 
-  const totalIncomes = incomes.reduce((acc, curr) => acc + curr.amount, 0);
-  const totalExpenses = expenses.reduce((acc, curr) => acc + curr.amount, 0);
+  // Rango del ciclo mensual activo
+  const cycleRange = getCycleRange(new Date(), budgetResetDay);
+  const cycleLabel = formatCycleLabel(
+    cycleRange.startDate,
+    cycleRange.endDate,
+    budgetResetDay,
+    (language as "es" | "en") || "es"
+  );
+
+  // Filtrar transacciones según el alcance seleccionado
+  const filteredIncomes = reportScope === "current_cycle"
+    ? incomes.filter((inc) => isTransactionInPeriod(inc, cycleRange.startDate, cycleRange.endDate))
+    : incomes;
+
+  const filteredExpenses = reportScope === "current_cycle"
+    ? expenses.filter((exp) => isTransactionInPeriod(exp, cycleRange.startDate, cycleRange.endDate))
+    : expenses;
+
+  const totalIncomes = filteredIncomes.reduce((acc, curr) => acc + curr.amount, 0);
+  const totalExpenses = filteredExpenses.reduce((acc, curr) => acc + curr.amount, 0);
   const netFlow = totalIncomes - totalExpenses;
   const savingsRate = totalIncomes > 0 ? Math.round((Math.max(netFlow, 0) / totalIncomes) * 100) : 0;
   const totalCustody = accounts.reduce((acc, curr) => acc + curr.balance, 0);
 
   // Desglose de gastos por categoría
   const expensesByCategory: { [cat: string]: number } = {};
-  expenses.forEach((e) => {
+  filteredExpenses.forEach((e) => {
     expensesByCategory[e.category] = (expensesByCategory[e.category] || 0) + e.amount;
   });
 
@@ -65,6 +93,10 @@ export default function ReportsView() {
     month: "long",
     day: "numeric",
   });
+
+  const periodDisplayValue = reportScope === "current_cycle"
+    ? `${cycleLabel} (Reinicia día ${budgetResetDay})`
+    : (language === "es" ? "Histórico Consolidado Completo" : "Full Consolidated History");
 
   return (
     <div className="space-y-6 print:m-0 print:p-0">
@@ -108,15 +140,46 @@ export default function ReportsView() {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={handleExportPDF}
-          disabled={isExporting}
-          className="flex items-center gap-2 py-2.5 px-4 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-semibold shadow-xs transition-all cursor-pointer disabled:opacity-50"
-        >
-          <Printer className="w-4 h-4" />
-          <span>{t.reports.exportPdf}</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Selector de Alcance del Reporte: Mes Actual vs Historial Completo */}
+          <div className="flex items-center bg-zinc-100/90 rounded-2xl p-1 border border-zinc-200/60 shadow-2xs">
+            <button
+              type="button"
+              onClick={() => setReportScope("current_cycle")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                reportScope === "current_cycle"
+                  ? "bg-white text-zinc-950 shadow-2xs"
+                  : "text-zinc-500 hover:text-zinc-900"
+              }`}
+            >
+              <Calendar className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Mes Actual ({cycleLabel})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setReportScope("all_time")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                reportScope === "all_time"
+                  ? "bg-white text-zinc-950 shadow-2xs"
+                  : "text-zinc-500 hover:text-zinc-900"
+              }`}
+            >
+              <Layers className="w-3.5 h-3.5 text-zinc-700" />
+              <span>Historial Completo</span>
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleExportPDF}
+            disabled={isExporting}
+            className="flex items-center gap-2 py-2 px-4 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-semibold shadow-xs transition-all cursor-pointer disabled:opacity-50"
+          >
+            <Printer className="w-4 h-4" />
+            <span>{t.reports.exportPdf}</span>
+          </button>
+        </div>
       </div>
 
       {/* Main Printable Document Sheet */}
@@ -140,7 +203,7 @@ export default function ReportsView() {
           <div className="text-left sm:text-right text-xs text-zinc-600 space-y-0.5">
             <div>
               <span className="font-semibold text-zinc-900">{t.reports.periodLabel}</span>{" "}
-              {t.reports.periodValue}
+              {periodDisplayValue}
             </div>
             <div>
               <span className="font-semibold text-zinc-900">{t.reports.generatedOn}</span>{" "}
