@@ -587,6 +587,8 @@
       - **Vistas de Gastos (`ExpensesView.tsx`), Ingresos (`IncomesView.tsx`) y Movimientos (`MovementsView.tsx`)**:
         - Las tarjetas métricas superiores ("Total Gastado Este Mes", "Total Ingresos de Este Mes", "Total Traspasado Este Mes" e "Impuestos / Comisiones") se recalculan dinámicamente según el **ciclo activo actual** (reiniciándose en cero al comenzar el día 1 o el día de corte configurado).
         - Las tablas principales conservan todos los registros históricos con búsqueda, filtros por categoría/cuenta y formato de fechas limpio.
+      - **Corrección de Etiquetas de Idioma & Mes (`translations.ts`)**:
+        - Reemplazadas las cadenas estáticas `"Ingresos (Agosto)"`, `"Gastos (Agosto)"` y sus equivalentes en inglés por `"Ingresos (Este Mes)"` / `"Incomes (This Month)"` y `"Gastos (Este Mes)"` / `"Expenses (This Month)"`.
     - **Verificación**: `npx tsc --noEmit` completado con 0 errores y módulos backend verificados.
 
 
