@@ -257,6 +257,9 @@ export const translations = {
         english: "English",
         englishDesc: "Internacional (EN)",
         mainCurrency: "Moneda Principal",
+        budgetResetDay: "Día de Reinicio de Presupuesto",
+        budgetResetDayDesc: "Día del mes en que tu presupuesto se reinicia a cero (ej. día 1 para mes completo, o el día de tu cobro / corte como 15 o 25).",
+        budgetResetDaySuffix: "de cada mes",
       },
       notifications: {
         browserPush: "Notificaciones del Navegador (Push)",
@@ -551,6 +554,9 @@ export const translations = {
         english: "English",
         englishDesc: "International (EN)",
         mainCurrency: "Main Currency",
+        budgetResetDay: "Budget Reset Day",
+        budgetResetDayDesc: "Day of the month when your budget resets to zero (e.g. 1st for calendar month, or 15th/25th for your payday / billing cutoff).",
+        budgetResetDaySuffix: "of every month",
       },
       notifications: {
         browserPush: "Browser Notifications (Push)",

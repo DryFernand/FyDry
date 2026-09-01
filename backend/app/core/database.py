@@ -57,9 +57,14 @@ def init_db():
         with engine.begin() as conn:
             if "postgresql" in str(engine.url):
                 conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT FALSE;"))
+                conn.execute(text("ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS budget_reset_day INTEGER DEFAULT 1;"))
             elif "sqlite" in str(engine.url):
                 try:
                     conn.execute(text("ALTER TABLE users ADD COLUMN onboarding_completed BOOLEAN DEFAULT 0;"))
+                except Exception:
+                    pass
+                try:
+                    conn.execute(text("ALTER TABLE user_profiles ADD COLUMN budget_reset_day INTEGER DEFAULT 1;"))
                 except Exception:
                     pass
 

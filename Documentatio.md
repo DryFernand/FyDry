@@ -538,6 +538,46 @@
   - Inclusión de etiquetas `<link rel="icon">` directas en el `<head>` de `layout.tsx`.
 - **Despliegue a Producción**: Verificado con `npx tsc --noEmit` (0 errores) y desplegado en Vercel (`READY`).
 
+### 2026-09-01 - Descarga de Skills de Agentes y Actualización Integral del Portafolio en Vercel
+- **Instalación de Skills de Agentes**:
+  - Descarga e integración de las 25 skills de desarrollo desde `https://github.com/addyosmani/agent-skills.git` en `C:\Users\daryf\.agent\skills`.
+- **Auditoría y Actualización del Portafolio Web (`daryfernandez.vercel.app`)**:
+  - **Validación y Detección de Despliegues en Vercel**:
+    - Portafolio: `Portafolio-DaryFernandez` (`daryfernandez.vercel.app`).
+    - Detección y corrección de enlaces rotos (URL de `sistema-control-inventario-frontend-dary.vercel.app`).
+  - **Integración de Nuevos Proyectos Destacados**:
+    - **FyDry** (`https://fydry-dary.vercel.app`): Plataforma SaaS financiera con Next.js 16, FastAPI, Supabase, IA y Framer Motion con asset oficial (`/projects/FyDry.jpeg`).
+    - **Partido PIN** (`https://partido-pin.vercel.app`): Plataforma institucional moderna con asset oficial (`/projects/Logo-pin.jpeg`).
+    - **Centro Automotriz Carlos** (`https://centro-automotriz-carlos.vercel.app`): Portal interactivo con asset oficial (`/projects/centro-automotriz.png`).
+    - **La Pastelerie RD** (`https://demo-la-pastelerie-rd.vercel.app`): Catálogo interactivo e-commerce.
+    - **ASM Veterinaria** (`https://asm-veterinaria.vercel.app`): Portal clínico para salud animal con Astro.
+  - **Mejoras Arquitectónicas y UI/UX**:
+    - Sistema de filtrado interactivo por categorías con `Framer Motion` (`AnimatePresence`).
+    - Enlaces directos a producción en Vercel y repositorios de código en GitHub.
+    - Corrección total de codificación de caracteres UTF-8 (tildes, eñes y caracteres especiales) en todas las secciones (`Hero`, `About`, `Projects`, `Skills`, `Services`, `Experience`, `Contact`, `Footer`, `Navbar` y `metadata`).
+    - Actualización del stack técnico en `Skills.tsx` y badges dinámicos.
+    - Corrección de colisión de `id`s duplicados en la línea de tiempo de `Experience.tsx`.
+  - **Verificación y Despliegue**:
+    - `npx tsc --noEmit` completado con 0 errores.
+    - `npm run build` verificado exitosamente con Turbopack.
+    - Commit y push automáticos a GitHub; despliegue exitoso en producción en Vercel (`READY`).
+  - **Actualización de Fotografía Principal del Hero**:
+    - Importada y optimizada la fotografía de perfil desde `C:\Users\daryf\Downloads\Dary Fernandez.jpeg` a `public/profile.jpeg`.
+    - Actualizado el componente `Hero.tsx` vinculando el asset oficial con Next.js Image y priority loading.
+    - Verificado y desplegado en Vercel (`READY`).
+  - **Reinicio Automático y Configurable del Presupuesto (`budget_reset_day`)**:
+    - **Backend & Database**:
+      - Añadida la columna `budget_reset_day` (`Integer`, default=1) al modelo SQLAlchemy `UserProfile` en `backend/app/models/user_profile.py`.
+      - Migración automática configurada en `backend/app/core/database.py` (`ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS budget_reset_day INTEGER DEFAULT 1;`).
+      - Actualizados los schemas Pydantic `UserSettingsResponse` y `UserSettingsUpdate` en `backend/app/schemas/auth.py`.
+      - Integrado en los endpoints `GET /api/v1/auth/settings` y `PUT /api/v1/auth/settings` en `backend/app/api/v1/endpoints/auth.py`.
+    - **Frontend & UI/UX**:
+      - Actualizada la interfaz `UserSettingsData` y `updateUserSettingsApi` en `frontend/lib/api.ts`, disparando el evento de sincronización `fydry_storage_updated`.
+      - Agregado el control de **Día de Reinicio de Presupuesto** en la pestaña de Idioma & Preferencias de `SettingsModal.tsx` con selector del día 1 al 31, atajos rápidos (1, 15, 25, 28) y preview explicativo del ciclo activo en tiempo real.
+      - Agregadas las traducciones en español e inglés en `frontend/lib/translations.ts`.
+      - Refactorizado el cálculo de períodos en `BudgetView.tsx` (`getCycleRange`, `isExpenseInPeriod`, subperíodos quincenales y semanales adaptativos, y badge dinámico de reinicio en la cabecera).
+    - **Verificación**: `npx tsc --noEmit` completado con 0 errores y módulos backend verificados.
+
 
 
 

@@ -20,6 +20,8 @@ import {
   KeyRound,
   RefreshCw,
   Sparkles,
+  Calendar,
+  RotateCcw,
 } from "lucide-react";
 import { apiForgotPassword, apiVerifyResetOtp, apiResetPassword } from "@/lib/auth";
 import {
@@ -76,6 +78,7 @@ export default function SettingsModal({
 
   // Languages & Preferences State
   const [currency, setCurrency] = useState("USD");
+  const [budgetResetDay, setBudgetResetDay] = useState<number>(1);
 
   // Notifications State
   const [browserNotifications, setBrowserNotifications] = useState(false);
@@ -113,6 +116,9 @@ export default function SettingsModal({
           if (settings.preferred_currency) setCurrency(settings.preferred_currency);
           if (settings.language && (settings.language === "es" || settings.language === "en")) {
             setLanguage(settings.language as "es" | "en");
+          }
+          if (settings.budget_reset_day !== undefined && settings.budget_reset_day !== null) {
+            setBudgetResetDay(settings.budget_reset_day);
           }
           if (settings.email_notifications !== undefined) setEmailAlerts(settings.email_notifications);
           if (settings.budget_alerts !== undefined) setBudgetWarnings(settings.budget_alerts);
@@ -798,6 +804,72 @@ export default function SettingsModal({
                     <option value="ARS">ARS ($) - Peso Argentino</option>
                     <option value="CLP">CLP ($) - Peso Chileno</option>
                   </select>
+                </div>
+
+                {/* CICLO DE PRESUPUESTO / DÍA DE REINICIO */}
+                <div className="pt-3 border-t border-zinc-200/80 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="block text-xs font-semibold text-zinc-800">
+                        {t.settings.languages.budgetResetDay}
+                      </label>
+                      <p className="text-[11px] text-zinc-500 mt-0.5 leading-relaxed">
+                        {t.settings.languages.budgetResetDayDesc}
+                      </p>
+                    </div>
+                    <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-zinc-100 text-zinc-800 border border-zinc-200/80 shrink-0 ml-2">
+                      Día {budgetResetDay} {t.settings.languages.budgetResetDaySuffix}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                    <div>
+                      <select
+                        value={budgetResetDay}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value) || 1;
+                          setBudgetResetDay(val);
+                          updateUserSettingsApi({ budget_reset_day: val });
+                        }}
+                        className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 text-xs text-zinc-900 focus:outline-none focus:border-zinc-900 cursor-pointer bg-white"
+                      >
+                        {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                          <option key={d} value={d}>
+                            Día {d} {d === 1 ? "(Mes calendario estándar)" : d === 15 ? "(Quincena)" : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      {[1, 15, 25, 28].map((d) => (
+                        <button
+                          key={d}
+                          type="button"
+                          onClick={() => {
+                            setBudgetResetDay(d);
+                            updateUserSettingsApi({ budget_reset_day: d });
+                          }}
+                          className={`flex-1 py-2 text-[11px] font-semibold rounded-xl border transition-all cursor-pointer ${
+                            budgetResetDay === d
+                              ? "bg-zinc-950 text-white border-zinc-950 shadow-2xs"
+                              : "bg-zinc-50 text-zinc-600 border-zinc-200 hover:bg-zinc-100"
+                          }`}
+                        >
+                          Día {d}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-2xl bg-zinc-50 border border-zinc-200/80 text-[11px] text-zinc-600 flex items-start gap-2">
+                    <RotateCcw className="w-3.5 h-3.5 text-emerald-600 mt-0.5 shrink-0" />
+                    <span>
+                      {budgetResetDay === 1
+                        ? "Tu presupuesto se reinicia el día 1 de cada mes (cálculo sobre el mes calendario completo de 1 a fin de mes)."
+                        : `Tu presupuesto se reinicia automáticamente cada día ${budgetResetDay} del mes (el ciclo mensual activo corre del día ${budgetResetDay} al día ${budgetResetDay - 1} del mes siguiente).`}
+                    </span>
+                  </div>
                 </div>
               </div>
             )}

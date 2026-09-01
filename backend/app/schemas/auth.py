@@ -86,6 +86,7 @@ class UserSettingsResponse(BaseModel):
     country: Optional[str] = None
     preferred_currency: str = "USD"
     language: str = "es"
+    budget_reset_day: int = 1
     notifications_enabled: bool = True
     email_notifications: bool = True
     budget_alerts: bool = True
@@ -99,6 +100,7 @@ class UserSettingsUpdate(BaseModel):
     country: Optional[str] = None
     preferred_currency: Optional[str] = None
     language: Optional[str] = None
+    budget_reset_day: Optional[int] = None
     notifications_enabled: Optional[bool] = None
     email_notifications: Optional[bool] = None
     budget_alerts: Optional[bool] = None

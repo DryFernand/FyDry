@@ -25,6 +25,7 @@ import {
   updateBudgetApi,
   deleteBudgetApi,
   fetchTransactionsApi,
+  fetchUserSettingsApi,
 } from "@/lib/api";
 
 const MONTH_NAMES_ES = [
@@ -63,19 +64,24 @@ export default function BudgetView() {
     return 4;
   });
 
-  // Selector de mes y año activo
+  // Selector de mes y año activo / base del ciclo
   const [selectedDate, setSelectedDate] = useState(() => new Date());
+  const [budgetResetDay, setBudgetResetDay] = useState<number>(1);
 
   const [newCat, setNewCat] = useState<string>(EXPENSE_CATEGORIES[0]);
   const [newAllocated, setNewAllocated] = useState("");
 
   const loadData = async () => {
-    const [budData, expData] = await Promise.all([
+    const [budData, expData, settingsData] = await Promise.all([
       fetchBudgetsApi(),
       fetchTransactionsApi("expense"),
+      fetchUserSettingsApi(),
     ]);
     setBudgets(budData);
     setExpenses(expData);
+    if (settingsData?.budget_reset_day !== undefined && settingsData.budget_reset_day !== null) {
+      setBudgetResetDay(settingsData.budget_reset_day);
+    }
   };
 
   useEffect(() => {
@@ -84,41 +90,114 @@ export default function BudgetView() {
     return () => window.removeEventListener("fydry_storage_updated", loadData);
   }, []);
 
-  const selectedYear = selectedDate.getFullYear();
-  const selectedMonth = selectedDate.getMonth();
+  // Helper para calcular el rango exacto de fechas del ciclo mensual según budgetResetDay
+  const getCycleRange = (baseDate: Date, resetDay: number) => {
+    const validResetDay = Math.max(1, Math.min(31, resetDay || 1));
+    if (validResetDay === 1) {
+      const year = baseDate.getFullYear();
+      const month = baseDate.getMonth();
+      const startDate = new Date(year, month, 1, 0, 0, 0, 0);
+      const endDate = new Date(year, month + 1, 0, 23, 59, 59, 999);
+      return { startDate, endDate, resetDay: 1 };
+    }
 
-  const isCurrentMonth = () => {
-    const now = new Date();
-    return now.getFullYear() === selectedYear && now.getMonth() === selectedMonth;
+    const currentDay = baseDate.getDate();
+    let startYear = baseDate.getFullYear();
+    let startMonth = baseDate.getMonth();
+
+    if (currentDay < validResetDay) {
+      const prev = new Date(startYear, startMonth - 1, 1);
+      startYear = prev.getFullYear();
+      startMonth = prev.getMonth();
+    }
+
+    const maxDaysStart = new Date(startYear, startMonth + 1, 0).getDate();
+    const actualStartDay = Math.min(validResetDay, maxDaysStart);
+    const startDate = new Date(startYear, startMonth, actualStartDay, 0, 0, 0, 0);
+
+    const next = new Date(startYear, startMonth + 1, 1);
+    const endYear = next.getFullYear();
+    const endMonth = next.getMonth();
+    const maxDaysEnd = new Date(endYear, endMonth + 1, 0).getDate();
+    const actualEndDay = Math.min(validResetDay - 1, maxDaysEnd);
+    const endDate = new Date(endYear, endMonth, actualEndDay, 23, 59, 59, 999);
+
+    return { startDate, endDate, resetDay: validResetDay };
+  };
+
+  const cycleRange = getCycleRange(selectedDate, budgetResetDay);
+
+  const isCurrentCycle = () => {
+    const cur = getCycleRange(new Date(), budgetResetDay);
+    return (
+      cur.startDate.getTime() === cycleRange.startDate.getTime() &&
+      cur.endDate.getTime() === cycleRange.endDate.getTime()
+    );
   };
 
   const handlePrevMonth = () => {
-    setSelectedDate((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+    if (budgetResetDay === 1) {
+      setSelectedDate((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+    } else {
+      setSelectedDate(
+        new Date(cycleRange.startDate.getFullYear(), cycleRange.startDate.getMonth() - 1, budgetResetDay)
+      );
+    }
   };
 
   const handleNextMonth = () => {
-    setSelectedDate((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+    if (budgetResetDay === 1) {
+      setSelectedDate((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+    } else {
+      setSelectedDate(
+        new Date(cycleRange.startDate.getFullYear(), cycleRange.startDate.getMonth() + 1, budgetResetDay)
+      );
+    }
   };
 
   const handleCurrentMonth = () => {
-    setSelectedDate(new Date());
-    const today = new Date().getDate();
-    setSelectedFortnight(today <= 15 ? 1 : 2);
-    setSelectedWeek(today <= 7 ? 1 : today <= 14 ? 2 : today <= 21 ? 3 : 4);
+    const now = new Date();
+    setSelectedDate(now);
+    const curRange = getCycleRange(now, budgetResetDay);
+    const totalDuration = curRange.endDate.getTime() - curRange.startDate.getTime();
+    const elapsed = now.getTime() - curRange.startDate.getTime();
+    const progress = totalDuration > 0 ? elapsed / totalDuration : 0;
+    setSelectedFortnight(progress < 0.5 ? 1 : 2);
+    if (progress < 0.25) setSelectedWeek(1);
+    else if (progress < 0.5) setSelectedWeek(2);
+    else if (progress < 0.75) setSelectedWeek(3);
+    else setSelectedWeek(4);
   };
 
-  const monthLabel =
-    language === "es"
-      ? `${MONTH_NAMES_ES[selectedMonth]} ${selectedYear}`
-      : `${MONTH_NAMES_EN[selectedMonth]} ${selectedYear}`;
+  const formatCycleLabel = () => {
+    if (budgetResetDay === 1) {
+      const monthIndex = cycleRange.startDate.getMonth();
+      const year = cycleRange.startDate.getFullYear();
+      return language === "es"
+        ? `${MONTH_NAMES_ES[monthIndex]} ${year}`
+        : `${MONTH_NAMES_EN[monthIndex]} ${year}`;
+    }
 
-  // Helper para extraer el día y verificar pertenencia al sub-período
-  const getExpenseDateInfo = (e: TransactionItem): { year: number; month: number; day: number } => {
+    const startMonth = cycleRange.startDate.getMonth();
+    const endMonth = cycleRange.endDate.getMonth();
+    const startDay = cycleRange.startDate.getDate();
+    const endDay = cycleRange.endDate.getDate();
+    const endYear = cycleRange.endDate.getFullYear();
+
+    const monthNames = language === "es" ? MONTH_NAMES_ES : MONTH_NAMES_EN;
+    const startMonthName = monthNames[startMonth].slice(0, 3);
+    const endMonthName = monthNames[endMonth].slice(0, 3);
+
+    return `${startDay} ${startMonthName} – ${endDay} ${endMonthName} ${endYear}`;
+  };
+
+  const monthLabel = formatCycleLabel();
+
+  // Helper para normalizar timestamp de cualquier gasto
+  const getExpenseTimestamp = (e: TransactionItem): number => {
     if (e.createdAt) {
       const d = new Date(e.createdAt);
-      if (!isNaN(d.getTime())) {
-        return { year: d.getFullYear(), month: d.getMonth(), day: d.getDate() };
-      }
+      if (!isNaN(d.getTime())) return d.getTime();
     }
     if (e.date && e.date.includes("-")) {
       const parts = e.date.split("-");
@@ -127,24 +206,19 @@ export default function BudgetView() {
         const m = parseInt(parts[1]) - 1;
         const day = parseInt(parts[2]);
         if (!isNaN(y) && !isNaN(m) && !isNaN(day)) {
-          return { year: y, month: m, day };
-        }
-      } else if (parts.length === 2) {
-        const y = parseInt(parts[0]);
-        const m = parseInt(parts[1]) - 1;
-        if (!isNaN(y) && !isNaN(m)) {
-          return { year: y, month: m, day: 1 };
+          return new Date(y, m, day, 12, 0, 0).getTime();
         }
       }
     }
-    const now = new Date();
-    return { year: now.getFullYear(), month: now.getMonth(), day: now.getDate() };
+    return new Date().getTime();
   };
 
-  // Helper para verificar si un gasto pertenece al mes y sub-período seleccionado
+  // Helper para verificar si un gasto pertenece al ciclo y sub-período seleccionado
   const isExpenseInPeriod = (e: TransactionItem): boolean => {
-    const { year, month, day } = getExpenseDateInfo(e);
-    if (year !== selectedYear || month !== selectedMonth) {
+    const expenseTime = getExpenseTimestamp(e);
+    const { startDate, endDate } = cycleRange;
+
+    if (expenseTime < startDate.getTime() || expenseTime > endDate.getTime()) {
       return false;
     }
 
@@ -152,19 +226,27 @@ export default function BudgetView() {
       return true;
     }
 
+    const totalDuration = endDate.getTime() - startDate.getTime();
+
     if (periodView === "biweekly") {
+      const midTime = startDate.getTime() + totalDuration / 2;
       if (selectedFortnight === 1) {
-        return day <= 15;
+        return expenseTime < midTime;
       } else {
-        return day >= 16;
+        return expenseTime >= midTime;
       }
     }
 
     if (periodView === "weekly") {
-      if (selectedWeek === 1) return day <= 7;
-      if (selectedWeek === 2) return day >= 8 && day <= 14;
-      if (selectedWeek === 3) return day >= 15 && day <= 21;
-      return day >= 22;
+      const qTime = totalDuration / 4;
+      const w1 = startDate.getTime() + qTime;
+      const w2 = startDate.getTime() + qTime * 2;
+      const w3 = startDate.getTime() + qTime * 3;
+
+      if (selectedWeek === 1) return expenseTime < w1;
+      if (selectedWeek === 2) return expenseTime >= w1 && expenseTime < w2;
+      if (selectedWeek === 3) return expenseTime >= w2 && expenseTime < w3;
+      return expenseTime >= w3;
     }
 
     return true;
@@ -274,15 +356,18 @@ export default function BudgetView() {
 
   // Etiqueta del período activo
   const getPeriodSubLabel = () => {
-    if (periodView === "monthly") return `Mes de ${monthLabel}`;
+    if (periodView === "monthly") {
+      return budgetResetDay === 1
+        ? `Mes de ${monthLabel} · Reinicia el día 1`
+        : `Ciclo ${monthLabel} · Reinicia cada día ${budgetResetDay}`;
+    }
     if (periodView === "biweekly") {
       return selectedFortnight === 1
-        ? `1ra Quincena (Días 1-15) · ${monthLabel}`
-        : `2da Quincena (Días 16-Fin) · ${monthLabel}`;
+        ? `1ra Mitad del Ciclo · ${monthLabel}`
+        : `2da Mitad del Ciclo · ${monthLabel}`;
     }
     if (periodView === "weekly") {
-      const weekRanges = ["Días 1-7", "Días 8-14", "Días 15-21", "Días 22-Fin"];
-      return `Semana ${selectedWeek} (${weekRanges[selectedWeek - 1]}) · ${monthLabel}`;
+      return `Semana ${selectedWeek} de 4 · ${monthLabel}`;
     }
     return monthLabel;
   };
@@ -292,16 +377,20 @@ export default function BudgetView() {
       {/* Header with Month Navigator & Period Selector */}
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-3xl border border-zinc-200/80 shadow-xs">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-2xl font-bold tracking-tight text-zinc-950">
               {t.budget.title}
             </h1>
             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-zinc-100 text-zinc-700 border border-zinc-200/60 uppercase">
               {periodView === "monthly" ? "Mensual" : periodView === "biweekly" ? "Quincenal" : "Semanal"}
             </span>
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200/70">
+              <RotateCcw className="w-3 h-3 text-emerald-600" />
+              <span>Reinicia el día {budgetResetDay}</span>
+            </span>
           </div>
           <p className="text-xs text-zinc-500 mt-1">
-            {getPeriodSubLabel()} · {periodView === "monthly" ? "Límites mensuales" : periodView === "biweekly" ? "Límites quincenales" : "Límites semanales"}
+            {getPeriodSubLabel()} · {periodView === "monthly" ? "Límites del ciclo" : periodView === "biweekly" ? "Límites quincenales" : "Límites semanales"}
           </p>
         </div>
 
@@ -374,15 +463,15 @@ export default function BudgetView() {
             </button>
           </div>
 
-          {/* Botón Mes Actual */}
-          {!isCurrentMonth() && (
+          {/* Botón Mes / Ciclo Actual */}
+          {!isCurrentCycle() && (
             <button
               type="button"
               onClick={handleCurrentMonth}
               className="flex items-center gap-1 py-2 px-3 rounded-2xl bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-xs font-semibold transition-all cursor-pointer border border-zinc-200/60"
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              <span>Hoy</span>
+              <span>Ciclo Actual</span>
             </button>
           )}
 

@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, Boolean, ForeignKey, JSON
+from sqlalchemy import Column, String, Boolean, Integer, ForeignKey, JSON
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 from app.models.base import TimestampMixin
@@ -17,6 +17,7 @@ class UserProfile(Base, TimestampMixin):
     city = Column(String(100), nullable=True)
     preferred_currency = Column(String(10), default="USD", nullable=False)
     language = Column(String(10), default="es", nullable=False)
+    budget_reset_day = Column(Integer, default=1, nullable=False)  # Día 1 al 31 del mes en que reinicia el presupuesto
 
     # 2. Preferencias de Notificación
     notifications_enabled = Column(Boolean, default=True, nullable=False)

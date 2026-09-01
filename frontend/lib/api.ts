@@ -822,6 +822,7 @@ export interface UserSettingsData {
   country?: string | null;
   preferred_currency: string;
   language: string;
+  budget_reset_day?: number;
   notifications_enabled: boolean;
   email_notifications: boolean;
   budget_alerts: boolean;
@@ -862,6 +863,7 @@ export async function updateUserSettingsApi(settings: Partial<UserSettingsData>)
       const data: UserSettingsData = await res.json();
       if (typeof window !== "undefined") {
         localStorage.setItem("fydry_user_settings", JSON.stringify(data));
+        window.dispatchEvent(new Event("fydry_storage_updated"));
       }
       return data;
     }
