@@ -22,8 +22,10 @@ import {
   updateMovementApi,
   deleteMovementApi,
   fetchAccountsApi,
+  fetchUserSettingsApi,
   markNotificationProcessedApi,
 } from "@/lib/api";
+import { getCycleRange, isTransactionInPeriod, formatCycleLabel } from "@/lib/cycle";
 
 interface MovementsViewProps {
   initialDraft?: {
@@ -41,6 +43,7 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
   const { language } = useLanguage();
   const [movements, setMovements] = useState<MovementItem[]>([]);
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
+  const [budgetResetDay, setBudgetResetDay] = useState<number>(1);
 
   // Search & Filter
   const [searchTerm, setSearchTerm] = useState("");
@@ -59,12 +62,16 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
   const [formError, setFormError] = useState("");
 
   const loadData = async () => {
-    const [movData, accData] = await Promise.all([
+    const [movData, accData, settingsData] = await Promise.all([
       fetchMovementsApi(),
       fetchAccountsApi(),
+      fetchUserSettingsApi(),
     ]);
     setMovements(movData);
     setAccounts(accData);
+    if (settingsData?.budget_reset_day !== undefined && settingsData.budget_reset_day !== null) {
+      setBudgetResetDay(settingsData.budget_reset_day);
+    }
     if (accData.length >= 2) {
       setFromAccount((prev) => prev || accData[0].name);
       setToAccount((prev) => prev || accData[1].name);
@@ -90,6 +97,22 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
       setIsModalOpen(true);
     }
   }, [initialDraft]);
+
+  // Rango del ciclo mensual activo
+  const cycleRange = getCycleRange(new Date(), budgetResetDay);
+  const cycleLabel = formatCycleLabel(
+    cycleRange.startDate,
+    cycleRange.endDate,
+    budgetResetDay,
+    (language as "es" | "en") || "es"
+  );
+
+  // Movimientos que pertenecen estrictamente al mes / ciclo actual
+  const currentCycleMovements = movements.filter((m) =>
+    isTransactionInPeriod(m as any, cycleRange.startDate, cycleRange.endDate)
+  );
+  const totalTransferredThisMonth = currentCycleMovements.reduce((sum, m) => sum + m.amount, 0);
+  const totalTaxesThisMonth = currentCycleMovements.reduce((sum, m) => sum + (m.taxAmount || 0), 0);
 
   const openCreateModal = () => {
     setEditingMovement(null);
@@ -180,10 +203,7 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
         amount: parsedAmount,
         taxAmount: parsedTax,
         description: description || `Traspaso de ${fromAccount} a ${toAccount}`,
-        date: new Date().toLocaleDateString(language === "es" ? "es-ES" : "en-US", {
-          day: "numeric",
-          month: "short",
-        }),
+        date: initialDraft?.date || new Date().toISOString().split("T")[0],
       });
       setMovements((prev) => [created, ...prev]);
     }
@@ -212,7 +232,7 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
     }
   };
 
-  // Filtrado
+  // Filtrado de toda la tabla para búsqueda
   const filteredMovements = movements.filter((m) => {
     if (
       selectedAccountFilter !== "all" &&
@@ -231,9 +251,6 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
     return true;
   });
 
-  const totalTransferred = movements.reduce((sum, m) => sum + m.amount, 0);
-  const totalTaxes = movements.reduce((sum, m) => sum + (m.taxAmount || 0), 0);
-
   const numAmount = parseFloat(amount) || 0;
   const numTax = parseFloat(taxAmount) || 0;
   const totalDebitedPreview = numAmount + numTax;
@@ -243,9 +260,14 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-3xl border border-zinc-200/80 shadow-xs">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-zinc-950 flex items-center gap-2">
-            <span>Movimientos & Traspasos</span>
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight text-zinc-950 flex items-center gap-2">
+              <span>Movimientos & Traspasos</span>
+            </h1>
+            <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-zinc-100 text-zinc-700 border border-zinc-200/60">
+              Ciclo: {cycleLabel}
+            </span>
+          </div>
           <p className="text-xs text-zinc-500 mt-1">
             Transfiere dinero entre tus cuentas, calcula impuestos bancarios y sincroniza con tu presupuesto.
           </p>
@@ -263,51 +285,51 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {/* Total Transferred */}
+        {/* Total Transferred This Month */}
         <div className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-zinc-500">Total Traspasado</span>
+            <span className="text-xs font-semibold text-zinc-500">Total Traspasado (Este Mes)</span>
             <div className="w-7 h-7 rounded-xl bg-zinc-100 text-zinc-800 flex items-center justify-center">
               <ArrowLeftRight className="w-3.5 h-3.5" />
             </div>
           </div>
           <div className="text-2xl font-bold tracking-tight text-zinc-950">
-            ${totalTransferred.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+            ${totalTransferredThisMonth.toLocaleString("en-US", { minimumFractionDigits: 2 })}
           </div>
           <div className="text-[11px] text-zinc-400">
-            {movements.length} traspasos registrados
+            {currentCycleMovements.length} traspasos este ciclo • {movements.length} en historial
           </div>
         </div>
 
-        {/* Total Taxes Paid */}
+        {/* Total Taxes Paid This Month */}
         <div className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-zinc-500">Impuestos / Comisiones</span>
+            <span className="text-xs font-semibold text-zinc-500">Impuestos / Comisiones (Este Mes)</span>
             <div className="w-7 h-7 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
               <Receipt className="w-3.5 h-3.5" />
             </div>
           </div>
           <div className="text-2xl font-bold tracking-tight text-amber-600">
-            ${totalTaxes.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+            ${totalTaxesThisMonth.toLocaleString("en-US", { minimumFractionDigits: 2 })}
           </div>
           <div className="text-[11px] text-zinc-400">
-            Retenciones debitadas en origen
+            Retenciones debitadas este ciclo
           </div>
         </div>
 
-        {/* Synchronized State */}
+        {/* Reset Day info */}
         <div className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-zinc-500">Integración Presupuestaria</span>
+            <span className="text-xs font-semibold text-zinc-500">Reinicio de Presupuesto</span>
             <div className="w-7 h-7 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-              <CheckCircle2 className="w-4 h-4" />
+              <Percent className="w-3.5 h-3.5" />
             </div>
           </div>
-          <div className="text-2xl font-bold tracking-tight text-emerald-600">
-            Automatizada
+          <div className="text-2xl font-bold tracking-tight text-zinc-950">
+            Día {budgetResetDay}
           </div>
           <div className="text-[11px] text-zinc-400">
-            Asiento automático en límite de Impuestos
+            Se reinicia cada mes el día {budgetResetDay}
           </div>
         </div>
       </div>

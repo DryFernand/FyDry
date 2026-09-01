@@ -21,8 +21,10 @@ import {
   updateTransactionApi,
   deleteTransactionApi,
   fetchAccountsApi,
+  fetchUserSettingsApi,
   markNotificationProcessedApi,
 } from "@/lib/api";
+import { getCycleRange, isTransactionInPeriod, formatCycleLabel } from "@/lib/cycle";
 
 interface IncomesViewProps {
   initialDraft?: {
@@ -40,6 +42,7 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
   const { t, language } = useLanguage();
   const [incomes, setIncomes] = useState<TransactionItem[]>([]);
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
+  const [budgetResetDay, setBudgetResetDay] = useState<number>(1);
   const [selectedCategory, setSelectedCategory] = useState("Todos");
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -51,12 +54,16 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
   const [selectedAccountId, setSelectedAccountId] = useState("");
 
   const loadData = async () => {
-    const [incData, accData] = await Promise.all([
+    const [incData, accData, settingsData] = await Promise.all([
       fetchTransactionsApi("income"),
       fetchAccountsApi(),
+      fetchUserSettingsApi(),
     ]);
     setIncomes(incData);
     setAccounts(accData);
+    if (settingsData?.budget_reset_day !== undefined && settingsData.budget_reset_day !== null) {
+      setBudgetResetDay(settingsData.budget_reset_day);
+    }
     if (accData.length > 0 && !selectedAccountId) {
       setSelectedAccountId(accData[0].name);
     }
@@ -80,12 +87,28 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
     }
   }, [initialDraft]);
 
+  // Rango del ciclo mensual activo
+  const cycleRange = getCycleRange(new Date(), budgetResetDay);
+  const cycleLabel = formatCycleLabel(
+    cycleRange.startDate,
+    cycleRange.endDate,
+    budgetResetDay,
+    (language as "es" | "en") || "es"
+  );
+
+  // Ingresos que pertenecen estrictamente al mes / ciclo actual
+  const currentCycleIncomes = incomes.filter((inc) =>
+    isTransactionInPeriod(inc, cycleRange.startDate, cycleRange.endDate)
+  );
+  const totalIncomesThisMonth = currentCycleIncomes.reduce((acc, curr) => acc + curr.amount, 0);
+
   // Dinámicamente obtener SOLO las categorías en las que realmente se han registrado ingresos
   const activeIncomeCategories = useMemo(() => {
     const consumedCategories = Array.from(new Set(incomes.map((i) => i.category)));
     return [language === "es" ? "Todos" : "All", ...consumedCategories];
   }, [incomes, language]);
 
+  // Lista de todos los ingresos (para exploración de historial y búsqueda)
   const filteredIncomes = incomes.filter((inc) => {
     const isAll = selectedCategory === "Todos" || selectedCategory === "All";
     const matchesCat = isAll || inc.category.toLowerCase() === selectedCategory.toLowerCase();
@@ -95,8 +118,6 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
       inc.account.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesCat && matchesSearch;
   });
-
-  const totalIncome = filteredIncomes.reduce((acc, curr) => acc + curr.amount, 0);
 
   const openCreateModal = () => {
     setEditingIncome(null);
@@ -141,10 +162,7 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
         account: accountName,
         amount: parsedAmount,
         type: "income",
-        date: new Date().toLocaleDateString(language === "es" ? "es-ES" : "en-US", {
-          day: "numeric",
-          month: "short",
-        }),
+        date: initialDraft?.date || new Date().toISOString().split("T")[0],
       });
       setIncomes((prev) => [created, ...prev]);
     }
@@ -178,9 +196,14 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-3xl border border-zinc-200/80 shadow-xs">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-zinc-950">
-            {t.incomes.title}
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight text-zinc-950">
+              {t.incomes.title}
+            </h1>
+            <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-zinc-100 text-zinc-700 border border-zinc-200/60">
+              Ciclo: {cycleLabel}
+            </span>
+          </div>
           <p className="text-xs text-zinc-500 mt-1">
             {t.incomes.subtitle}
           </p>
@@ -201,23 +224,25 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
         <div className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs space-y-2">
           <span className="text-xs font-semibold text-zinc-500">{t.incomes.totalIncomesMonth}</span>
           <div className="text-2xl font-bold tracking-tight text-emerald-600">
-            +${totalIncome.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+            +${totalIncomesThisMonth.toLocaleString("en-US", { minimumFractionDigits: 2 })}
           </div>
           <div className="text-[11px] text-zinc-400">
-            {filteredIncomes.length} {t.incomes.activeIncomeSources}
+            {currentCycleIncomes.length} fuentes este ciclo • {incomes.length} en historial
           </div>
         </div>
 
         <div className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs space-y-2">
-          <span className="text-xs font-semibold text-zinc-500">{t.incomes.mainSalary}</span>
-          <div className="text-2xl font-bold tracking-tight text-zinc-950">$0.00</div>
-          <div className="text-[11px] text-zinc-400">0% del total mensual</div>
+          <span className="text-xs font-semibold text-zinc-500">Historial Total Ingresos</span>
+          <div className="text-2xl font-bold tracking-tight text-zinc-950">
+            +${incomes.reduce((acc, curr) => acc + curr.amount, 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+          </div>
+          <div className="text-[11px] text-zinc-400">Todos los períodos registrados</div>
         </div>
 
         <div className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs space-y-2">
-          <span className="text-xs font-semibold text-zinc-500">{t.incomes.extraIncomes}</span>
-          <div className="text-2xl font-bold tracking-tight text-zinc-950">$0.00</div>
-          <div className="text-[11px] text-zinc-400">0% del total mensual</div>
+          <span className="text-xs font-semibold text-zinc-500">Reinicio de Presupuesto</span>
+          <div className="text-2xl font-bold tracking-tight text-zinc-950">Día {budgetResetDay}</div>
+          <div className="text-[11px] text-zinc-400">Se reinicia cada mes el día {budgetResetDay}</div>
         </div>
       </div>
 

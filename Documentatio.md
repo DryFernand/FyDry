@@ -584,6 +584,9 @@
         - Centralizada la lógica de ciclos y fechas en el nuevo módulo `frontend/lib/cycle.ts`.
         - En la pantalla de inicio, las métricas de flujo (Ingresos del Mes, Gastos del Mes, Ahorro Neto y Tasa de Ahorro) calculan estrictamente las transacciones del ciclo mensual activo (desde el día 1 o día configurado en adelante), mientras que el balance acumulado preserva la liquidez total.
         - En la vista de Reportes Auditados (`ReportsView.tsx`), se agregó un selector dinámico de alcance para auditar tanto el **Mes Actual** (con badge del ciclo activo y día de corte) como el **Histórico Completo Consolidado**.
+      - **Vistas de Gastos (`ExpensesView.tsx`), Ingresos (`IncomesView.tsx`) y Movimientos (`MovementsView.tsx`)**:
+        - Las tarjetas métricas superiores ("Total Gastado Este Mes", "Total Ingresos de Este Mes", "Total Traspasado Este Mes" e "Impuestos / Comisiones") se recalculan dinámicamente según el **ciclo activo actual** (reiniciándose en cero al comenzar el día 1 o el día de corte configurado).
+        - Las tablas principales conservan todos los registros históricos con búsqueda, filtros por categoría/cuenta y formato de fechas limpio.
     - **Verificación**: `npx tsc --noEmit` completado con 0 errores y módulos backend verificados.
 
 

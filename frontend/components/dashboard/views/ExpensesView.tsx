@@ -21,8 +21,10 @@ import {
   updateTransactionApi,
   deleteTransactionApi,
   fetchAccountsApi,
+  fetchUserSettingsApi,
   markNotificationProcessedApi,
 } from "@/lib/api";
+import { getCycleRange, isTransactionInPeriod, formatCycleLabel } from "@/lib/cycle";
 
 interface ExpensesViewProps {
   initialDraft?: {
@@ -40,6 +42,7 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
   const { t, language } = useLanguage();
   const [expenses, setExpenses] = useState<TransactionItem[]>([]);
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
+  const [budgetResetDay, setBudgetResetDay] = useState<number>(1);
   const [selectedCategory, setSelectedCategory] = useState("Todos");
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -52,12 +55,16 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
   const [selectedAccountId, setSelectedAccountId] = useState("");
 
   const loadData = async () => {
-    const [expData, accData] = await Promise.all([
+    const [expData, accData, settingsData] = await Promise.all([
       fetchTransactionsApi("expense"),
       fetchAccountsApi(),
+      fetchUserSettingsApi(),
     ]);
     setExpenses(expData);
     setAccounts(accData);
+    if (settingsData?.budget_reset_day !== undefined && settingsData.budget_reset_day !== null) {
+      setBudgetResetDay(settingsData.budget_reset_day);
+    }
     if (accData.length > 0 && !selectedAccountId) {
       setSelectedAccountId(accData[0].name);
     }
@@ -81,12 +88,28 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
     }
   }, [initialDraft]);
 
+  // Rango del ciclo mensual activo
+  const cycleRange = getCycleRange(new Date(), budgetResetDay);
+  const cycleLabel = formatCycleLabel(
+    cycleRange.startDate,
+    cycleRange.endDate,
+    budgetResetDay,
+    (language as "es" | "en") || "es"
+  );
+
+  // Gastos que pertenecen estrictamente al mes / ciclo actual
+  const currentCycleExpenses = expenses.filter((e) =>
+    isTransactionInPeriod(e, cycleRange.startDate, cycleRange.endDate)
+  );
+  const totalSpentThisMonth = currentCycleExpenses.reduce((acc, curr) => acc + curr.amount, 0);
+
   // Dinámicamente obtener SOLO las categorías en las que realmente se ha consumido
   const activeExpenseCategories = useMemo(() => {
     const consumedCategories = Array.from(new Set(expenses.map((e) => e.category)));
     return [language === "es" ? "Todos" : "All", ...consumedCategories];
   }, [expenses, language]);
 
+  // Lista de todos los gastos (para exploración de historial y búsqueda)
   const filteredExpenses = expenses.filter((e) => {
     const isAll = selectedCategory === "Todos" || selectedCategory === "All";
     const matchesCat = isAll || e.category.toLowerCase() === selectedCategory.toLowerCase();
@@ -96,8 +119,6 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
       e.account.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesCat && matchesSearch;
   });
-
-  const totalSpent = filteredExpenses.reduce((acc, curr) => acc + curr.amount, 0);
 
   const openCreateModal = () => {
     setEditingExpense(null);
@@ -153,10 +174,7 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
         account: accountName,
         amount: parsedAmount,
         type: "expense",
-        date: new Date().toLocaleDateString(language === "es" ? "es-ES" : "en-US", {
-          day: "numeric",
-          month: "short",
-        }),
+        date: initialDraft?.date || new Date().toISOString().split("T")[0],
       });
       setExpenses((prev) => [created, ...prev]);
     }
@@ -190,9 +208,14 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-3xl border border-zinc-200/80 shadow-xs">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-zinc-950">
-            {t.expenses.title}
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight text-zinc-950">
+              {t.expenses.title}
+            </h1>
+            <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-zinc-100 text-zinc-700 border border-zinc-200/60">
+              Ciclo: {cycleLabel}
+            </span>
+          </div>
           <p className="text-xs text-zinc-500 mt-1">
             {t.expenses.subtitle}
           </p>
@@ -213,23 +236,25 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
         <div className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs space-y-2">
           <span className="text-xs font-semibold text-zinc-500">{t.expenses.totalSpentMonth}</span>
           <div className="text-2xl font-bold tracking-tight text-zinc-950">
-            ${totalSpent.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+            ${totalSpentThisMonth.toLocaleString("en-US", { minimumFractionDigits: 2 })}
           </div>
           <div className="text-[11px] text-zinc-400">
-            {filteredExpenses.length} {t.expenses.transactionsRegistered}
+            {currentCycleExpenses.length} este ciclo • {expenses.length} en historial
           </div>
         </div>
 
         <div className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs space-y-2">
-          <span className="text-xs font-semibold text-zinc-500">{t.expenses.fixedExpenses}</span>
-          <div className="text-2xl font-bold tracking-tight text-zinc-950">$0.00</div>
-          <div className="text-[11px] text-zinc-400">{t.expenses.fixedSubtitle}</div>
+          <span className="text-xs font-semibold text-zinc-500">Historial Total Gastado</span>
+          <div className="text-2xl font-bold tracking-tight text-zinc-950">
+            ${expenses.reduce((acc, curr) => acc + curr.amount, 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+          </div>
+          <div className="text-[11px] text-zinc-400">Todos los períodos registrados</div>
         </div>
 
         <div className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs space-y-2">
-          <span className="text-xs font-semibold text-zinc-500">{t.expenses.variableExpenses}</span>
-          <div className="text-2xl font-bold tracking-tight text-zinc-950">$0.00</div>
-          <div className="text-[11px] text-zinc-400">{t.expenses.variableSubtitle}</div>
+          <span className="text-xs font-semibold text-zinc-500">Reinicio de Presupuesto</span>
+          <div className="text-2xl font-bold tracking-tight text-zinc-950">Día {budgetResetDay}</div>
+          <div className="text-[11px] text-zinc-400">Se reinicia cada mes el día {budgetResetDay}</div>
         </div>
       </div>
 
