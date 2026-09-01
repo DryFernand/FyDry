@@ -81,6 +81,7 @@ class ExpenseResponse(BaseModel):
     description: str
     amount: float
     date: str
+    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -115,6 +116,7 @@ class IncomeResponse(BaseModel):
     description: str
     amount: float
     date: str
+    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -156,6 +158,7 @@ class MovementResponse(BaseModel):
     tax_expense_id: Optional[str] = None
     description: str
     date: str
+    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True

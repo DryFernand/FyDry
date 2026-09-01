@@ -199,6 +199,7 @@ export async function fetchExpensesApi(): Promise<TransactionItem[]> {
         category: d.category,
         account: d.account_name,
         date: d.date,
+        createdAt: d.created_at || d.createdAt,
       }));
       if (typeof window !== "undefined") {
         localStorage.setItem("fydry_expenses", JSON.stringify(items));
@@ -241,6 +242,7 @@ export async function createExpenseApi(exp: Omit<TransactionItem, "id" | "type">
         category: d.category,
         account: d.account_name,
         date: d.date,
+        createdAt: d.created_at || d.createdAt || new Date().toISOString(),
       };
     }
   } catch (err) {
@@ -303,6 +305,7 @@ export async function fetchIncomesApi(): Promise<TransactionItem[]> {
         category: d.category,
         account: d.account_name,
         date: d.date,
+        createdAt: d.created_at || d.createdAt,
       }));
       if (typeof window !== "undefined") {
         localStorage.setItem("fydry_incomes", JSON.stringify(items));
@@ -345,6 +348,7 @@ export async function createIncomeApi(inc: Omit<TransactionItem, "id" | "type">)
         category: d.category,
         account: d.account_name,
         date: d.date,
+        createdAt: d.created_at || d.createdAt || new Date().toISOString(),
       };
     }
   } catch (err) {

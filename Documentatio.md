@@ -576,6 +576,10 @@
       - Agregado el control de **Día de Reinicio de Presupuesto** en la pestaña de Idioma & Preferencias de `SettingsModal.tsx` con selector del día 1 al 31, atajos rápidos (1, 15, 25, 28) y preview explicativo del ciclo activo en tiempo real.
       - Agregadas las traducciones en español e inglés en `frontend/lib/translations.ts`.
       - Refactorizado el cálculo de períodos en `BudgetView.tsx` (`getCycleRange`, `isExpenseInPeriod`, subperíodos quincenales y semanales adaptativos, y badge dinámico de reinicio en la cabecera).
+      - **Aislamiento Estricto de Períodos y Registros Históricos**:
+        - Implementado parser inteligente multi-formato (`YYYY-MM-DD`, `DD/MM/YYYY`, `28 ago`, timestamps ISO) con prioridad en la fecha contable de la transacción.
+        - Los gastos efectuados antes del día de reinicio (ej. antes del día 1 del mes activo) se asignan estricta y automáticamente a su período anterior correspondiente y no computan en el nuevo ciclo activo.
+        - Añadido soporte del campo `created_at` en `ExpenseResponse`, `IncomeResponse` y `MovementResponse` en el backend y mapeo en `frontend/lib/api.ts`.
     - **Verificación**: `npx tsc --noEmit` completado con 0 errores y módulos backend verificados.
 
 

@@ -193,31 +193,104 @@ export default function BudgetView() {
 
   const monthLabel = formatCycleLabel();
 
-  // Helper para normalizar timestamp de cualquier gasto
-  const getExpenseTimestamp = (e: TransactionItem): number => {
-    if (e.createdAt) {
-      const d = new Date(e.createdAt);
-      if (!isNaN(d.getTime())) return d.getTime();
-    }
-    if (e.date && e.date.includes("-")) {
-      const parts = e.date.split("-");
-      if (parts.length >= 3) {
-        const y = parseInt(parts[0]);
-        const m = parseInt(parts[1]) - 1;
-        const day = parseInt(parts[2]);
-        if (!isNaN(y) && !isNaN(m) && !isNaN(day)) {
-          return new Date(y, m, day, 12, 0, 0).getTime();
+  // Helper para normalizar y extraer el timestamp exacto de cualquier gasto
+  const getExpenseTimestamp = (e: TransactionItem): number | null => {
+    // 1. Si el string 'date' tiene formato ISO o numérico YYYY-MM-DD
+    if (e.date && typeof e.date === "string") {
+      const trimmed = e.date.trim();
+
+      // Caso 1: Formato "YYYY-MM-DD" o "YYYY/MM/DD"
+      if (/^\d{4}[-/]\d{1,2}[-/]\d{1,2}/.test(trimmed)) {
+        const parts = trimmed.split(/[-/]/);
+        const y = parseInt(parts[0], 10);
+        const m = parseInt(parts[1], 10) - 1;
+        const d = parseInt(parts[2], 10);
+        if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
+          return new Date(y, m, d, 12, 0, 0).getTime();
         }
       }
+
+      // Caso 2: Formato "DD/MM/YYYY" o "DD-MM-YYYY"
+      if (/^\d{1,2}[-/]\d{1,2}[-/]\d{4}/.test(trimmed)) {
+        const parts = trimmed.split(/[-/]/);
+        const d = parseInt(parts[0], 10);
+        const m = parseInt(parts[1], 10) - 1;
+        const y = parseInt(parts[2], 10);
+        if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
+          return new Date(y, m, d, 12, 0, 0).getTime();
+        }
+      }
+
+      // Caso 3: Formato corto tipo "28 ago", "1 sept", "15 oct", "12 Nov 2026", "Aug 28"
+      const spanishMonths: Record<string, number> = {
+        ene: 0, feb: 1, mar: 2, abr: 3, may: 4, jun: 5,
+        jul: 6, ago: 7, sep: 8, sept: 8, oct: 9, nov: 10, dic: 11,
+      };
+      const englishMonths: Record<string, number> = {
+        jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+        jul: 6, aug: 7, sep: 8, sept: 8, oct: 9, nov: 10, dec: 11,
+      };
+
+      const words = trimmed.toLowerCase().split(/[\s,.-]+/);
+      let detectedDay: number | null = null;
+      let detectedMonth: number | null = null;
+      let detectedYear: number | null = null;
+
+      for (const w of words) {
+        const num = parseInt(w, 10);
+        if (!isNaN(num)) {
+          if (num > 1000) {
+            detectedYear = num;
+          } else if (num >= 1 && num <= 31 && detectedDay === null) {
+            detectedDay = num;
+          }
+        } else {
+          for (const prefix in spanishMonths) {
+            if (w.startsWith(prefix)) {
+              detectedMonth = spanishMonths[prefix];
+              break;
+            }
+          }
+          if (detectedMonth === null) {
+            for (const prefix in englishMonths) {
+              if (w.startsWith(prefix)) {
+                detectedMonth = englishMonths[prefix];
+                break;
+              }
+            }
+          }
+        }
+      }
+
+      if (detectedDay !== null && detectedMonth !== null) {
+        const year =
+          detectedYear ||
+          (e.createdAt ? new Date(e.createdAt).getFullYear() : cycleRange.startDate.getFullYear());
+        return new Date(year, detectedMonth, detectedDay, 12, 0, 0).getTime();
+      }
     }
-    return new Date().getTime();
+
+    // 2. Si tiene 'createdAt' con ISO timestamp de la base de datos
+    if (e.createdAt) {
+      const d = new Date(e.createdAt);
+      if (!isNaN(d.getTime())) {
+        return d.getTime();
+      }
+    }
+
+    return null;
   };
 
-  // Helper para verificar si un gasto pertenece al ciclo y sub-período seleccionado
+  // Helper para verificar si un gasto pertenece estrictamente al ciclo y sub-período seleccionado
   const isExpenseInPeriod = (e: TransactionItem): boolean => {
     const expenseTime = getExpenseTimestamp(e);
+    if (expenseTime === null) {
+      return false; // Si no tiene fecha válida, no computar en el ciclo actual
+    }
+
     const { startDate, endDate } = cycleRange;
 
+    // Aislamiento estricto de períodos: Solo incluir si cae exactamente entre startDate y endDate
     if (expenseTime < startDate.getTime() || expenseTime > endDate.getTime()) {
       return false;
     }
