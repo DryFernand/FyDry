@@ -611,6 +611,14 @@
       - **Proyectos**: Formato de estudio de caso editorial con previsualización, ficha técnica en monospace, síntesis del problema resuelto y enlaces directos (`↗`).
       - **Stack y Experiencia**: Organización minimalista sin iconos saturados, resaltando tu rol real en AutoSpot, FyDry y certificaciones oficiales.
     - **Validación**: `npx tsc --noEmit` (0 errores) y `npm run build` de producción superado en 8.3s. Sincronizado en `main`.
+  - **2026-09-02 (Inyección de Dinamismo & Micro-interacciones sin Perder la Elegancia Editorial)**:
+    - **Principios Aplicados (`emil-design-eng`, `animation-vocabulary`, `find-animation-opportunities`)**:
+      - **Spotlight Cards (`SpotlightCard.tsx`)**: Efecto de haz de luz interactivo que sigue las coordenadas exactas del cursor sobre el borde y superficie de cada tarjeta (estilo Linear / Raycast).
+      - **Navegación Fluida con Píldora Deslizante (`Navbar.tsx`)**: Barra de navegación con pastilla animada que se traslada suavemente con física de resorte (`layoutId="activeNavPill"`) al hacer scroll entre secciones.
+      - **Fondo Vivo con Trama Suave (`globals.css`)**: Trama de micropuntos (`bg-dot-pattern`) con máscara radial superior que le otorga profundidad y textura al fondo oscuro sin saturarlo.
+      - **Filtros de Proyectos Fluidos (`Projects.tsx`)**: Píldora de selección animada y escalamiento sutil de las previsualizaciones al interactuar con las tarjetas.
+      - **Botones con Shimmer Sutil y Pulso de Estado**: Radar de disponibilidad en tiempo real y micro-interacciones táctiles con `motion/react`.
+    - **Validación**: `npx tsc --noEmit` con 0 errores y `npm run build` completado en 4.1s (Turbopack). Commiteado y desplegado a producción en `main`.
 
 
 
