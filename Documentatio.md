@@ -602,6 +602,15 @@
       - **Contacto Directo (`Contact.tsx`) & Footer (`Footer.tsx`)**: Acceso directo a correo, WhatsApp y LinkedIn con botón de retorno al inicio suave.
     - **Validación**: `npx tsc --noEmit` con 0 errores y `npm run build` completado exitosamente (5/5 páginas estáticas prerenderizadas).
     - **Control de Versiones**: Commiteado y sincronizado a `main` en `DryFernand/Portafolio-DaryFernandez`.
+  - **2026-09-02 (Refactorización Editorial de Alto Criterio - Eliminación de Clichés de IA)**:
+    - **Principios Aplicados (`minimalist-ui`, `emil-design-eng`, `apple-design`)**:
+      - Eliminadas las luces artificiales de neón estridentes (`blur-[140px]`), gradientes excesivos en encabezados y sombras artificiales.
+      - Adopción de una paleta monocromática profunda (`#09090b` obsidian y `#111113` para superficies) con bordes ultra-delgados de 1px (`rgba(255,255,255,0.08)`).
+      - Redacción auténtica, directa y con lenguaje de ingeniería real sin textos genéricos de IA ni buzzwords.
+      - **Hero**: Presentación sobria y contundente, retrato profesional con escala de grises sutil y transición suave, enlaces limpios en monospace y métricas concretas en producción.
+      - **Proyectos**: Formato de estudio de caso editorial con previsualización, ficha técnica en monospace, síntesis del problema resuelto y enlaces directos (`↗`).
+      - **Stack y Experiencia**: Organización minimalista sin iconos saturados, resaltando tu rol real en AutoSpot, FyDry y certificaciones oficiales.
+    - **Validación**: `npx tsc --noEmit` (0 errores) y `npm run build` de producción superado en 8.3s. Sincronizado en `main`.
 
 
 
