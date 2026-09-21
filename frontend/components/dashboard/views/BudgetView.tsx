@@ -16,7 +16,7 @@ import {
   Clock,
   Layers,
 } from "lucide-react";
-import { BudgetItem, TransactionItem } from "../types";
+import { BudgetItem, TransactionItem, AccountItem, MovementItem } from "../types";
 import { EXPENSE_CATEGORIES } from "@/lib/categories";
 import { useLanguage } from "@/context/LanguageContext";
 import {
@@ -26,6 +26,8 @@ import {
   deleteBudgetApi,
   fetchTransactionsApi,
   fetchUserSettingsApi,
+  fetchAccountsApi,
+  fetchMovementsApi,
 } from "@/lib/api";
 
 const MONTH_NAMES_ES = [
@@ -44,6 +46,8 @@ export default function BudgetView() {
   const { t, language } = useLanguage();
   const [budgets, setBudgets] = useState<BudgetItem[]>([]);
   const [expenses, setExpenses] = useState<TransactionItem[]>([]);
+  const [accounts, setAccounts] = useState<AccountItem[]>([]);
+  const [movements, setMovements] = useState<MovementItem[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingBudget, setEditingBudget] = useState<BudgetItem | null>(null);
 
@@ -72,13 +76,17 @@ export default function BudgetView() {
   const [newAllocated, setNewAllocated] = useState("");
 
   const loadData = async () => {
-    const [budData, expData, settingsData] = await Promise.all([
+    const [budData, expData, settingsData, accData, movData] = await Promise.all([
       fetchBudgetsApi(),
       fetchTransactionsApi("expense"),
       fetchUserSettingsApi(),
+      fetchAccountsApi(),
+      fetchMovementsApi(),
     ]);
     setBudgets(budData);
     setExpenses(expData);
+    setAccounts(accData);
+    setMovements(movData);
     if (settingsData?.budget_reset_day !== undefined && settingsData.budget_reset_day !== null) {
       setBudgetResetDay(settingsData.budget_reset_day);
     }
@@ -193,84 +201,100 @@ export default function BudgetView() {
 
   const monthLabel = formatCycleLabel();
 
-  // Helper para normalizar y extraer el timestamp exacto de cualquier gasto
-  const getExpenseTimestamp = (e: TransactionItem): number | null => {
-    // 1. Si el string 'date' tiene formato ISO o numérico YYYY-MM-DD
-    if (e.date && typeof e.date === "string") {
-      const trimmed = e.date.trim();
+  // Helper para normalizar y extraer el timestamp exacto de un string de fecha
+  const parseDateToTimestamp = (dateStr?: string, fallbackYear?: number): number | null => {
+    if (!dateStr || typeof dateStr !== "string") return null;
+    const trimmed = dateStr.trim();
 
-      // Caso 1: Formato "YYYY-MM-DD" o "YYYY/MM/DD"
-      if (/^\d{4}[-/]\d{1,2}[-/]\d{1,2}/.test(trimmed)) {
-        const parts = trimmed.split(/[-/]/);
-        const y = parseInt(parts[0], 10);
-        const m = parseInt(parts[1], 10) - 1;
-        const d = parseInt(parts[2], 10);
-        if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
-          return new Date(y, m, d, 12, 0, 0).getTime();
-        }
-      }
-
-      // Caso 2: Formato "DD/MM/YYYY" o "DD-MM-YYYY"
-      if (/^\d{1,2}[-/]\d{1,2}[-/]\d{4}/.test(trimmed)) {
-        const parts = trimmed.split(/[-/]/);
-        const d = parseInt(parts[0], 10);
-        const m = parseInt(parts[1], 10) - 1;
-        const y = parseInt(parts[2], 10);
-        if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
-          return new Date(y, m, d, 12, 0, 0).getTime();
-        }
-      }
-
-      // Caso 3: Formato corto tipo "28 ago", "1 sept", "15 oct", "12 Nov 2026", "Aug 28"
-      const spanishMonths: Record<string, number> = {
-        ene: 0, feb: 1, mar: 2, abr: 3, may: 4, jun: 5,
-        jul: 6, ago: 7, sep: 8, sept: 8, oct: 9, nov: 10, dic: 11,
-      };
-      const englishMonths: Record<string, number> = {
-        jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
-        jul: 6, aug: 7, sep: 8, sept: 8, oct: 9, nov: 10, dec: 11,
-      };
-
-      const words = trimmed.toLowerCase().split(/[\s,.-]+/);
-      let detectedDay: number | null = null;
-      let detectedMonth: number | null = null;
-      let detectedYear: number | null = null;
-
-      for (const w of words) {
-        const num = parseInt(w, 10);
-        if (!isNaN(num)) {
-          if (num > 1000) {
-            detectedYear = num;
-          } else if (num >= 1 && num <= 31 && detectedDay === null) {
-            detectedDay = num;
-          }
-        } else {
-          for (const prefix in spanishMonths) {
-            if (w.startsWith(prefix)) {
-              detectedMonth = spanishMonths[prefix];
-              break;
-            }
-          }
-          if (detectedMonth === null) {
-            for (const prefix in englishMonths) {
-              if (w.startsWith(prefix)) {
-                detectedMonth = englishMonths[prefix];
-                break;
-              }
-            }
-          }
-        }
-      }
-
-      if (detectedDay !== null && detectedMonth !== null) {
-        const year =
-          detectedYear ||
-          (e.createdAt ? new Date(e.createdAt).getFullYear() : cycleRange.startDate.getFullYear());
-        return new Date(year, detectedMonth, detectedDay, 12, 0, 0).getTime();
+    // Caso 1: Formato "YYYY-MM-DD" o "YYYY/MM/DD"
+    if (/^\d{4}[-/]\d{1,2}[-/]\d{1,2}/.test(trimmed)) {
+      const parts = trimmed.split(/[-/]/);
+      const y = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10) - 1;
+      const d = parseInt(parts[2], 10);
+      if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
+        return new Date(y, m, d, 12, 0, 0).getTime();
       }
     }
 
-    // 2. Si tiene 'createdAt' con ISO timestamp de la base de datos
+    // Caso 2: Formato "DD/MM/YYYY" o "DD-MM-YYYY"
+    if (/^\d{1,2}[-/]\d{1,2}[-/]\d{4}/.test(trimmed)) {
+      const parts = trimmed.split(/[-/]/);
+      const d = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10) - 1;
+      const y = parseInt(parts[2], 10);
+      if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
+        return new Date(y, m, d, 12, 0, 0).getTime();
+      }
+    }
+
+    // Caso 3: Formato corto tipo "28 ago", "1 sept", "15 oct", "12 Nov 2026", "Aug 28"
+    const spanishMonths: Record<string, number> = {
+      ene: 0, feb: 1, mar: 2, abr: 3, may: 4, jun: 5,
+      jul: 6, ago: 7, sep: 8, sept: 8, oct: 9, nov: 10, dic: 11,
+    };
+    const englishMonths: Record<string, number> = {
+      jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+      jul: 6, aug: 7, sep: 8, sept: 8, oct: 9, nov: 10, dec: 11,
+    };
+
+    const words = trimmed.toLowerCase().split(/[\s,.-]+/);
+    let detectedDay: number | null = null;
+    let detectedMonth: number | null = null;
+    let detectedYear: number | null = null;
+
+    for (const w of words) {
+      const num = parseInt(w, 10);
+      if (!isNaN(num)) {
+        if (num > 1000) {
+          detectedYear = num;
+        } else if (num >= 1 && num <= 31 && detectedDay === null) {
+          detectedDay = num;
+        }
+      } else {
+        for (const prefix in spanishMonths) {
+          if (w.startsWith(prefix)) {
+            detectedMonth = spanishMonths[prefix];
+            break;
+          }
+        }
+        if (detectedMonth === null) {
+          for (const prefix in englishMonths) {
+            if (w.startsWith(prefix)) {
+              detectedMonth = englishMonths[prefix];
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    if (detectedDay !== null && detectedMonth !== null) {
+      const year =
+        detectedYear ||
+        fallbackYear ||
+        cycleRange.startDate.getFullYear();
+      return new Date(year, detectedMonth, detectedDay, 12, 0, 0).getTime();
+    }
+
+    // Caso 4: Formato ISO o parseable por Date
+    const parsed = new Date(trimmed).getTime();
+    if (!isNaN(parsed)) {
+      return parsed;
+    }
+
+    return null;
+  };
+
+  // Helper para normalizar y extraer el timestamp exacto de cualquier gasto
+  const getExpenseTimestamp = (e: TransactionItem): number | null => {
+    const ts = parseDateToTimestamp(
+      e.date,
+      e.createdAt ? new Date(e.createdAt).getFullYear() : cycleRange.startDate.getFullYear()
+    );
+    if (ts !== null) return ts;
+
+    // Si tiene 'createdAt' con ISO timestamp de la base de datos
     if (e.createdAt) {
       const d = new Date(e.createdAt);
       if (!isNaN(d.getTime())) {
@@ -281,17 +305,21 @@ export default function BudgetView() {
     return null;
   };
 
-  // Helper para verificar si un gasto pertenece estrictamente al ciclo y sub-período seleccionado
-  const isExpenseInPeriod = (e: TransactionItem): boolean => {
-    const expenseTime = getExpenseTimestamp(e);
-    if (expenseTime === null) {
+  // Helper para normalizar y extraer el timestamp exacto de cualquier movimiento
+  const getMovementTimestamp = (m: MovementItem): number | null => {
+    return parseDateToTimestamp(m.date, cycleRange.startDate.getFullYear());
+  };
+
+  // Helper genérico para verificar si un timestamp pertenece estrictamente al ciclo y sub-período seleccionado
+  const isTimestampInPeriod = (timestamp: number | null): boolean => {
+    if (timestamp === null) {
       return false; // Si no tiene fecha válida, no computar en el ciclo actual
     }
 
     const { startDate, endDate } = cycleRange;
 
     // Aislamiento estricto de períodos: Solo incluir si cae exactamente entre startDate y endDate
-    if (expenseTime < startDate.getTime() || expenseTime > endDate.getTime()) {
+    if (timestamp < startDate.getTime() || timestamp > endDate.getTime()) {
       return false;
     }
 
@@ -304,9 +332,9 @@ export default function BudgetView() {
     if (periodView === "biweekly") {
       const midTime = startDate.getTime() + totalDuration / 2;
       if (selectedFortnight === 1) {
-        return expenseTime < midTime;
+        return timestamp < midTime;
       } else {
-        return expenseTime >= midTime;
+        return timestamp >= midTime;
       }
     }
 
@@ -316,13 +344,23 @@ export default function BudgetView() {
       const w2 = startDate.getTime() + qTime * 2;
       const w3 = startDate.getTime() + qTime * 3;
 
-      if (selectedWeek === 1) return expenseTime < w1;
-      if (selectedWeek === 2) return expenseTime >= w1 && expenseTime < w2;
-      if (selectedWeek === 3) return expenseTime >= w2 && expenseTime < w3;
-      return expenseTime >= w3;
+      if (selectedWeek === 1) return timestamp < w1;
+      if (selectedWeek === 2) return timestamp >= w1 && timestamp < w2;
+      if (selectedWeek === 3) return timestamp >= w2 && timestamp < w3;
+      return timestamp >= w3;
     }
 
     return true;
+  };
+
+  // Helper para verificar si un gasto pertenece al sub-período seleccionado
+  const isExpenseInPeriod = (e: TransactionItem): boolean => {
+    return isTimestampInPeriod(getExpenseTimestamp(e));
+  };
+
+  // Helper para verificar si un movimiento pertenece al sub-período seleccionado
+  const isMovementInPeriod = (m: MovementItem): boolean => {
+    return isTimestampInPeriod(getMovementTimestamp(m));
   };
 
   // Multiplicador de límite según la vista
@@ -331,6 +369,29 @@ export default function BudgetView() {
   // Filtrar gastos del sub-período seleccionado
   const filteredExpenses = expenses.filter(isExpenseInPeriod);
 
+  // Identificar cuentas de ahorro (type === 'savings')
+  const savingsAccounts = accounts.filter((a) => a.type === "savings");
+  const savingsAccountIds = new Set(savingsAccounts.map((a) => a.id));
+  const savingsAccountNames = new Set(
+    savingsAccounts.map((a) => a.name.toLowerCase().trim())
+  );
+
+  // Filtrar movimientos hacia cuentas de ahorro dentro del período seleccionado
+  const filteredSavingsMovements = movements
+    .filter(isMovementInPeriod)
+    .filter((m) => {
+      const toIdMatch = m.toAccountId ? savingsAccountIds.has(m.toAccountId) : false;
+      const toNameMatch = m.toAccount
+        ? savingsAccountNames.has(m.toAccount.toLowerCase().trim())
+        : false;
+      return toIdMatch || toNameMatch;
+    });
+
+  const totalSavingsMovementsAmount = filteredSavingsMovements.reduce(
+    (acc, curr) => acc + curr.amount,
+    0
+  );
+
   // Calcular gasto real acumulado y límite adaptado por cada categoría
   const budgetsWithSpent = budgets.map((b) => {
     const isTax =
@@ -338,7 +399,11 @@ export default function BudgetView() {
       !b.category.toLowerCase().includes("transporte") &&
       !b.category.toLowerCase().includes("taxi");
 
-    const actualSpent = filteredExpenses
+    const isSavings =
+      b.category.toLowerCase().includes("ahorro programado") ||
+      b.category.toLowerCase().trim() === "ahorro programado";
+
+    let actualSpent = filteredExpenses
       .filter((e) => {
         if (e.category.toLowerCase().trim() === b.category.toLowerCase().trim()) return true;
         if (
@@ -352,6 +417,10 @@ export default function BudgetView() {
         return false;
       })
       .reduce((acc, curr) => acc + curr.amount, 0);
+
+    if (isSavings) {
+      actualSpent += totalSavingsMovementsAmount;
+    }
 
     const periodAllocated = b.allocated * periodMultiplier;
 

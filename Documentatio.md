@@ -1,5 +1,22 @@
 # Registro de Cambios y Documentación del Proyecto (Documentatio.md)
 
+## [2026-09-21] - Integración de Movimientos a Metas de Ahorro con el Presupuesto de "Ahorro Programado"
+
+### Resumen
+Se integró el cómputo automático de los movimientos/traspasos entre cuentas con destino a fondos/metas de ahorro (`type === 'savings'`) dentro del presupuesto de la categoría **"Ahorro Programado"**. El cálculo opera de forma reactiva y retrocompatible, reflejando tanto movimientos pasados como futuros dentro de su mes/ciclo/período correspondiente (mensual, quincenal o semanal).
+
+### Cambios Realizados:
+- **Frontend (`BudgetView.tsx`)**:
+  - Se importaron `fetchAccountsApi` y `fetchMovementsApi` junto a los tipos `AccountItem` y `MovementItem`.
+  - Se agregaron los estados `accounts` y `movements` cargados de forma concurrente con `Promise.all` en `loadData()`.
+  - Se implementaron los helpers `getMovementTimestamp` e `isMovementInPeriod` con soporte para formatos ISO, numéricos y textuales (español e inglés), respetando el día de corte/reinicio del ciclo (`budgetResetDay`) y las sub-vistas quincenales y semanales.
+  - Se identifican dinámicamente las cuentas de tipo `'savings'` (`savingsAccountIds` y `savingsAccountNames`).
+  - En el cálculo de `budgetsWithSpent`, para la categoría `"Ahorro Programado"`, el monto gastado (`spent`) suma los gastos directos registrados más la suma total de los traspasos hacia metas de ahorro (`filteredSavingsMovements`) dentro del período seleccionado.
+- **Backend (`financial.py` & `financial.py models/schemas`)**:
+  - Auditoría del contrato de datos de `AccountResponse` y `MovementResponse`, validando soporte de `type='savings'` y consistencia en la partida doble.
+
+---
+
 ## [2026-08-26] - Inicialización de Frontend y Configuración del Backend con FastAPI & Supabase
 
 ### Frontend
