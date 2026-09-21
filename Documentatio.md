@@ -14,6 +14,10 @@ Se integró el cómputo automático de los movimientos/traspasos entre cuentas c
   - En el cálculo de `budgetsWithSpent`, para la categoría `"Ahorro Programado"`, el monto gastado (`spent`) suma los gastos directos registrados más la suma total de los traspasos hacia metas de ahorro (`filteredSavingsMovements`) dentro del período seleccionado.
 - **Backend (`financial.py` & `financial.py models/schemas`)**:
   - Auditoría del contrato de datos de `AccountResponse` y `MovementResponse`, validando soporte de `type='savings'` y consistencia en la partida doble.
+  - Blindaje de esquemas Pydantic con validadores `Field(gt=0)` y `Field(ge=0)` para prevenir montos negativos o inconsistencias contables.
+  - Mitigación IDOR y aislamiento multi-tenant en `update_movement` y `delete_movement` asegurando filtros estrictos por `Account.user_id == current_user.id`.
+  - Validación de cupo de crédito y sobregiro en modificaciones (`update_expense` y `update_movement`).
+  - Saneamiento de foreign keys huérfanas en `create_expense` y `create_income`.
 
 ---
 

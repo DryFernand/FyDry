@@ -146,7 +146,7 @@ def create_expense(
             Account.name.ilike(exp_in.account_name.strip()),
         ).first()
 
-    account_id = account.id if account else exp_in.account_id
+    account_id = account.id if account else None
     account_name = account.name if account else (exp_in.account_name or "Efectivo Principal")
 
     # Validar cupo y límite de sobregiro si es tarjeta de crédito
@@ -217,16 +217,27 @@ def update_expense(
         new_account = db.query(Account).filter(
             Account.id == expense.account_id, Account.user_id == current_user.id
         ).first()
-    elif expense.account_name:
+    if not new_account and expense.account_name:
         new_account = db.query(Account).filter(
             Account.user_id == current_user.id,
             Account.name.ilike(expense.account_name.strip()),
         ).first()
 
     if new_account:
+        # Validar cupo y límite de sobregiro si es tarjeta de crédito
+        if new_account.type == "credit_card":
+            available_funds = new_account.balance + (new_account.overdraft_limit or 0.0)
+            if expense.amount > available_funds:
+                db.rollback()
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Transacción rechazada: El monto (${expense.amount:.2f}) supera el cupo disponible más el límite de sobregiro (${available_funds:.2f}) de la tarjeta '{new_account.name}'.",
+                )
         new_account.balance -= expense.amount
         expense.account_id = new_account.id
         expense.account_name = new_account.name
+    else:
+        expense.account_id = None
 
     db.commit()
     db.refresh(expense)
@@ -300,7 +311,7 @@ def create_income(
             Account.name.ilike(inc_in.account_name.strip()),
         ).first()
 
-    account_id = account.id if account else inc_in.account_id
+    account_id = account.id if account else None
     account_name = account.name if account else (inc_in.account_name or "Efectivo Principal")
 
     # Credit balance to account
@@ -372,6 +383,8 @@ def update_income(
         new_account.balance += income.amount
         income.account_id = new_account.id
         income.account_name = new_account.name
+    else:
+        income.account_id = None
 
     db.commit()
     db.refresh(income)
@@ -504,9 +517,9 @@ def create_movement(
 
     mov = Movement(
         user_id=current_user.id,
-        from_account_id=from_acc.id if from_acc else mov_in.from_account_id,
+        from_account_id=from_acc.id if from_acc else None,
         from_account_name=from_name,
-        to_account_id=to_acc.id if to_acc else mov_in.to_account_id,
+        to_account_id=to_acc.id if to_acc else None,
         to_account_name=to_name,
         amount=mov_in.amount,
         tax_amount=tax_val,
@@ -534,9 +547,24 @@ def update_movement(
     if not mov:
         raise HTTPException(status_code=404, detail="Movimiento no encontrado.")
 
+    # Validate foreign account IDs if provided
+    if mov_in.from_account_id is not None:
+        target_from = db.query(Account).filter(
+            Account.id == mov_in.from_account_id, Account.user_id == current_user.id
+        ).first()
+        if not target_from:
+            raise HTTPException(status_code=404, detail="Cuenta de origen no encontrada o no pertenece al usuario.")
+
+    if mov_in.to_account_id is not None:
+        target_to = db.query(Account).filter(
+            Account.id == mov_in.to_account_id, Account.user_id == current_user.id
+        ).first()
+        if not target_to:
+            raise HTTPException(status_code=404, detail="Cuenta de destino no encontrada o no pertenece al usuario.")
+
     # 1. Revert previous transfer (including previous tax)
-    prev_from = db.query(Account).filter(Account.id == mov.from_account_id).first() if mov.from_account_id else None
-    prev_to = db.query(Account).filter(Account.id == mov.to_account_id).first() if mov.to_account_id else None
+    prev_from = db.query(Account).filter(Account.id == mov.from_account_id, Account.user_id == current_user.id).first() if mov.from_account_id else None
+    prev_to = db.query(Account).filter(Account.id == mov.to_account_id, Account.user_id == current_user.id).first() if mov.to_account_id else None
     if prev_from:
         prev_from.balance += (mov.amount + mov.tax_amount)
     if prev_to:
@@ -544,7 +572,7 @@ def update_movement(
 
     # Remove previous tax expense if existed
     if mov.tax_expense_id:
-        db.query(Expense).filter(Expense.id == mov.tax_expense_id).delete()
+        db.query(Expense).filter(Expense.id == mov.tax_expense_id, Expense.user_id == current_user.id).delete()
         mov.tax_expense_id = None
 
     # 2. Update fields
@@ -555,12 +583,26 @@ def update_movement(
     # 3. Apply new transfer
     new_tax = max(0.0, float(mov.tax_amount or 0.0))
     mov.tax_amount = new_tax
-    new_from = db.query(Account).filter(Account.id == mov.from_account_id).first() if mov.from_account_id else None
-    new_to = db.query(Account).filter(Account.id == mov.to_account_id).first() if mov.to_account_id else None
+    new_from = db.query(Account).filter(Account.id == mov.from_account_id, Account.user_id == current_user.id).first() if mov.from_account_id else None
+    new_to = db.query(Account).filter(Account.id == mov.to_account_id, Account.user_id == current_user.id).first() if mov.to_account_id else None
+
+    # Validar cupo y límite de sobregiro si new_from es tarjeta de crédito
+    if new_from and new_from.type == "credit_card":
+        available_funds = new_from.balance + (new_from.overdraft_limit or 0.0)
+        total_debited = mov.amount + new_tax
+        if total_debited > available_funds:
+            db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Traspaso rechazado: El monto total (${total_debited:.2f}) supera el cupo disponible más el límite de sobregiro (${available_funds:.2f}) de la tarjeta '{new_from.name}'.",
+            )
+
     if new_from:
         new_from.balance -= (mov.amount + new_tax)
+        mov.from_account_name = new_from.name
     if new_to:
         new_to.balance += mov.amount
+        mov.to_account_name = new_to.name
 
     # Record updated tax expense
     if new_tax > 0:
@@ -603,8 +645,8 @@ def delete_movement(
         raise HTTPException(status_code=404, detail="Movimiento no encontrado.")
 
     # Revert transfer
-    from_acc = db.query(Account).filter(Account.id == mov.from_account_id).first() if mov.from_account_id else None
-    to_acc = db.query(Account).filter(Account.id == mov.to_account_id).first() if mov.to_account_id else None
+    from_acc = db.query(Account).filter(Account.id == mov.from_account_id, Account.user_id == current_user.id).first() if mov.from_account_id else None
+    to_acc = db.query(Account).filter(Account.id == mov.to_account_id, Account.user_id == current_user.id).first() if mov.to_account_id else None
     if from_acc:
         from_acc.balance += (mov.amount + mov.tax_amount)
     if to_acc:
@@ -612,7 +654,7 @@ def delete_movement(
 
     # Delete associated tax expense if existed
     if mov.tax_expense_id:
-        db.query(Expense).filter(Expense.id == mov.tax_expense_id).delete()
+        db.query(Expense).filter(Expense.id == mov.tax_expense_id, Expense.user_id == current_user.id).delete()
 
     db.delete(mov)
     db.commit()

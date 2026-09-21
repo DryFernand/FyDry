@@ -1,5 +1,5 @@
 from typing import Optional, List
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime
 
 
@@ -60,7 +60,7 @@ class ExpenseCreate(BaseModel):
     account_name: Optional[str] = None
     category: str
     description: str
-    amount: float
+    amount: float = Field(..., gt=0)
     date: str
 
 
@@ -69,7 +69,7 @@ class ExpenseUpdate(BaseModel):
     account_name: Optional[str] = None
     category: Optional[str] = None
     description: Optional[str] = None
-    amount: Optional[float] = None
+    amount: Optional[float] = Field(None, gt=0)
     date: Optional[str] = None
 
 
@@ -95,7 +95,7 @@ class IncomeCreate(BaseModel):
     account_name: Optional[str] = None
     category: str
     description: str
-    amount: float
+    amount: float = Field(..., gt=0)
     date: str
 
 
@@ -104,7 +104,7 @@ class IncomeUpdate(BaseModel):
     account_name: Optional[str] = None
     category: Optional[str] = None
     description: Optional[str] = None
-    amount: Optional[float] = None
+    amount: Optional[float] = Field(None, gt=0)
     date: Optional[str] = None
 
 
@@ -130,8 +130,8 @@ class MovementCreate(BaseModel):
     from_account_name: Optional[str] = None
     to_account_id: Optional[str] = None
     to_account_name: Optional[str] = None
-    amount: float
-    tax_amount: Optional[float] = 0.0
+    amount: float = Field(..., gt=0)
+    tax_amount: Optional[float] = Field(0.0, ge=0)
     description: Optional[str] = "Traspaso entre cuentas"
     date: str
 
@@ -141,8 +141,8 @@ class MovementUpdate(BaseModel):
     from_account_name: Optional[str] = None
     to_account_id: Optional[str] = None
     to_account_name: Optional[str] = None
-    amount: Optional[float] = None
-    tax_amount: Optional[float] = None
+    amount: Optional[float] = Field(None, gt=0)
+    tax_amount: Optional[float] = Field(None, ge=0)
     description: Optional[str] = None
     date: Optional[str] = None
 
@@ -169,13 +169,13 @@ class MovementResponse(BaseModel):
 # ==========================================
 class BudgetCreate(BaseModel):
     category: str
-    allocated_amount: float
+    allocated_amount: float = Field(..., gt=0)
     color: Optional[str] = "bg-zinc-900"
 
 
 class BudgetUpdate(BaseModel):
     category: Optional[str] = None
-    allocated_amount: Optional[float] = None
+    allocated_amount: Optional[float] = Field(None, gt=0)
     color: Optional[str] = None
 
 
@@ -195,8 +195,8 @@ class BudgetResponse(BaseModel):
 class DebtCreate(BaseModel):
     creditor: str
     type: str = "Préstamo Personal"
-    total_amount: float
-    remaining_amount: float
+    total_amount: float = Field(..., gt=0)
+    remaining_amount: float = Field(..., ge=0)
     monthly_payment: float = 0.0
     interest_rate: float = 0.0
     due_date: str = "Fin de mes"
@@ -205,8 +205,8 @@ class DebtCreate(BaseModel):
 class DebtUpdate(BaseModel):
     creditor: Optional[str] = None
     type: Optional[str] = None
-    total_amount: Optional[float] = None
-    remaining_amount: Optional[float] = None
+    total_amount: Optional[float] = Field(None, gt=0)
+    remaining_amount: Optional[float] = Field(None, ge=0)
     monthly_payment: Optional[float] = None
     interest_rate: Optional[float] = None
     due_date: Optional[str] = None
@@ -227,7 +227,7 @@ class DebtResponse(BaseModel):
 
 
 class DebtPaymentRequest(BaseModel):
-    amount: float
+    amount: float = Field(..., gt=0)
     account_id: Optional[str] = None
     account_name: Optional[str] = None
     date: Optional[str] = None
