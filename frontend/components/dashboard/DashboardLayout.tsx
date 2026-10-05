@@ -253,19 +253,6 @@ export default function DashboardLayout() {
             </div>
           </div>
 
-          {/* Quick Action Button Desktop Sidebar */}
-          <div className="px-1 mb-3">
-            <button
-              type="button"
-              onClick={() => setIsQuickModalOpen(true)}
-              title={language === "en" ? "Record Transaction" : "Registrar Transacción"}
-              aria-label={language === "en" ? "Record Transaction" : "Registrar Transacción"}
-              className="w-full bg-zinc-950 hover:bg-zinc-800 text-white font-semibold py-2.5 px-3 rounded-2xl shadow-sm flex items-center justify-center cursor-pointer transition-all active:scale-[0.98] group"
-            >
-              <Plus className="w-4 h-4 transition-transform group-hover:rotate-90 duration-200" />
-            </button>
-          </div>
-
           {/* Navigation Items */}
           <nav className="space-y-3 flex-1 overflow-y-auto pr-1">
             {navGroups.map((group, groupIdx) => (
@@ -366,17 +353,6 @@ export default function DashboardLayout() {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Quick Action Button Mobile */}
-          <button
-            type="button"
-            onClick={() => setIsQuickModalOpen(true)}
-            className="p-2.5 rounded-2xl bg-zinc-950 text-white cursor-pointer shadow-2xs hover:bg-zinc-800 transition-colors"
-            title={language === "en" ? "Record Transaction" : "Registrar"}
-            aria-label="Registrar"
-          >
-            <Plus className="w-4 h-4" />
-          </button>
-
           {/* Campanita de Notificaciones Mobile */}
           <NotificationBell
             onOpenDraft={handleOpenDraft}
@@ -488,7 +464,7 @@ export default function DashboardLayout() {
           </div>
         </div>
 
-        <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full print:p-0 print:m-0 print:max-w-none">
+        <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 pb-24 md:pb-8 max-w-7xl mx-auto w-full print:p-0 print:m-0 print:max-w-none">
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}
@@ -509,6 +485,93 @@ export default function DashboardLayout() {
           </AnimatePresence>
         </main>
       </div>
+
+      {/* Mobile Bottom Navigation Dock */}
+      <nav
+        aria-label="Navegación inferior móvil"
+        className="md:hidden fixed bottom-0 inset-x-0 bg-white/90 backdrop-blur-md border-t border-zinc-200/80 z-30 pb-[env(safe-area-inset-bottom)] px-3 py-1.5 print:hidden"
+      >
+        <div className="flex items-center justify-around max-w-md mx-auto">
+          {/* 1. Inicio */}
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab("home");
+              setActiveDraft(null);
+            }}
+            className={`flex flex-col items-center justify-center gap-0.5 py-1 px-2 rounded-xl transition-colors cursor-pointer text-[10px] ${
+              activeTab === "home"
+                ? "text-zinc-950 font-semibold"
+                : "text-zinc-400 hover:text-zinc-600 font-medium"
+            }`}
+          >
+            <Home className={`w-5 h-5 ${activeTab === "home" ? "text-zinc-950" : "text-zinc-400"}`} />
+            <span className="truncate">{t.nav.home}</span>
+          </button>
+
+          {/* 2. Movimientos */}
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab("movements");
+              setActiveDraft(null);
+            }}
+            className={`flex flex-col items-center justify-center gap-0.5 py-1 px-2 rounded-xl transition-colors cursor-pointer text-[10px] ${
+              activeTab === "movements"
+                ? "text-zinc-950 font-semibold"
+                : "text-zinc-400 hover:text-zinc-600 font-medium"
+            }`}
+          >
+            <ArrowLeftRight className={`w-5 h-5 ${activeTab === "movements" ? "text-zinc-950" : "text-zinc-400"}`} />
+            <span className="truncate">{t.nav.movements}</span>
+          </button>
+
+          {/* 3. Botón Central de Registro */}
+          <button
+            type="button"
+            onClick={() => setIsQuickModalOpen(true)}
+            title={language === "en" ? "Record Transaction" : "Registrar Transacción"}
+            aria-label={language === "en" ? "Record Transaction" : "Registrar Transacción"}
+            className="w-11 h-11 rounded-full bg-zinc-950 text-white flex items-center justify-center shadow-md -mt-4 active:scale-95 transition-transform hover:bg-zinc-800 cursor-pointer shrink-0"
+          >
+            <Plus className="w-5 h-5" />
+          </button>
+
+          {/* 4. Cuentas */}
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab("accounts");
+              setActiveDraft(null);
+            }}
+            className={`flex flex-col items-center justify-center gap-0.5 py-1 px-2 rounded-xl transition-colors cursor-pointer text-[10px] ${
+              activeTab === "accounts"
+                ? "text-zinc-950 font-semibold"
+                : "text-zinc-400 hover:text-zinc-600 font-medium"
+            }`}
+          >
+            <CreditCard className={`w-5 h-5 ${activeTab === "accounts" ? "text-zinc-950" : "text-zinc-400"}`} />
+            <span className="truncate">{t.nav.accounts}</span>
+          </button>
+
+          {/* 5. Presupuesto */}
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab("budget");
+              setActiveDraft(null);
+            }}
+            className={`flex flex-col items-center justify-center gap-0.5 py-1 px-2 rounded-xl transition-colors cursor-pointer text-[10px] ${
+              activeTab === "budget"
+                ? "text-zinc-950 font-semibold"
+                : "text-zinc-400 hover:text-zinc-600 font-medium"
+            }`}
+          >
+            <PieChart className={`w-5 h-5 ${activeTab === "budget" ? "text-zinc-950" : "text-zinc-400"}`} />
+            <span className="truncate">{t.nav.budget}</span>
+          </button>
+        </div>
+      </nav>
 
       {/* Global Quick Transaction Modal */}
       <QuickTransactionModal

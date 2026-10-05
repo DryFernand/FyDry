@@ -774,3 +774,29 @@ Se integró el cómputo automático de los movimientos/traspasos entre cuentas c
 - **Validaciones:**
   - `security-agent`: **🟢 LUZ VERDE** (Protección XSS, aritmética segura contra división por cero, enmascaramiento de cuentas).
   - `qa-agent`: **🟢 LUZ VERDE** (`npx tsc --noEmit` exit code 0, `npm run build` Turbopack exit code 0).
+
+
+## [2026-10-05] - Barra de Navegación Inferior Móvil (Bottom Dock) y Depuración de UI (Fase 4)
+
+### Módulo: Frontend (Mobile Navigation & Layout)
+- **Archivo afectado:**
+  - `frontend/components/dashboard/DashboardLayout.tsx`
+- **Cambios realizados:**
+  - **Eliminación de Botones Duplicados:**
+    - Se retiró el botón de más del menú sidebar desktop, dejando un sidebar limpio enfocado exclusivamente en la navegación por secciones.
+    - Se retiró el botón de más del header móvil superior para concentrar la acción en el dock inferior táctil.
+  - **Implementación del Bottom Dock Móvil (`md:hidden`):**
+    - Barra inferior ergonómica y fija con fondo desenfocado (`bg-white/90 backdrop-blur-md`) y soporte para `env(safe-area-inset-bottom)`.
+    - 5 accesos directos pensados para el uso con una sola mano:
+      - 🏠 Inicio (`home`)
+      - 🔄 Movimientos (`movements`)
+      - ➕ Botón central elevado (`-mt-4 w-11 h-11 rounded-full bg-zinc-950 text-white shadow-md`) para abrir `QuickTransactionModal`.
+      - 💳 Cuentas (`accounts`)
+      - 📊 Presupuesto (`budget`)
+  - **Ajuste de Padding Inferior:**
+    - Contenedor principal con `pb-24 md:pb-8` asegurando que ningún elemento quede tapado por la barra inferior fija en teléfonos.
+  - **Menú Superior Secundario:**
+    - Se mantiene el menú hamburguesa móvil para acceder a Deudas, Reportes, Ajustes y Cerrar Sesión.
+- **Validaciones:**
+  - `security-agent`: **🟢 LUZ VERDE** (Aislamiento de eventos, accesibilidad ARIA, sin regresiones de sesión).
+  - `qa-agent`: **🟢 LUZ VERDE** (`npx tsc --noEmit` exit code 0, `npm run build` Turbopack exit code 0).
