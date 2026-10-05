@@ -36,7 +36,7 @@ import { dispatchNativeAlerts } from "@/lib/pushNotifications";
 
 export default function DashboardLayout() {
   const router = useRouter();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [activeTab, setActiveTab] = useState<DashboardTab>("home");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -60,15 +60,33 @@ export default function DashboardLayout() {
     date?: string;
   } | null>(null);
 
-  const navItems = [
-    { id: "home" as DashboardTab, label: t.nav.home, icon: Home },
-    { id: "movements" as DashboardTab, label: t.nav.movements, icon: ArrowLeftRight },
-    { id: "accounts" as DashboardTab, label: t.nav.accounts, icon: CreditCard },
-    { id: "expenses" as DashboardTab, label: t.nav.expenses, icon: ArrowDownRight },
-    { id: "incomes" as DashboardTab, label: t.nav.incomes, icon: ArrowUpRight },
-    { id: "budget" as DashboardTab, label: t.nav.budget, icon: PieChart },
-    { id: "debts" as DashboardTab, label: t.nav.debts, icon: ShieldAlert },
-    { id: "reports" as DashboardTab, label: t.nav.reports, icon: FileText },
+  const navGroups = [
+    {
+      id: "main",
+      title: language === "en" ? "MAIN" : "PRINCIPAL",
+      items: [
+        { id: "home" as DashboardTab, label: t.nav.home, icon: Home },
+      ],
+    },
+    {
+      id: "operations",
+      title: language === "en" ? "OPERATIONS" : "OPERACIONES",
+      items: [
+        { id: "movements" as DashboardTab, label: t.nav.movements, icon: ArrowLeftRight },
+        { id: "expenses" as DashboardTab, label: t.nav.expenses, icon: ArrowDownRight },
+        { id: "incomes" as DashboardTab, label: t.nav.incomes, icon: ArrowUpRight },
+      ],
+    },
+    {
+      id: "management",
+      title: language === "en" ? "ASSETS & MANAGEMENT" : "PATRIMONIO Y GESTIÓN",
+      items: [
+        { id: "accounts" as DashboardTab, label: t.nav.accounts, icon: CreditCard },
+        { id: "debts" as DashboardTab, label: t.nav.debts, icon: ShieldAlert },
+        { id: "budget" as DashboardTab, label: t.nav.budget, icon: PieChart },
+        { id: "reports" as DashboardTab, label: t.nav.reports, icon: FileText },
+      ],
+    },
   ];
 
   // Carga centralizada de alertas y despacho único de notificaciones push
@@ -89,14 +107,31 @@ export default function DashboardLayout() {
     return () => window.removeEventListener("fydry_storage_updated", loadGlobalNotifications);
   }, []);
 
+  const clearAllSessionStorage = () => {
+    if (typeof window === "undefined") return;
+    const keysToRemove = [
+      "fydry_token",
+      "fydry_access_token",
+      "fydry_user",
+      "fydry_accounts",
+      "fydry_expenses",
+      "fydry_incomes",
+      "fydry_budgets",
+      "fydry_debts",
+      "fydry_notifications",
+      "fydry_user_settings",
+      "fydry_sent_native_alert_ids",
+    ];
+    keysToRemove.forEach((k) => localStorage.removeItem(k));
+  };
+
   // Auth Guard con Carga Optimista Instantánea (Cero bloqueos al refrescar)
   useEffect(() => {
     async function verifyAuth() {
       if (typeof window === "undefined") return;
 
-      const token = localStorage.getItem("fydry_token") || localStorage.getItem("fydry_access_token");
+      const token = localStorage.getItem("fydry_access_token") || localStorage.getItem("fydry_token");
       if (!token) {
-        setIsLoadingAuth(false);
         router.push("/login");
         return;
       }
@@ -130,13 +165,11 @@ export default function DashboardLayout() {
 
         clearTimeout(timeoutId);
 
-        if (res.data?.id) {
+        if (res.ok && res.data?.id) {
           setCurrentUser(res.data);
           localStorage.setItem("fydry_user", JSON.stringify(res.data));
-        } else if (res.status === 401) {
-          localStorage.removeItem("fydry_token");
-          localStorage.removeItem("fydry_access_token");
-          localStorage.removeItem("fydry_user");
+        } else if (res.status === 401 || res.status === 403 || !res.ok) {
+          clearAllSessionStorage();
           router.push("/login");
         }
       } catch (err) {
@@ -149,11 +182,7 @@ export default function DashboardLayout() {
   }, [router]);
 
   const handleLogout = () => {
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("fydry_token");
-      localStorage.removeItem("fydry_access_token");
-      localStorage.removeItem("fydry_user");
-    }
+    clearAllSessionStorage();
     router.push("/login");
   };
 
@@ -221,33 +250,46 @@ export default function DashboardLayout() {
           </div>
 
           {/* Navigation Items */}
-          <nav className="space-y-1 flex-1 overflow-y-auto pr-1">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = activeTab === item.id;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => {
-                    setActiveTab(item.id);
-                    setActiveDraft(null);
-                  }}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-xs font-semibold transition-all group cursor-pointer ${
-                    isActive
-                      ? "bg-zinc-950 text-white shadow-xs"
-                      : "text-zinc-500 hover:text-zinc-950 hover:bg-zinc-100/70"
+          <nav className="space-y-3 flex-1 overflow-y-auto pr-1">
+            {navGroups.map((group, groupIdx) => (
+              <div key={group.id} className="space-y-1">
+                <div
+                  className={`text-[10px] uppercase tracking-wider font-semibold text-zinc-400 px-3 pb-1 select-none ${
+                    groupIdx === 0 ? "pt-1" : "pt-2.5"
                   }`}
                 >
-                  <Icon
-                    className={`w-4 h-4 shrink-0 transition-transform group-hover:scale-105 ${
-                      isActive ? "text-white" : "text-zinc-400 group-hover:text-zinc-950"
-                    }`}
-                  />
-                  <span className="truncate">{item.label}</span>
-                </button>
-              );
-            })}
+                  {group.title}
+                </div>
+                <div className="space-y-1">
+                  {group.items.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = activeTab === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => {
+                          setActiveTab(item.id);
+                          setActiveDraft(null);
+                        }}
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-xs font-semibold transition-all group cursor-pointer ${
+                          isActive
+                            ? "bg-zinc-950 text-white shadow-xs"
+                            : "text-zinc-500 hover:text-zinc-950 hover:bg-zinc-100/70"
+                        }`}
+                      >
+                        <Icon
+                          className={`w-4 h-4 shrink-0 transition-transform group-hover:scale-105 ${
+                            isActive ? "text-white" : "text-zinc-400 group-hover:text-zinc-950"
+                          }`}
+                        />
+                        <span className="truncate">{item.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </nav>
         </div>
 
@@ -338,39 +380,56 @@ export default function DashboardLayout() {
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="md:hidden fixed inset-x-0 top-15 z-40 bg-white border-b border-zinc-200 p-4 shadow-xl space-y-2 print:hidden"
+            className="md:hidden fixed inset-x-0 top-15 z-40 bg-white border-b border-zinc-200 p-4 shadow-xl max-h-[calc(100vh-4rem)] overflow-y-auto space-y-3 print:hidden"
           >
-            <nav className="space-y-1">
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = activeTab === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => {
-                      setActiveTab(item.id);
-                      setActiveDraft(null);
-                      setIsMobileMenuOpen(false);
-                    }}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold ${
-                      isActive
-                        ? "bg-zinc-950 text-white"
-                        : "text-zinc-600 hover:bg-zinc-100"
+            <nav className="space-y-3">
+              {navGroups.map((group, groupIdx) => (
+                <div key={group.id} className="space-y-1">
+                  <div
+                    className={`text-[10px] uppercase tracking-wider font-semibold text-zinc-400 px-3 pb-1 select-none ${
+                      groupIdx === 0 ? "pt-0" : "pt-2"
                     }`}
                   >
-                    <Icon className="w-4 h-4" />
-                    <span>{item.label}</span>
-                  </button>
-                );
-              })}
+                    {group.title}
+                  </div>
+                  <div className="space-y-1">
+                    {group.items.map((item) => {
+                      const Icon = item.icon;
+                      const isActive = activeTab === item.id;
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => {
+                            setActiveTab(item.id);
+                            setActiveDraft(null);
+                            setIsMobileMenuOpen(false);
+                          }}
+                          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                            isActive
+                              ? "bg-zinc-950 text-white shadow-xs"
+                              : "text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100"
+                          }`}
+                        >
+                          <Icon
+                            className={`w-4 h-4 shrink-0 ${
+                              isActive ? "text-white" : "text-zinc-400"
+                            }`}
+                          />
+                          <span className="truncate">{item.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </nav>
 
             <div className="pt-2 border-t border-zinc-100 space-y-1">
               <button
                 type="button"
                 onClick={handleLogout}
-                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-rose-600 hover:bg-rose-50"
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-rose-600 hover:bg-rose-50 cursor-pointer"
               >
                 <LogOut className="w-4 h-4" />
                 <span>{t.nav.logout}</span>

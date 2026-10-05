@@ -704,3 +704,26 @@ Se integró el cómputo automático de los movimientos/traspasos entre cuentas c
 
 
 
+
+
+## [2026-10-05] - Rediseño de Navegación y Jerarquía Visual del Dashboard (Fase 1)
+
+### Módulo: Frontend (Dashboard Navigation & Layout)
+- **Archivo afectado:** `frontend/components/dashboard/DashboardLayout.tsx`
+- **Cambios realizados:**
+  - **Reorganización en 3 grupos lógicos de navegación:**
+    - `PRINCIPAL`: Inicio (`home`).
+    - `OPERACIONES`: Movimientos (`movements`), Gastos (`expenses`), Ingresos (`incomes`).
+    - `PATRIMONIO Y GESTIÓN`: Cuentas (`accounts`), Deudas (`debts`), Presupuesto (`budget`), Reportes (`reports`).
+  - **Elevación visual de la interfaz:**
+    - Incorporación de separadores sutiles y encabezados de sección con tracking optimizado.
+    - Estados activos en alto contraste (`bg-zinc-950 text-white shadow-xs`) y hover refinado con escalado armónico de micro-iconos.
+    - Navegación móvil (`mobile menu drawer`) sincronizada con la misma estructura agrupada y scroll vertical adaptativo.
+  - **Refuerzo de Seguridad y Sesión (Auditoría Adversarial):**
+    - Protección contra FOUC (Flash of Unauthenticated Content) manteniendo el estado de carga activo durante redirecciones no autenticadas.
+    - Saneamiento integral de almacenamiento local (`clearAllSessionStorage()`) purgando tokens y entidades financieras cacheadas al cerrar sesión o recibir respuestas 401/403.
+    - Unificación de precedencia de tokens con la capa de API (`api.ts`).
+  - **Auditoría Funcional (`functions-comparison`):** 100% de funciones interactivas, callbacks de draft, handlers de configuración y renderizado condicional de vistas conservadas.
+- **Validaciones:**
+  - `security-agent`: **🟢 LUZ VERDE**
+  - `qa-agent`: **🟢 LUZ VERDE** (`npx tsc --noEmit` exit code 0, `npm run build` exit code 0).
