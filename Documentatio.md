@@ -727,3 +727,28 @@ Se integró el cómputo automático de los movimientos/traspasos entre cuentas c
 - **Validaciones:**
   - `security-agent`: **🟢 LUZ VERDE**
   - `qa-agent`: **🟢 LUZ VERDE** (`npx tsc --noEmit` exit code 0, `npm run build` exit code 0).
+
+
+## [2026-10-05] - Botón Global de Acción Rápida y Modal de Transacciones (Fase 2)
+
+### Módulo: Frontend (Quick Actions & Dashboard Layout)
+- **Archivos afectados/creados:**
+  - `frontend/components/dashboard/QuickTransactionModal.tsx` (Nuevo)
+  - `frontend/components/dashboard/DashboardLayout.tsx`
+  - `frontend/lib/api.ts`
+- **Cambios realizados:**
+  - **Componente `QuickTransactionModal`:**
+    - Modal accesible con animaciones fluidas (`motion/react` y `AnimatePresence`), backdrop blur y cierre por tecla Escape o click fuera.
+    - Selector dinámico de 3 operaciones: 🔴 Gasto, 🟢 Ingreso y 🔄 Transferencia entre cuentas.
+    - Validación de saldo y sobregiro: Bloquea egresos que excedan los fondos disponibles más el límite de sobregiro (`overdraftLimit`) de la cuenta origen.
+    - Manejo seguro de transferencias con resolución automática `targetToAccount` previniendo transferencias con destino vacío o cuentas idénticas.
+    - Sanitización y validación estricta de entradas numéricas (`!isFinite`, `> 0`) y restricción de descripción a 255 caracteres.
+    - Sincronización reactiva inmediata mediante el despacho del evento `fydry_storage_updated` para refrescar balances, widgets y listas en todas las pantallas.
+  - **Integración Global en `DashboardLayout`:**
+    - Botón primario estilizado `+ Registrar` en el Sidebar desktop sobre los menús de navegación.
+    - Botón de acceso rápido en el top bar desktop junto a `NotificationBell`.
+    - Botón táctil circular (+) en el header móvil.
+    - Inclusión de `"fydry_movements"` en la purga exhaustiva de sesión `clearAllSessionStorage()`.
+- **Validaciones:**
+  - `security-agent`: **🟢 LUZ VERDE**
+  - `qa-agent`: **🟢 LUZ VERDE** (`npx tsc --noEmit` exit code 0, `npm run build` Turbopack exit code 0).

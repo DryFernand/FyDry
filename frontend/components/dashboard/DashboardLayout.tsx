@@ -18,6 +18,7 @@ import {
   X,
   Loader2,
   ArrowLeftRight,
+  Plus,
 } from "lucide-react";
 import { DashboardTab, NotificationItem } from "./types";
 import DashboardHome from "./views/DashboardHome";
@@ -30,6 +31,7 @@ import DebtsView from "./views/DebtsView";
 import ReportsView from "./views/ReportsView";
 import SettingsModal from "./SettingsModal";
 import NotificationBell from "./NotificationBell";
+import QuickTransactionModal from "./QuickTransactionModal";
 import { apiRequest, checkFinancialAlertsApi } from "@/lib/api";
 import { useLanguage } from "@/context/LanguageContext";
 import { dispatchNativeAlerts } from "@/lib/pushNotifications";
@@ -40,6 +42,7 @@ export default function DashboardLayout() {
   const [activeTab, setActiveTab] = useState<DashboardTab>("home");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isQuickModalOpen, setIsQuickModalOpen] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [currentUser, setCurrentUser] = useState<{
@@ -116,6 +119,7 @@ export default function DashboardLayout() {
       "fydry_accounts",
       "fydry_expenses",
       "fydry_incomes",
+      "fydry_movements",
       "fydry_budgets",
       "fydry_debts",
       "fydry_notifications",
@@ -249,6 +253,20 @@ export default function DashboardLayout() {
             </div>
           </div>
 
+          {/* Quick Action Button Desktop Sidebar */}
+          <div className="px-1 mb-3">
+            <button
+              type="button"
+              onClick={() => setIsQuickModalOpen(true)}
+              className="w-full bg-zinc-950 hover:bg-zinc-800 text-white font-semibold py-2.5 px-3 rounded-2xl shadow-sm flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-[0.98] group"
+            >
+              <Plus className="w-4 h-4 transition-transform group-hover:rotate-90 duration-200" />
+              <span className="text-xs tracking-wide">
+                {language === "en" ? "+ Record Transaction" : "+ Registrar"}
+              </span>
+            </button>
+          </div>
+
           {/* Navigation Items */}
           <nav className="space-y-3 flex-1 overflow-y-auto pr-1">
             {navGroups.map((group, groupIdx) => (
@@ -349,6 +367,17 @@ export default function DashboardLayout() {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Quick Action Button Mobile */}
+          <button
+            type="button"
+            onClick={() => setIsQuickModalOpen(true)}
+            className="p-2.5 rounded-2xl bg-zinc-950 text-white cursor-pointer shadow-2xs hover:bg-zinc-800 transition-colors"
+            title={language === "en" ? "Record Transaction" : "Registrar"}
+            aria-label="Registrar"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
+
           {/* Campanita de Notificaciones Mobile */}
           <NotificationBell
             onOpenDraft={handleOpenDraft}
@@ -441,9 +470,17 @@ export default function DashboardLayout() {
 
       {/* Main Content Area con md:pl-64 para que el contenido fluya con el scroll de la página de forma totalmente independiente */}
       <div className="flex-1 min-w-0 flex flex-col md:pl-64">
-        {/* Desktop Top Bar with NotificationBell */}
+        {/* Desktop Top Bar with NotificationBell & Quick Button */}
         <div className="hidden md:flex items-center justify-end px-6 lg:px-8 pt-6 pb-2 print:hidden">
           <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setIsQuickModalOpen(true)}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl border border-zinc-200/90 hover:border-zinc-300 bg-white hover:bg-zinc-50 text-zinc-800 font-semibold text-xs shadow-2xs transition-all active:scale-95 cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5 text-zinc-900" />
+              <span>{language === "en" ? "+ Record" : "+ Registrar"}</span>
+            </button>
             <NotificationBell
               onOpenDraft={handleOpenDraft}
               notifications={notifications}
@@ -473,6 +510,12 @@ export default function DashboardLayout() {
           </AnimatePresence>
         </main>
       </div>
+
+      {/* Global Quick Transaction Modal */}
+      <QuickTransactionModal
+        isOpen={isQuickModalOpen}
+        onClose={() => setIsQuickModalOpen(false)}
+      />
 
       {/* Global Settings Modal */}
       <SettingsModal

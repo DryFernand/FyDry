@@ -474,6 +474,8 @@ export async function createMovementApi(mov: Omit<MovementItem, "id">): Promise<
   };
 }
 
+export const createTransferApi = createMovementApi;
+
 export async function updateMovementApi(id: string, mov: Partial<MovementItem>): Promise<void> {
   const payload = {
     from_account_id: mov.fromAccountId || null,
