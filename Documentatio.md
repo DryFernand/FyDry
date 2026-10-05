@@ -752,3 +752,25 @@ Se integró el cómputo automático de los movimientos/traspasos entre cuentas c
 - **Validaciones:**
   - `security-agent`: **🟢 LUZ VERDE**
   - `qa-agent`: **🟢 LUZ VERDE** (`npx tsc --noEmit` exit code 0, `npm run build` Turbopack exit code 0).
+
+
+## [2026-10-05] - Modernización del Dashboard Principal y Pulido de Botón de Acción (Fase 3)
+
+### Módulo: Frontend (Dashboard Home & Layout)
+- **Archivos afectados:**
+  - `frontend/components/dashboard/DashboardLayout.tsx`
+  - `frontend/components/dashboard/views/DashboardHome.tsx`
+- **Cambios realizados:**
+  - **Ajuste del Botón de Registro:**
+    - Se dejó exclusivamente el icono `Plus` estilizado en el Sidebar desktop (eliminando la redundancia `+ +registrar`) con `title` y `aria-label` bilingües.
+    - Se ajustó el texto del botón en la barra superior desktop a `"Registrar"` evitando duplicidad de signos.
+  - **Rediseño Integral de `DashboardHome.tsx`:**
+    - **Hero Card Financiero:** Tarjeta principal en tono oscuro (`zinc-950`) con destellos difusos, saldo total consolidado de alto impacto, indicador de ciclo activo y accesos directos.
+    - **Barra de Pulso y Salud Financiera:** Monitoreo visual con diagnóstico de estado, barras de progreso para tasa de ahorro, ratio de gasto/ingreso y presupuesto mensual consumido.
+    - **Grid de Métricas Clave:** 4 tarjetas interactivas (Ingresos, Gastos, Ahorro Neto, Cuentas) con badges de rendimiento y enlaces a sus respectivas vistas.
+    - **Feed de Movimientos Recientes:** Tipografía optimizada, chips de categoría con contrastes suaves, formateo de fechas relativas ("Hoy", "Ayer") y montos contrastados.
+    - **Widget de Cuentas y Liquidez:** Cuentas con iconos contextuales (`Building2`, `CreditCard`, `Banknote`, `Wallet`), saldos formateados y numeración enmascarada (`••• 1234`).
+  - **Auditoría Funcional (`functions-comparison`):** 100% de los callbacks `onNavigate` preservados hacia todas las vistas.
+- **Validaciones:**
+  - `security-agent`: **🟢 LUZ VERDE** (Protección XSS, aritmética segura contra división por cero, enmascaramiento de cuentas).
+  - `qa-agent`: **🟢 LUZ VERDE** (`npx tsc --noEmit` exit code 0, `npm run build` Turbopack exit code 0).

@@ -258,12 +258,11 @@ export default function DashboardLayout() {
             <button
               type="button"
               onClick={() => setIsQuickModalOpen(true)}
-              className="w-full bg-zinc-950 hover:bg-zinc-800 text-white font-semibold py-2.5 px-3 rounded-2xl shadow-sm flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-[0.98] group"
+              title={language === "en" ? "Record Transaction" : "Registrar Transacción"}
+              aria-label={language === "en" ? "Record Transaction" : "Registrar Transacción"}
+              className="w-full bg-zinc-950 hover:bg-zinc-800 text-white font-semibold py-2.5 px-3 rounded-2xl shadow-sm flex items-center justify-center cursor-pointer transition-all active:scale-[0.98] group"
             >
               <Plus className="w-4 h-4 transition-transform group-hover:rotate-90 duration-200" />
-              <span className="text-xs tracking-wide">
-                {language === "en" ? "+ Record Transaction" : "+ Registrar"}
-              </span>
             </button>
           </div>
 
@@ -479,7 +478,7 @@ export default function DashboardLayout() {
               className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl border border-zinc-200/90 hover:border-zinc-300 bg-white hover:bg-zinc-50 text-zinc-800 font-semibold text-xs shadow-2xs transition-all active:scale-95 cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5 text-zinc-900" />
-              <span>{language === "en" ? "+ Record" : "+ Registrar"}</span>
+              <span>{language === "en" ? "Record" : "Registrar"}</span>
             </button>
             <NotificationBell
               onOpenDraft={handleOpenDraft}
