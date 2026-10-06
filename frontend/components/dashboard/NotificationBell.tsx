@@ -110,40 +110,55 @@ export default function NotificationBell({
     }
   };
 
+  const isCriticalAlert = (item: NotificationItem) => {
+    const title = item.title.toLowerCase();
+    return (
+      title.includes("sobregiro") ||
+      title.includes("límite superado") ||
+      title.includes("limite superado")
+    );
+  };
+
   const getItemIcon = (item: NotificationItem) => {
-    if (item.targetType === "budget") {
-      return <PieChart className="w-4 h-4 text-purple-600" />;
-    }
-    if (item.title.includes("corte")) {
-      return <Calendar className="w-4 h-4 text-indigo-600" />;
-    }
-    if (item.title.includes("pago") || item.title.includes("límite de pago")) {
-      return <Clock className="w-4 h-4 text-amber-600" />;
-    }
-    if (item.title.includes("Sobregiro")) {
+    if (isCriticalAlert(item)) {
       return <ShieldAlert className="w-4 h-4 text-rose-600" />;
     }
-    if (item.title.includes("mínimo")) {
-      return <ArrowDownCircle className="w-4 h-4 text-orange-600" />;
-    }
-    if (item.targetType === "income") {
+    if (item.targetType === "income" || item.title.toLowerCase().includes("ingreso")) {
       return <ArrowUpRight className="w-4 h-4 text-emerald-600" />;
     }
-    if (item.targetType === "movement") {
-      return <ArrowLeftRight className="w-4 h-4 text-blue-600" />;
+    if (item.targetType === "budget") {
+      return <PieChart className="w-4 h-4 text-zinc-700" />;
     }
-    return <ArrowDownRight className="w-4 h-4 text-rose-600" />;
+    if (item.title.toLowerCase().includes("corte")) {
+      return <Calendar className="w-4 h-4 text-zinc-700" />;
+    }
+    if (
+      item.title.toLowerCase().includes("pago") ||
+      item.title.toLowerCase().includes("límite de pago") ||
+      item.title.toLowerCase().includes("limite de pago")
+    ) {
+      return <Clock className="w-4 h-4 text-zinc-700" />;
+    }
+    if (
+      item.title.toLowerCase().includes("mínimo") ||
+      item.title.toLowerCase().includes("minimo")
+    ) {
+      return <ArrowDownCircle className="w-4 h-4 text-zinc-700" />;
+    }
+    if (item.targetType === "movement") {
+      return <ArrowLeftRight className="w-4 h-4 text-zinc-700" />;
+    }
+    return <ArrowDownRight className="w-4 h-4 text-zinc-700" />;
   };
 
   const getItemBadgeBg = (item: NotificationItem) => {
-    if (item.targetType === "budget") return "bg-purple-50";
-    if (item.title.includes("corte")) return "bg-indigo-50";
-    if (item.title.includes("pago")) return "bg-amber-50";
-    if (item.title.includes("Sobregiro")) return "bg-rose-50";
-    if (item.title.includes("mínimo")) return "bg-orange-50";
-    if (item.targetType === "income") return "bg-emerald-50";
-    if (item.targetType === "movement") return "bg-blue-50";
-    return "bg-rose-50";
+    if (isCriticalAlert(item)) {
+      return "bg-rose-50 border border-rose-100 text-rose-600";
+    }
+    if (item.targetType === "income" || item.title.toLowerCase().includes("ingreso")) {
+      return "bg-emerald-50 border border-emerald-100 text-emerald-600";
+    }
+    return "bg-zinc-100 border border-zinc-200/60";
   };
 
   return (
@@ -225,7 +240,7 @@ export default function NotificationBell({
                     </p>
 
                     <div className="flex items-center justify-between pt-2 mt-1">
-                      <span className="text-[10px] font-semibold text-purple-600 flex items-center gap-1 group-hover:underline">
+                      <span className="text-xs font-semibold text-zinc-900 group-hover:text-zinc-600 flex items-center gap-1 transition-colors">
                         <span>{item.source === "system" ? "Ver Detalle" : "Revisar & Asentar"}</span>
                         <ExternalLink className="w-2.5 h-2.5" />
                       </span>

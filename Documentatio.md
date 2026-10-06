@@ -800,3 +800,24 @@ Se integró el cómputo automático de los movimientos/traspasos entre cuentas c
 - **Validaciones:**
   - `security-agent`: **🟢 LUZ VERDE** (Aislamiento de eventos, accesibilidad ARIA, sin regresiones de sesión).
   - `qa-agent`: **🟢 LUZ VERDE** (`npx tsc --noEmit` exit code 0, `npm run build` Turbopack exit code 0).
+
+
+## [2026-10-06] - Rediseño de Notificaciones: Limpieza Cromática de Tarjetas (Fase 1)
+
+### Módulo: Frontend (Notifications & Alerts)
+- **Archivo afectado:**
+  - `frontend/components/dashboard/NotificationBell.tsx`
+- **Cambios realizados:**
+  - **Eliminación del Arcoíris de Colores en Alertas:**
+    - Se retiraron los 7 colores no estandarizados (púrpura, índigo, ámbar, naranja y azul brillante) de los badges e iconos.
+    - Se unificó bajo una paleta semántica y sobria acorde a FyDry:
+      - Alertas críticas de sobregiro o límite excedido en `rose-600` / `bg-rose-50 border-rose-100`.
+      - Ingresos y entradas en `emerald-600` / `bg-emerald-50 border-emerald-100`.
+      - Todo el resto (presupuestos, cortes de tarjeta, pagos pendientes, movimientos, balances) en escala neutra elegante `zinc-700` / `bg-zinc-100 border-zinc-200/60`.
+  - **Acciones y Enlaces de Tarjetas:**
+    - Enlaces de acción "Ver Detalle" / "Revisar & Asentar" unificados de texto morado a `text-zinc-900 font-semibold hover:text-zinc-600`.
+    - Botón de descarte integrado en gris neutro `text-zinc-400 hover:text-rose-600 hover:bg-rose-50`.
+  - **Auditoría Funcional (`functions-comparison`):** 100% de las 6 funciones interactivas preservadas (toggle popover, apertura de borradores, marcado de leídas, descarte individual, permisos nativos push y sincronización por eventos).
+- **Validaciones:**
+  - `security-agent`: **🟢 LUZ VERDE** (Prevención XSS, higiene de listeners y permisos nativos).
+  - `qa-agent`: **🟢 LUZ VERDE** (`npx tsc --noEmit` exit code 0, `npm run build` Turbopack exit code 0).
