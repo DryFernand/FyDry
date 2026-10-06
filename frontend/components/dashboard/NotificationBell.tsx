@@ -9,7 +9,6 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   ArrowLeftRight,
-  Sparkles,
   ExternalLink,
   Calendar,
   Clock,
@@ -172,7 +171,7 @@ export default function NotificationBell({
       >
         <Bell className="w-4 h-4" />
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-rose-500 text-[9px] font-bold text-white shadow-xs animate-pulse">
+          <span className="absolute -top-1 -right-1 flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-zinc-950 text-[9px] font-bold text-white shadow-xs ring-2 ring-white">
             {unreadCount}
           </span>
         )}
@@ -191,8 +190,8 @@ export default function NotificationBell({
             {/* Header */}
             <div className="p-4 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/50">
               <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
-                  <Sparkles className="w-3.5 h-3.5" />
+                <div className="w-6 h-6 rounded-xl bg-zinc-100 text-zinc-900 border border-zinc-200/60 flex items-center justify-center">
+                  <Bell className="w-3.5 h-3.5" />
                 </div>
                 <h3 className="text-xs font-bold text-zinc-950">
                   Alertas y Notificaciones
@@ -203,7 +202,7 @@ export default function NotificationBell({
                 <button
                   type="button"
                   onClick={handleEnableSystemNotifications}
-                  className="text-[10px] font-semibold text-purple-600 hover:text-purple-800 cursor-pointer underline"
+                  className="text-[10px] font-semibold text-zinc-600 hover:text-zinc-950 bg-zinc-100 hover:bg-zinc-200/70 border border-zinc-200/60 px-2 py-1 rounded-lg transition-colors cursor-pointer"
                 >
                   Activar en PC y Celular
                 </button>
@@ -217,7 +216,7 @@ export default function NotificationBell({
                   key={item.id}
                   onClick={() => handleOpenDraft(item)}
                   className={`p-3.5 flex items-start gap-3 hover:bg-zinc-50 transition-colors cursor-pointer group ${
-                    !item.isRead ? "bg-purple-50/20" : ""
+                    !item.isRead ? "bg-zinc-50/90" : ""
                   }`}
                 >
                   <div
@@ -232,7 +231,15 @@ export default function NotificationBell({
                         {item.title}
                       </span>
                       {!item.isRead && (
-                        <span className="w-2 h-2 rounded-full bg-purple-600 shrink-0" />
+                        <span
+                          className={`w-2 h-2 rounded-full shrink-0 ${
+                            (item.targetType as string) === "overdraft" ||
+                            item.title.toLowerCase().includes("alerta") ||
+                            isCriticalAlert(item)
+                              ? "bg-rose-500"
+                              : "bg-zinc-950"
+                          }`}
+                        />
                       )}
                     </div>
                     <p className="text-[11px] text-zinc-500 line-clamp-2 mt-0.5">

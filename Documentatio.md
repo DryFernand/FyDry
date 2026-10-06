@@ -1,5 +1,27 @@
 # Registro de Cambios y Documentación del Proyecto (Documentatio.md)
 
+## [2026-10-06] - Rediseño de Notificaciones (Fase 2: Header Popover, Estados de No Leído y Badge Exterior)
+
+### Resumen
+Se implementó la Fase 2 del rediseño del sistema de notificaciones en `NotificationBell.tsx`, eliminando por completo los tonos morados disonantes y la animación de parpadeo intrusiva. La interfaz se adaptó a la línea estética monocromática y sobria de FyDry (fondos zinc, acentos carbón y bordes sutiles).
+
+### Cambios Realizados:
+- **Badge exterior de la campanita (`NotificationBell.tsx`)**:
+  - Se removió la animación `animate-pulse` del indicador numérico para evitar distracciones visuales continuas.
+  - Se rediseñó el badge con un estilo nítido en fondo negro carbón (`bg-zinc-950 text-white shadow-xs ring-2 ring-white`).
+- **Header del desplegable**:
+  - Se eliminaron el fondo y texto morado (`bg-purple-50 text-purple-600`) junto con el icono `Sparkles`.
+  - Se incorporó un contenedor de cabecera sobrio con icono `Bell` (`bg-zinc-100 text-zinc-900 border border-zinc-200/60`).
+  - Se estilizó el botón "Activar en PC y Celular" reemplazando el enlace subrayado morado por un botón secundario discreto (`text-zinc-600 hover:text-zinc-950 bg-zinc-100 border border-zinc-200/60 rounded-lg`).
+- **Estados de lectura en las tarjetas**:
+  - Las tarjetas no leídas cambiaron su fondo de `bg-purple-50/20` a `bg-zinc-50/90`.
+  - El indicador puntual de no leído ahora utiliza `bg-zinc-950` para avisos habituales y `bg-rose-500` para alertas financieras críticas o sobregiros.
+- **Auditoría funcional y de tipos**:
+  - Preservadas intactas las 6 interacciones del componente (apertura/cierre, click outside, apertura de borradores, descarte, solicitud de permisos y recarga reactiva de alertas).
+  - TypeScript y build de producción de Next.js validados con salida limpia (`tsc --noEmit` y `npm run build` en 0 errores).
+
+---
+
 ## [2026-09-21] - Integración de Movimientos a Metas de Ahorro con el Presupuesto de "Ahorro Programado"
 
 ### Resumen
