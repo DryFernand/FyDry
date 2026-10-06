@@ -15,6 +15,32 @@ import {
   CalendarDays,
   Clock,
   Layers,
+  Home,
+  ShoppingCart,
+  Utensils,
+  Zap,
+  Wifi,
+  Fuel,
+  Bus,
+  HeartPulse,
+  ShieldCheck,
+  Dumbbell,
+  Shirt,
+  Sparkles,
+  GraduationCap,
+  Film,
+  Tv,
+  Plane,
+  PawPrint,
+  Smartphone,
+  Wrench,
+  Gift,
+  Receipt,
+  CreditCard,
+  AlertTriangle,
+  TrendingUp,
+  PiggyBank,
+  LucideIcon,
 } from "lucide-react";
 import { BudgetItem, TransactionItem, AccountItem, MovementItem } from "../types";
 import { EXPENSE_CATEGORIES } from "@/lib/categories";
@@ -41,6 +67,38 @@ const MONTH_NAMES_EN = [
 ];
 
 type BudgetPeriodView = "monthly" | "biweekly" | "weekly";
+
+export function getCategoryIcon(category: string): LucideIcon {
+  const norm = category.toLowerCase().trim();
+
+  if (norm.includes("vivienda") || norm.includes("alquiler") || norm.includes("casa")) return Home;
+  if (norm.includes("supermercado") || norm.includes("alimentación") || norm.includes("alimentacion") || norm.includes("comida")) return ShoppingCart;
+  if (norm.includes("restaurante") || norm.includes("bar")) return Utensils;
+  if (norm.includes("servicio") || norm.includes("luz") || norm.includes("agua") || norm.includes("gas")) return Zap;
+  if (norm.includes("telefon") || norm.includes("internet") || norm.includes("móvil") || norm.includes("movil")) return Wifi;
+  if (norm.includes("gasolina") || norm.includes("combustible")) return Fuel;
+  if (norm.includes("transporte") || norm.includes("taxi") || norm.includes("bus")) return Bus;
+  if (norm.includes("salud") || norm.includes("farmacia") || norm.includes("médic") || norm.includes("medic")) return HeartPulse;
+  if (norm.includes("seguro") || norm.includes("póliza") || norm.includes("poliza")) return ShieldCheck;
+  if (norm.includes("gimnasio") || norm.includes("deporte") || norm.includes("gym")) return Dumbbell;
+  if (norm.includes("ropa") || norm.includes("calzado") || norm.includes("moda")) return Shirt;
+  if (norm.includes("cuidado personal") || norm.includes("barbería") || norm.includes("barberia") || norm.includes("belleza")) return Sparkles;
+  if (norm.includes("educación") || norm.includes("educacion") || norm.includes("curso")) return GraduationCap;
+  if (norm.includes("entretenimiento") || norm.includes("cine")) return Film;
+  if (norm.includes("suscripci") || norm.includes("streaming")) return Tv;
+  if (norm.includes("viaje") || norm.includes("vacacion")) return Plane;
+  if (norm.includes("mascota") || norm.includes("veterinari")) return PawPrint;
+  if (norm.includes("tecnolog") || norm.includes("gadget")) return Smartphone;
+  if (norm.includes("mantenimiento") || norm.includes("hogar") || norm.includes("reparaci")) return Wrench;
+  if (norm.includes("regalo") || norm.includes("celebraci")) return Gift;
+  if (norm.includes("impuesto") || norm.includes("tasa")) return Receipt;
+  if (norm.includes("deuda") || norm.includes("préstamo") || norm.includes("prestamo")) return CreditCard;
+  if (norm.includes("imprevisto") || norm.includes("emergencia")) return AlertTriangle;
+  if (norm.includes("inversión") || norm.includes("inversion")) return TrendingUp;
+  if (norm.includes("ahorro")) return PiggyBank;
+
+  return PieChart;
+}
 
 export default function BudgetView() {
   const { t, language } = useLanguage();
@@ -438,6 +496,12 @@ export default function BudgetView() {
   const remainingBudget = Math.max(totalAllocated - totalSpent, 0);
   const overallPercentage = totalAllocated > 0 ? Math.round((totalSpent / totalAllocated) * 100) : 0;
 
+  const now = new Date();
+  const daysRemaining = Math.max(
+    0,
+    Math.ceil((cycleRange.endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+  );
+
   const openCreateModal = () => {
     setEditingBudget(null);
     setNewCat(EXPENSE_CATEGORIES[0]);
@@ -695,13 +759,23 @@ export default function BudgetView() {
       <div className="bg-white p-6 rounded-3xl border border-zinc-200/80 shadow-xs space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1">
-            <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
-              {periodView === "monthly"
-                ? `Presupuesto Mensual (${monthLabel})`
-                : periodView === "biweekly"
-                ? `Presupuesto Quincenal · Q${selectedFortnight} (${monthLabel})`
-                : `Presupuesto Semanal · S${selectedWeek} (${monthLabel})`}
-            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
+                {periodView === "monthly"
+                  ? `Presupuesto Mensual (${monthLabel})`
+                  : periodView === "biweekly"
+                  ? `Presupuesto Quincenal · Q${selectedFortnight} (${monthLabel})`
+                  : `Presupuesto Semanal · S${selectedWeek} (${monthLabel})`}
+              </span>
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-zinc-100 text-zinc-700 border border-zinc-200/60">
+                <Clock className="w-3 h-3 text-zinc-500" />
+                <span>
+                  {daysRemaining === 1
+                    ? "Queda 1 día en este ciclo"
+                    : `Quedan ${daysRemaining} días en este ciclo`}
+                </span>
+              </span>
+            </div>
             <div className="flex items-baseline gap-2">
               <span className="text-3xl font-bold tracking-tight text-zinc-950">
                 ${totalAllocated.toLocaleString("en-US", { minimumFractionDigits: 2 })}
@@ -757,6 +831,8 @@ export default function BudgetView() {
         {budgetsWithSpent.map((b) => {
           const percentage = b.allocated > 0 ? Math.round((b.spent / b.allocated) * 100) : 0;
           const isOver = b.spent > b.allocated;
+          const remaining = b.allocated - b.spent;
+          const CategoryIcon = getCategoryIcon(b.category);
 
           return (
             <motion.div
@@ -768,8 +844,8 @@ export default function BudgetView() {
               <div className="space-y-3">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-zinc-100 flex items-center justify-center font-bold text-xs text-zinc-700">
-                      <PieChart className="w-5 h-5 text-zinc-600" />
+                    <div className="w-10 h-10 rounded-2xl bg-zinc-100 text-zinc-900 border border-zinc-200/60 flex items-center justify-center font-bold text-xs">
+                      <CategoryIcon className="w-5 h-5 text-zinc-700" />
                     </div>
                     <div>
                       <div className="flex items-center gap-1.5">
@@ -810,7 +886,7 @@ export default function BudgetView() {
                 </div>
               </div>
 
-              <div className="pt-2 border-t border-zinc-100 space-y-1">
+              <div className="pt-2 border-t border-zinc-100 space-y-2">
                 <div className="flex items-baseline justify-between">
                   <div>
                     <span className="text-[10px] text-zinc-400 block">Gastado en período</span>
@@ -826,6 +902,16 @@ export default function BudgetView() {
                       ${b.allocated.toLocaleString("en-US", { minimumFractionDigits: 2 })}
                     </span>
                   </div>
+                </div>
+
+                {/* Saldo Remanente Directo por Tarjeta */}
+                <div className="flex items-center justify-between pt-1.5 border-t border-dashed border-zinc-200/80 text-xs">
+                  <span className="text-[11px] text-zinc-500 font-medium">
+                    {remaining >= 0 ? "Te quedan:" : "Excedido por:"}
+                  </span>
+                  <span className={remaining >= 0 ? "text-zinc-950 font-bold" : "text-rose-600 font-bold"}>
+                    ${Math.abs(remaining).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                  </span>
                 </div>
 
                 {periodView !== "monthly" && (
@@ -870,8 +956,11 @@ export default function BudgetView() {
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-zinc-100 flex items-center justify-center text-zinc-900">
-                    <PieChart className="w-4 h-4" />
+                  <div className="w-8 h-8 rounded-xl bg-zinc-100 flex items-center justify-center text-zinc-900 border border-zinc-200/60">
+                    {(() => {
+                      const ModalIcon = getCategoryIcon(newCat);
+                      return <ModalIcon className="w-4 h-4 text-zinc-700" />;
+                    })()}
                   </div>
                   <h3 className="font-bold text-zinc-950 text-sm">
                     {editingBudget ? "Editar Límite Mensual" : "Nuevo Presupuesto Mensual"}

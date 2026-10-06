@@ -1,5 +1,26 @@
 # Registro de Cambios y Documentación del Proyecto (Documentatio.md)
 
+## [2026-10-06] - Rediseño de Pantalla de Presupuesto (Fase 1: Iconografía Semántica, Saldo Restante y Días del Ciclo)
+
+### Resumen
+Se implementó la Fase 1 de modernización en `BudgetView.tsx`, reemplazando el icono genérico repetitivo de pastel por un sistema exhaustivo de iconografía semántica para más de 25 categorías de gasto. Además, se integró el cálculo directo y visible del saldo disponible restante por categoría y un indicador en tiempo real de días remanentes para el reinicio del ciclo financiero.
+
+### Cambios Realizados:
+- **Iconografía Semántica por Categoría (`getCategoryIcon`)**:
+  - Mapeo contextual de iconos de `lucide-react` para cada categoría (vivienda, supermercado, restaurantes, luz/agua, transporte, salud, gimnasio, educación, suscripciones, mascotas, viajes, ahorro, etc.) dentro de la cápsula monocromática `w-10 h-10 rounded-2xl bg-zinc-100 text-zinc-900 border border-zinc-200/60`.
+  - Icono dinámico reactivo también integrado en el encabezado del modal de creación/edición de presupuestos.
+- **Saldo Remanente Directo por Tarjeta**:
+  - Incorporación del cómputo explícito `remaining = b.allocated - b.spent` en cada tarjeta de categoría.
+  - Indicador claro: *"Te quedan: ${remaining}"* en tipografía carbón cuando está en orden, o *"Excedido por: ${Math.abs(remaining)}"* en rojo cuando el límite es rebasado.
+- **Resumen Global Enriquecido**:
+  - Cálculo de días restantes (`daysRemaining`) en función del día de corte/reinicio configurado (`budgetResetDay`) y la fecha de cierre del ciclo mensual.
+  - Pastilla informativa discreta: *"Quedan N días en este ciclo"* junto a la fecha activa.
+- **Auditoría y Preservación**:
+  - Mantenidas al 100% las vistas Mensual, Quincenal y Semanal, el cómputo de movimientos de ahorro hacia cuentas `savings`, y los flujos de creación, edición y descarte de presupuestos.
+  - Veredictos aprobatorios de seguridad (sin riesgos XSS, sin inyección) y QA (`tsc --noEmit` y `npm run build` en 0 errores).
+
+---
+
 ## [2026-10-06] - Rediseño de Pantalla de Cuentas (Fase 2: Datos Enriquecidos, Barra de Cupo y Alertas)
 
 ### Resumen
