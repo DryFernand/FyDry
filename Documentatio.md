@@ -1,5 +1,29 @@
 # Registro de Cambios y Documentación del Proyecto (Documentatio.md)
 
+## [2026-10-06] - Rediseño de Pantalla de Presupuesto (Fase 2: Ritmo de Gasto Burn Rate y Filtros Rápidos)
+
+### Resumen
+Se implementó la Fase 2 del módulo de presupuestos en `BudgetView.tsx`, introduciendo analítica predictiva de consumo financiero y filtros rápidos de estado. Ahora el usuario cuenta con una métrica de ritmo de gasto diario sugerido ("Burn Rate"), detección anticipada de ritmo acelerado en categorías propensas a sobregiro, y botones de filtrado instantáneo para aislar categorías holgadas o en peligro.
+
+### Cambios Realizados:
+- **Barra de Filtros Rápidos de Categoría**:
+  - Pestañas estilizadas encima de la grilla de categorías: *Todas ({total})*, *En Riesgo / Excedidas ({risk})* con badge rojo dinámico cuando existen alertas, y *Con Margen ({ok})*.
+  - Vista vacía contextual cuando no hay categorías en riesgo (*"No hay categorías en riesgo en este período 🎉"*).
+- **Inteligencia de Ritmo de Gasto Diario ("Burn Rate")**:
+  - Cálculo en tiempo real de `dailySafeSpend = remainingBudget / daysRemaining`.
+  - Micro-indicador en la tarjeta de resumen global: *"Ritmo seguro sugerido: $... / día"*.
+- **Alerta Preventiva de Ritmo Acelerado**:
+  - Detección algorítmica de desproporción de gasto en función del tiempo transcurrido del ciclo mensual (`percentage > timeElapsedPercent + 25`).
+  - Badge preventivo sutil en la tarjeta: *"Ritmo acelerado"* para alertar al usuario antes de rebasar el límite.
+- **Sanitización y Validación Defensiva**:
+  - Protección ante valores nulos/indefinidos en `getCategoryIcon`.
+  - Rechazo de presupuestos negativos o nulos (`parsedAllocated <= 0`) con atributo `min="0.01"` en el modal.
+- **Auditoría de Calidad**:
+  - Blindaje matemático contra divisiones por cero (`Math.max(1, ...)` en divisores temporales y verificación de días restantes).
+  - Veredictos aprobatorios de seguridad (LUZ VERDE) y QA (LUZ VERDE, `tsc --noEmit` exit code 0 y build Next.js Turbopack en 1.5s).
+
+---
+
 ## [2026-10-06] - Rediseño de Pantalla de Presupuesto (Fase 1: Iconografía Semántica, Saldo Restante y Días del Ciclo)
 
 ### Resumen

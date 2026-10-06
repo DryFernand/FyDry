@@ -39,6 +39,7 @@ import {
   CreditCard,
   AlertTriangle,
   TrendingUp,
+  TrendingDown,
   PiggyBank,
   LucideIcon,
 } from "lucide-react";
@@ -67,9 +68,10 @@ const MONTH_NAMES_EN = [
 ];
 
 type BudgetPeriodView = "monthly" | "biweekly" | "weekly";
+type CategoryFilter = "all" | "risk" | "ok";
 
 export function getCategoryIcon(category: string): LucideIcon {
-  const norm = category.toLowerCase().trim();
+  const norm = (category || "").toLowerCase().trim();
 
   if (norm.includes("vivienda") || norm.includes("alquiler") || norm.includes("casa")) return Home;
   if (norm.includes("supermercado") || norm.includes("alimentación") || norm.includes("alimentacion") || norm.includes("comida")) return ShoppingCart;
@@ -111,6 +113,7 @@ export default function BudgetView() {
 
   // 3 Vistas de periodicidad: Mensual (base), Quincenal (÷2), Semanal (÷4)
   const [periodView, setPeriodView] = useState<BudgetPeriodView>("monthly");
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
 
   // Sub-período interactivo para Quincenal (1 o 2) y Semanal (1, 2, 3, 4)
   const [selectedFortnight, setSelectedFortnight] = useState<1 | 2>(() => {
@@ -481,12 +484,16 @@ export default function BudgetView() {
     }
 
     const periodAllocated = b.allocated * periodMultiplier;
+    const percentage = periodAllocated > 0 ? Math.round((actualSpent / periodAllocated) * 100) : 0;
+    const isOver = actualSpent > periodAllocated;
 
     return {
       ...b,
       baseMonthlyAllocated: b.allocated,
       allocated: periodAllocated,
       spent: actualSpent,
+      percentage,
+      isOver,
       isTaxCategory: isTax,
     };
   });
@@ -501,6 +508,27 @@ export default function BudgetView() {
     0,
     Math.ceil((cycleRange.endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
   );
+
+  // Métrica de Ritmo de Gasto Diario Sugerido ("Burn Rate") en el Resumen Global
+  const dailySafeSpend = daysRemaining > 0 ? Math.max(0, remainingBudget / daysRemaining) : 0;
+
+  // Progreso del tiempo transcurrido en el ciclo para Alerta de Ritmo Acelerado
+  const cycleDurationDays = Math.max(
+    1,
+    Math.round((cycleRange.endDate.getTime() - cycleRange.startDate.getTime()) / (1000 * 60 * 60 * 24))
+  );
+  const daysPassed = Math.max(0, cycleDurationDays - daysRemaining);
+  const timeElapsedPercent = Math.min(100, Math.round((daysPassed / cycleDurationDays) * 100));
+
+  // Conteos y filtrado rápido de categorías
+  const riskCount = budgetsWithSpent.filter((b) => b.isOver || b.percentage > 80).length;
+  const okCount = budgetsWithSpent.filter((b) => !b.isOver && b.percentage <= 80).length;
+
+  const displayedBudgets = budgetsWithSpent.filter((b) => {
+    if (categoryFilter === "risk") return b.isOver || b.percentage > 80;
+    if (categoryFilter === "ok") return !b.isOver && b.percentage <= 80;
+    return true;
+  });
 
   const openCreateModal = () => {
     setEditingBudget(null);
@@ -522,6 +550,7 @@ export default function BudgetView() {
     if (!newCat || !newAllocated) return;
 
     const parsedAllocated = parseFloat(newAllocated) || 0;
+    if (parsedAllocated <= 0) return;
 
     if (editingBudget) {
       const updatedItem = {
@@ -824,15 +853,86 @@ export default function BudgetView() {
             <span>100%</span>
           </div>
         </div>
+
+        {/* Ritmo de Gasto Diario Sugerido (Burn Rate) */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-zinc-100 text-xs">
+          <div className="inline-flex items-center gap-1.5 text-zinc-500 font-medium">
+            <TrendingDown className="w-3.5 h-3.5 text-zinc-400" />
+            <span>
+              Ritmo seguro sugerido:{" "}
+              <strong className="text-zinc-900 font-semibold">
+                ${dailySafeSpend.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+              </strong>{" "}
+              / día
+            </span>
+          </div>
+          <span className="text-[11px] text-zinc-400">
+            {daysRemaining > 0
+              ? `${daysRemaining} ${daysRemaining === 1 ? "día restante" : "días restantes"} en este ciclo`
+              : "Ciclo concluido"}
+          </span>
+        </div>
       </div>
+
+      {/* Category Filters Bar */}
+      {budgets.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+          <div className="flex items-center gap-1.5 bg-zinc-100/90 p-1 rounded-2xl border border-zinc-200/60 text-xs shadow-2xs">
+            <button
+              type="button"
+              onClick={() => setCategoryFilter("all")}
+              className={`px-3 py-1.5 rounded-xl font-semibold transition-all cursor-pointer ${
+                categoryFilter === "all"
+                  ? "bg-white text-zinc-950 shadow-2xs"
+                  : "text-zinc-500 hover:text-zinc-900"
+              }`}
+            >
+              Todas ({budgetsWithSpent.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setCategoryFilter("risk")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-semibold transition-all cursor-pointer ${
+                categoryFilter === "risk"
+                  ? "bg-white text-zinc-950 shadow-2xs"
+                  : "text-zinc-500 hover:text-zinc-900"
+              }`}
+            >
+              <span>En Riesgo / Excedidas ({riskCount})</span>
+              {riskCount > 0 && (
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => setCategoryFilter("ok")}
+              className={`px-3 py-1.5 rounded-xl font-semibold transition-all cursor-pointer ${
+                categoryFilter === "ok"
+                  ? "bg-white text-zinc-950 shadow-2xs"
+                  : "text-zinc-500 hover:text-zinc-900"
+              }`}
+            >
+              Con Margen ({okCount})
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Category Budgets Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {budgetsWithSpent.map((b) => {
-          const percentage = b.allocated > 0 ? Math.round((b.spent / b.allocated) * 100) : 0;
-          const isOver = b.spent > b.allocated;
+        {displayedBudgets.map((b) => {
+          const percentage = b.percentage;
+          const isOver = b.isOver;
           const remaining = b.allocated - b.spent;
           const CategoryIcon = getCategoryIcon(b.category);
+
+          const isCurrent = isCurrentCycle();
+          const hasAcceleratedBurn =
+            isCurrent &&
+            daysRemaining > 0 &&
+            percentage > timeElapsedPercent + 25 &&
+            percentage > 40 &&
+            !isOver;
 
           return (
             <motion.div
@@ -860,17 +960,24 @@ export default function BudgetView() {
                     </div>
                   </div>
 
-                  <span
-                    className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
-                      isOver
-                        ? "bg-rose-50 text-rose-700"
-                        : percentage > 80
-                        ? "bg-amber-50 text-amber-700"
-                        : "bg-zinc-100 text-zinc-700"
-                    }`}
-                  >
-                    {percentage}%
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    {hasAcceleratedBurn && (
+                      <span className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200/60 rounded px-1.5 py-0.5 font-medium">
+                        Ritmo acelerado
+                      </span>
+                    )}
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                        isOver
+                          ? "bg-rose-50 text-rose-700"
+                          : percentage > 80
+                          ? "bg-amber-50 text-amber-700"
+                          : "bg-zinc-100 text-zinc-700"
+                      }`}
+                    >
+                      {percentage}%
+                    </span>
+                  </div>
                 </div>
 
                 {/* Progress bar */}
@@ -923,6 +1030,33 @@ export default function BudgetView() {
             </motion.div>
           );
         })}
+
+        {budgets.length > 0 && displayedBudgets.length === 0 && (
+          <div className="col-span-full bg-white p-12 rounded-3xl border border-zinc-200/80 text-center space-y-3">
+            <div className="w-12 h-12 rounded-2xl bg-zinc-100 flex items-center justify-center mx-auto text-zinc-400">
+              <Sparkles className="w-6 h-6 text-emerald-600" />
+            </div>
+            <h3 className="font-bold text-zinc-900 text-sm">
+              {categoryFilter === "risk"
+                ? "No hay categorías en riesgo en este período 🎉"
+                : categoryFilter === "ok"
+                ? "Todas las categorías han superado su margen o están en riesgo"
+                : "No hay categorías para mostrar"}
+            </h3>
+            <p className="text-xs text-zinc-500 max-w-sm mx-auto">
+              {categoryFilter === "risk"
+                ? "¡Excelente trabajo! Todos tus gastos se mantienen dentro de límites saludables."
+                : "Revisa los límites asignados o ajusta los filtros para visualizar tus categorías."}
+            </p>
+            <button
+              type="button"
+              onClick={() => setCategoryFilter("all")}
+              className="py-2 px-4 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-xs font-semibold transition-all cursor-pointer border border-zinc-200/60"
+            >
+              Ver todas las categorías
+            </button>
+          </div>
+        )}
 
         {budgets.length === 0 && (
           <div className="col-span-full bg-white p-12 rounded-3xl border border-zinc-200 text-center space-y-3">
@@ -1001,6 +1135,7 @@ export default function BudgetView() {
                   </label>
                   <input
                     type="number"
+                    min="0.01"
                     step="0.01"
                     required
                     value={newAllocated}
