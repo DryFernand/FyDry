@@ -1,5 +1,25 @@
 # Registro de Cambios y Documentación del Proyecto (Documentatio.md)
 
+## [2026-10-06] - Rediseño de Pantalla de Cuentas (Fase 1: Homogeneización Visual y Métricas Monocromáticas)
+
+### Resumen
+Se implementó la Fase 1 del rediseño en `AccountsView.tsx`, erradicando la dispersión cromática (azules, morados, verdes y amarillos) tanto en las 4 tarjetas de estadísticas superiores como en los identificadores de cada cuenta. La interfaz se alineó con la identidad visual fintech de FyDry fundamentada en tonos monocromáticos zinc de alto contraste.
+
+### Cambios Realizados:
+- **Tarjetas Superiores de Estadísticas (`AccountsView.tsx`)**:
+  - Reemplazo de los colores en iconos (`text-blue-600`, `text-purple-600`, `text-emerald-600`) por un tono neutro elegante (`text-zinc-500`).
+  - Unificación de los montos totales (crédito, ahorros, bancos y liquidez) a tipografía carbón (`text-zinc-950 font-bold tracking-tight text-2xl`).
+- **Badges e Iconos de Cuentas Individuales**:
+  - Homogeneización del contenedor de iconos a una cápsula refinada (`w-10 h-10 rounded-2xl bg-zinc-100 text-zinc-900 border border-zinc-200/60`).
+  - Iconos de tipo (`Building2`, `CreditCard`, `PiggyBank`, `Wallet`, `Banknote`) unificados a `text-zinc-700`.
+  - Badges de categoría (`getAccountTypeLabel`) estandarizados a un estilo sutil (`bg-zinc-100 text-zinc-700 border border-zinc-200/60`).
+  - Balances individuales unificados en negro carbón (`text-zinc-950 font-bold`).
+- **Auditoría y Preservación Funcional**:
+  - Mantenidas al 100% las operaciones interactivas (`openCreateModal`, `openEditModal`, `handleSaveAccount`, `handleDeleteAccount`, `loadAccounts` y el evento reactivo `fydry_storage_updated`).
+  - Veredictos aprobatorios de seguridad (sin riesgos XSS, sin fuga de datos de tarjetas en DOM) y QA (`tsc --noEmit` y `npm run build` en 0 errores).
+
+---
+
 ## [2026-10-06] - Rediseño de Notificaciones (Fase 2: Header Popover, Estados de No Leído y Badge Exterior)
 
 ### Resumen

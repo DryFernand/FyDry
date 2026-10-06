@@ -175,19 +175,19 @@ export default function AccountsView() {
   const getAccountIcon = (accType: string) => {
     switch (accType) {
       case "bank":
-        return <Building2 className="w-5 h-5 text-blue-600" />;
+        return <Building2 className="w-5 h-5 text-zinc-700" />;
       case "credit_card":
-        return <CreditCard className="w-5 h-5 text-purple-600" />;
+        return <CreditCard className="w-5 h-5 text-zinc-700" />;
       case "debit_card":
       case "card":
-        return <CreditCard className="w-5 h-5 text-zinc-600" />;
+        return <CreditCard className="w-5 h-5 text-zinc-700" />;
       case "savings":
-        return <PiggyBank className="w-5 h-5 text-emerald-600" />;
+        return <PiggyBank className="w-5 h-5 text-zinc-700" />;
       case "wallet":
-        return <Wallet className="w-5 h-5 text-amber-600" />;
+        return <Wallet className="w-5 h-5 text-zinc-700" />;
       case "cash":
       default:
-        return <Banknote className="w-5 h-5 text-zinc-600" />;
+        return <Banknote className="w-5 h-5 text-zinc-700" />;
     }
   };
 
@@ -255,7 +255,7 @@ export default function AccountsView() {
         <div className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-zinc-500">Cuentas Bancarias</span>
-            <Building2 className="w-4 h-4 text-blue-600" />
+            <Building2 className="w-4 h-4 text-zinc-500" />
           </div>
           <div className="text-2xl font-bold tracking-tight text-zinc-950">
             ${bankTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}
@@ -269,9 +269,9 @@ export default function AccountsView() {
         <div className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-zinc-500">Tarjetas de Crédito</span>
-            <CreditCard className="w-4 h-4 text-purple-600" />
+            <CreditCard className="w-4 h-4 text-zinc-500" />
           </div>
-          <div className="text-2xl font-bold tracking-tight text-purple-600">
+          <div className="text-2xl font-bold tracking-tight text-zinc-950">
             ${creditCardTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}
           </div>
           <div className="text-[11px] text-zinc-400">
@@ -283,9 +283,9 @@ export default function AccountsView() {
         <div className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-zinc-500">Cuentas de Ahorros</span>
-            <PiggyBank className="w-4 h-4 text-emerald-600" />
+            <PiggyBank className="w-4 h-4 text-zinc-500" />
           </div>
-          <div className="text-2xl font-bold tracking-tight text-emerald-600">
+          <div className="text-2xl font-bold tracking-tight text-zinc-950">
             ${savingsTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}
           </div>
           <div className="text-[11px] text-zinc-400">
@@ -320,15 +320,7 @@ export default function AccountsView() {
             <div className="space-y-3">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-xs ${
-                    acc.type === "credit_card"
-                      ? "bg-purple-50"
-                      : acc.type === "savings"
-                      ? "bg-emerald-50"
-                      : acc.type === "bank"
-                      ? "bg-blue-50"
-                      : "bg-zinc-100"
-                  }`}>
+                  <div className="w-10 h-10 rounded-2xl bg-zinc-100 text-zinc-900 border border-zinc-200/60 flex items-center justify-center font-bold text-xs">
                     {getAccountIcon(acc.type)}
                   </div>
                   <div>
@@ -354,15 +346,7 @@ export default function AccountsView() {
                   </div>
                 </div>
 
-                <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md ${
-                  acc.type === "credit_card"
-                    ? "bg-purple-50 text-purple-700 border border-purple-200/60"
-                    : acc.type === "savings"
-                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200/60"
-                    : acc.type === "bank"
-                    ? "bg-blue-50 text-blue-700 border border-blue-200/60"
-                    : "bg-zinc-100 text-zinc-700"
-                }`}>
+                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md bg-zinc-100 text-zinc-700 border border-zinc-200/60">
                   {getAccountTypeLabel(acc.type)}
                 </span>
               </div>
@@ -375,13 +359,7 @@ export default function AccountsView() {
                   {acc.currency || "DOP"}
                 </span>
               </div>
-              <span className={`text-lg font-bold tracking-tight ${
-                acc.type === "credit_card"
-                  ? "text-purple-600"
-                  : acc.type === "savings"
-                  ? "text-emerald-600"
-                  : "text-zinc-950"
-              }`}>
+              <span className="text-zinc-950 font-bold tracking-tight text-lg">
                 {getCurrencySymbol(acc.currency)} {acc.balance.toLocaleString("en-US", { minimumFractionDigits: 2 })}
               </span>
             </div>
