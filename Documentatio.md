@@ -1,5 +1,27 @@
 # Registro de Cambios y Documentación del Proyecto (Documentatio.md)
 
+## [2026-10-06] - Rediseño de Pantalla de Cuentas (Fase 2: Datos Enriquecidos, Barra de Cupo y Alertas)
+
+### Resumen
+Se implementó la Fase 2 del rediseño en `AccountsView.tsx`, enriqueciendo las tarjetas de cuenta con métricas financieras de alto impacto que antes estaban ocultas. Se integró una barra dinámica de uso de cupo para tarjetas de crédito, visualización de fechas de corte y límites de pago, monitoreo de margen de sobregiro y alertas reactivas ante saldos inferiores al mínimo establecido.
+
+### Cambios Realizados:
+- **Tarjetas de Crédito (`acc.type === 'credit_card'`)**:
+  - Incorporación de barra visual de progreso de consumo de crédito (`usedPercent`) con ancho acotado y cambio adaptativo de color a `bg-rose-500` si el uso sobrepasa el 90% o existe sobregiro.
+  - Leyenda analítica detallada con formato de moneda: *"Consumido: RD$ X / RD$ Y (Z%)"*.
+  - Cápsulas de fechas operativas: día de corte mensual (`Corte: día X` con icono `Calendar`) y días de gracia tras el corte (`Límite pago: +Y días` con icono `Clock`).
+  - Margen de sobregiro habilitado con indicador de importe adicional permitido.
+  - Modificación de la etiqueta inferior de saldo a *"Saldo Consumido"*.
+- **Cuentas Bancarias y Débito**:
+  - Alerta condicional de saldo mínimo (`minBalance`): advertencia visual en rojo (`⚠️ Por debajo del saldo mínimo`) cuando el saldo cae bajo el umbral, o recordatorio sutil de mínimo requerido.
+- **Fondos de Ahorro (`savings`)**:
+  - Distintivo visual *"Fondo protegido / Reserva"* en píldora neutra.
+- **Auditoría de Calidad**:
+  - Verificación de seguridad: blindaje contra desbordamientos, inyecciones de CSS y divisiones por cero.
+  - Validación QA: compilación limpia en Next.js Turbopack (2.7s) y 0 errores de TypeScript (`tsc --noEmit`).
+
+---
+
 ## [2026-10-06] - Rediseño de Pantalla de Cuentas (Fase 1: Homogeneización Visual y Métricas Monocromáticas)
 
 ### Resumen
