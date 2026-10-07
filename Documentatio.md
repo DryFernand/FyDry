@@ -1,5 +1,27 @@
 # Registro de Cambios y Documentación del Proyecto (Documentatio.md)
 
+## [2026-10-07] - Rediseño de Pantalla de Deudas (Fase 2: Filtros de Estado, Estrategias Avalancha/Bola de Nieve y Validaciones)
+
+### Resumen
+Se implementó la Fase 2 del módulo de deudas en `DebtsView.tsx`, introduciendo filtros rápidos por ciclo de vida (*Todas*, *Activas*, *Liquidadas*), un motor de priorización inteligente de amortización basado en las estrategias financieras de Avalancha (mayor interés) y Bola de Nieve (menor saldo), y blindaje defensivo en los formularios de captura y abono.
+
+### Cambios Realizados:
+- **Barra de Filtros Rápidos de Estado**:
+  - Pestañas con estilo monocromático situadas encima de la lista: *Todas (N)*, *Activas (N)* y *Liquidadas (N)* con contadores actualizados en vivo.
+  - Vistas vacías contextuales y motivacionales al seleccionar filtros sin registros (ej. felicitación de libertad de deudas si no hay activas, o mensaje de motivación en liquidadas con retorno rápido al listado activo).
+- **Estrategia Inteligente de Priorización de Pagos**:
+  - **Prioridad Avalancha (Mayor Interés)**: Detección algorítmica de la deuda activa con la tasa de interés más alta (`interestRate > 0`) acompañada del badge tenue con icono `Zap`.
+  - **Prioridad Bola de Nieve (Menor Saldo)**: Detección de la deuda activa con menor capital insoluto (evitando colisión con la de avalancha) destacada con badge tenue e icono `Sparkles`.
+- **Validaciones Defensivas y Blindaje**:
+  - En `handleSaveDebt`: rechazo explícito de saldos menores o iguales a cero (`parsedRemaining <= 0`).
+  - Atributos HTML5 `min="0.01"` y `step="0.01"` en los campos de monto total, saldo y cuota mensual, junto con `min="0"` en la tasa de interés.
+  - Validación de fondos y sobregiro activo en el modal de pagos antes de emitir la llamada API.
+- **Auditoría de Calidad**:
+  - Veredicto de Seguridad: LUZ VERDE (prevención de XSS, sanitización estricta, mitigación de race conditions en pagos).
+  - Veredicto de QA: LUZ VERDE (`tsc --noEmit` exit code 0 y build de producción Next.js Turbopack completado en 1.8s).
+
+---
+
 ## [2026-10-07] - Rediseño de Pantalla de Deudas (Fase 1: Iconografía Semántica, Saldo Monocromático y Proyección Temporal)
 
 ### Resumen

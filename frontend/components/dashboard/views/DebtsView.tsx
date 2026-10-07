@@ -20,6 +20,8 @@ import {
   Landmark,
   Users,
   Clock,
+  Zap,
+  Sparkles,
 } from "lucide-react";
 import { DebtItem, AccountItem } from "../types";
 import { useLanguage } from "@/context/LanguageContext";
@@ -31,6 +33,8 @@ import {
   payDebtApi,
   fetchAccountsApi,
 } from "@/lib/api";
+
+type DebtFilter = "all" | "active" | "liquidated";
 
 const getDebtIcon = (type: string) => {
   switch (type) {
@@ -58,6 +62,7 @@ export default function DebtsView() {
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDebt, setEditingDebt] = useState<DebtItem | null>(null);
+  const [debtFilter, setDebtFilter] = useState<DebtFilter>("all");
 
   // Modal de Pago / Abono
   const [isPayModalOpen, setIsPayModalOpen] = useState(false);
@@ -101,6 +106,40 @@ export default function DebtsView() {
   const liquidationPercent =
     totalOriginalPrincipal > 0 ? Math.round((totalAmortized / totalOriginalPrincipal) * 100) : 100;
 
+  // Filtros de estado y contadores
+  const activeDebtsCount = debts.filter((d) => d.remainingAmount > 0).length;
+  const liquidatedDebtsCount = debts.filter((d) => d.remainingAmount <= 0).length;
+
+  const displayedDebts = debts.filter((d) => {
+    if (debtFilter === "active") return d.remainingAmount > 0;
+    if (debtFilter === "liquidated") return d.remainingAmount <= 0;
+    return true;
+  });
+
+  // Estrategia Inteligente de Amortización (Bola de Nieve / Avalancha)
+  const activeDebts = debts.filter((d) => d.remainingAmount > 0);
+
+  // 1. Prioridad Avalancha: Mayor interés activo (interestRate > 0)
+  let highestRateDebtId: string | null = null;
+  const debtsWithInterest = activeDebts.filter((d) => d.interestRate > 0);
+  if (debtsWithInterest.length > 0) {
+    const maxRate = Math.max(...debtsWithInterest.map((d) => d.interestRate));
+    const highestDebt = debtsWithInterest.find((d) => d.interestRate === maxRate);
+    if (highestDebt) {
+      highestRateDebtId = highestDebt.id;
+    }
+  }
+
+  // 2. Prioridad Bola de Nieve: Menor saldo pendiente (si hay > 1 activa y no es la misma que avalancha)
+  let lowestBalanceDebtId: string | null = null;
+  if (activeDebts.length > 1) {
+    const sortedByBalance = [...activeDebts].sort((a, b) => a.remainingAmount - b.remainingAmount);
+    const lowestDebt = sortedByBalance.find((d) => d.id !== highestRateDebtId);
+    if (lowestDebt) {
+      lowestBalanceDebtId = lowestDebt.id;
+    }
+  }
+
   const openCreateModal = () => {
     setEditingDebt(null);
     setCreditor("");
@@ -141,10 +180,13 @@ export default function DebtsView() {
     e.preventDefault();
     if (!creditor || !remaining) return;
 
-    const parsedTotal = parseFloat(total) || parseFloat(remaining);
-    const parsedRemaining = parseFloat(remaining) || 0;
-    const parsedMonthly = parseFloat(monthly) || 0;
-    const parsedRate = parseFloat(rate) || 0;
+    const parsedRemaining = Math.max(0, parseFloat(remaining) || 0);
+    if (parsedRemaining <= 0) return;
+
+    const rawTotal = parseFloat(total);
+    const parsedTotal = !isNaN(rawTotal) && rawTotal > 0 ? Math.max(rawTotal, parsedRemaining) : parsedRemaining;
+    const parsedMonthly = Math.max(0, parseFloat(monthly) || 0);
+    const parsedRate = Math.max(0, parseFloat(rate) || 0);
 
     if (editingDebt) {
       const updatedItem = {
@@ -178,7 +220,6 @@ export default function DebtsView() {
     setIsModalOpen(false);
     setEditingDebt(null);
   };
-
   const handleDeleteDebt = async (id: string) => {
     if (confirm("¿Deseas eliminar este registro de deuda?")) {
       setDebts((prev) => prev.filter((d) => d.id !== id));
@@ -334,12 +375,59 @@ export default function DebtsView() {
 
       {/* Debts List */}
       <div className="space-y-4">
-        {debts.map((d) => {
+        {debts.length > 0 && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            {/* Filter Pills */}
+            <div className="flex items-center gap-1.5 bg-zinc-100/90 p-1 rounded-2xl border border-zinc-200/60 text-xs shadow-2xs w-fit">
+              <button
+                type="button"
+                onClick={() => setDebtFilter("all")}
+                className={`px-3 py-1.5 rounded-xl font-semibold transition-all cursor-pointer ${
+                  debtFilter === "all"
+                    ? "bg-white text-zinc-950 shadow-2xs"
+                    : "text-zinc-500 hover:text-zinc-900"
+                }`}
+              >
+                Todas ({debts.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setDebtFilter("active")}
+                className={`px-3 py-1.5 rounded-xl font-semibold transition-all cursor-pointer ${
+                  debtFilter === "active"
+                    ? "bg-white text-zinc-950 shadow-2xs"
+                    : "text-zinc-500 hover:text-zinc-900"
+                }`}
+              >
+                Activas ({activeDebtsCount})
+              </button>
+              <button
+                type="button"
+                onClick={() => setDebtFilter("liquidated")}
+                className={`px-3 py-1.5 rounded-xl font-semibold transition-all cursor-pointer ${
+                  debtFilter === "liquidated"
+                    ? "bg-white text-zinc-950 shadow-2xs"
+                    : "text-zinc-500 hover:text-zinc-900"
+                }`}
+              >
+                Liquidadas ({liquidatedDebtsCount})
+              </button>
+            </div>
+
+            <div className="text-[11px] text-zinc-400 font-medium">
+              Mostrando {displayedDebts.length} {displayedDebts.length === 1 ? "compromiso" : "compromisos"}
+            </div>
+          </div>
+        )}
+
+        {displayedDebts.map((d) => {
           const paidAmount = d.totalAmount - d.remainingAmount;
           const percentPaid = d.totalAmount > 0 ? Math.round((paidAmount / d.totalAmount) * 100) : 0;
           const isLiquidated = d.remainingAmount <= 0;
           const DebtIcon = getDebtIcon(d.type);
           const estimatedMonths = d.monthlyPayment > 0 ? Math.ceil(d.remainingAmount / d.monthlyPayment) : null;
+          const isAvalanche = !isLiquidated && d.id === highestRateDebtId;
+          const isSnowball = !isLiquidated && d.id === lowestBalanceDebtId;
 
           return (
             <motion.div
@@ -364,7 +452,7 @@ export default function DebtsView() {
                     )}
                   </div>
                   <div>
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <h3 className="text-sm font-bold text-zinc-950 group-hover:text-zinc-700">
                         {d.creditor}
                       </h3>
@@ -374,8 +462,20 @@ export default function DebtsView() {
                           Liquidada
                         </span>
                       )}
+                      {isAvalanche && (
+                        <span className="text-[10px] text-amber-800 bg-amber-50 border border-amber-200/60 rounded px-1.5 py-0.5 inline-flex items-center gap-1 font-medium">
+                          <Zap className="w-3 h-3 text-amber-600" />
+                          <span>Prioridad Avalancha (Mayor Interés)</span>
+                        </span>
+                      )}
+                      {isSnowball && (
+                        <span className="text-[10px] text-blue-800 bg-blue-50 border border-blue-200/60 rounded px-1.5 py-0.5 inline-flex items-center gap-1 font-medium">
+                          <Sparkles className="w-3 h-3 text-blue-600" />
+                          <span>Prioridad Bola de Nieve (Menor Saldo)</span>
+                        </span>
+                      )}
                     </div>
-                    <div className="text-[11px] text-zinc-400 flex items-center gap-2">
+                    <div className="text-[11px] text-zinc-400 flex items-center gap-2 mt-0.5">
                       <span>{d.type}</span>
                       <span>•</span>
                       <span>TIN: {d.interestRate}%</span>
@@ -441,6 +541,7 @@ export default function DebtsView() {
           );
         })}
 
+        {/* Empty state: No debts at all */}
         {debts.length === 0 && (
           <div className="py-16 text-center bg-white rounded-3xl border border-zinc-200/80 p-8 space-y-3">
             <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto border border-emerald-100">
@@ -457,6 +558,45 @@ export default function DebtsView() {
             >
               <Plus className="w-4 h-4" />
               <span>{t.debts.addDebt}</span>
+            </button>
+          </div>
+        )}
+
+        {/* Empty state contextual when filter has no items */}
+        {debts.length > 0 && displayedDebts.length === 0 && debtFilter === "liquidated" && (
+          <div className="py-12 text-center bg-white rounded-3xl border border-zinc-200/80 p-8 space-y-3">
+            <div className="w-12 h-12 rounded-2xl bg-zinc-100 text-zinc-500 flex items-center justify-center mx-auto border border-zinc-200">
+              <CheckCircle2 className="w-6 h-6 text-zinc-400" />
+            </div>
+            <div className="text-sm font-bold text-zinc-900">Aún no tienes deudas liquidadas</div>
+            <p className="text-xs text-zinc-400 max-w-sm mx-auto">
+              Aún no tienes deudas liquidadas. ¡Sigue avanzando paso a paso hacia tu paz financiera!
+            </p>
+            <button
+              type="button"
+              onClick={() => setDebtFilter("active")}
+              className="inline-flex items-center gap-1.5 py-2 px-3.5 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-xs font-semibold transition-colors cursor-pointer mt-1"
+            >
+              <span>Ver Deudas Activas ({activeDebtsCount})</span>
+            </button>
+          </div>
+        )}
+
+        {debts.length > 0 && displayedDebts.length === 0 && debtFilter === "active" && (
+          <div className="py-12 text-center bg-white rounded-3xl border border-zinc-200/80 p-8 space-y-3">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto border border-emerald-100">
+              <ShieldCheck className="w-6 h-6" />
+            </div>
+            <div className="text-sm font-bold text-zinc-900">¡Todas tus deudas están liquidadas!</div>
+            <p className="text-xs text-zinc-400 max-w-sm mx-auto">
+              No tienes ningún saldo pendiente de pago activo en este momento. ¡Felicidades por tu disciplina financiera!
+            </p>
+            <button
+              type="button"
+              onClick={() => setDebtFilter("all")}
+              className="inline-flex items-center gap-1.5 py-2 px-3.5 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-xs font-semibold transition-colors cursor-pointer mt-1"
+            >
+              <span>Ver Historial Completo ({debts.length})</span>
             </button>
           </div>
         )}
@@ -543,6 +683,7 @@ export default function DebtsView() {
                   <input
                     type="number"
                     step="0.01"
+                    min="0.01"
                     required
                     max={payingDebt.remainingAmount}
                     value={payAmount}
@@ -675,6 +816,7 @@ export default function DebtsView() {
                     <input
                       type="number"
                       step="0.01"
+                      min="0.01"
                       value={total}
                       onChange={(e) => setTotal(e.target.value)}
                       placeholder="0.00"
@@ -691,6 +833,7 @@ export default function DebtsView() {
                     <input
                       type="number"
                       step="0.01"
+                      min="0.01"
                       required
                       value={remaining}
                       onChange={(e) => setRemaining(e.target.value)}
@@ -706,6 +849,7 @@ export default function DebtsView() {
                     <input
                       type="number"
                       step="0.01"
+                      min="0.01"
                       value={monthly}
                       onChange={(e) => setMonthly(e.target.value)}
                       placeholder="0.00"
@@ -721,6 +865,7 @@ export default function DebtsView() {
                   <input
                     type="number"
                     step="0.01"
+                    min="0"
                     value={rate}
                     onChange={(e) => setRate(e.target.value)}
                     placeholder="Ej. 6.5"
