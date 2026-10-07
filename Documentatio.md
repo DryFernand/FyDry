@@ -1,5 +1,29 @@
 # Registro de Cambios y Documentación del Proyecto (Documentatio.md)
 
+## [2026-10-07] - Rediseño de Pantalla de Deudas (Fase 1: Iconografía Semántica, Saldo Monocromático y Proyección Temporal)
+
+### Resumen
+Se implementó la Fase 1 del rediseño en `DebtsView.tsx`, adoptando la paleta monocromática refinada de FyDry, eliminando los tonos rojizos estridentes en favor de negro carbón y zinc neutro. Se incorporó una iconografía semántica que identifica de inmediato el tipo de compromiso y un cálculo predictivo del tiempo estimado de liquidación para cada deuda.
+
+### Cambios Realizados:
+- **Homogeneización Cromática y Estética Monocromática**:
+  - Sustitución de `text-rose-600` en la cifra de Total Deuda Pendiente e icono `Building2` por tipografía carbón (`text-zinc-950 font-bold`) e icono en `text-zinc-500`.
+  - Icono de Cuota Mensual Comprometida unificado a `text-zinc-500`.
+  - Porcentaje de Liquidación unificado a `text-zinc-950 font-bold` con track en `bg-zinc-100` y barra dinámica en `bg-zinc-950` (`bg-emerald-600` al alcanzar el 100%).
+  - En las tarjetas individuales, el monto restante ahora se muestra en `text-zinc-950 font-bold` (o `text-emerald-600 line-through` si está liquidada).
+  - Botón "Pagar / Abonar" rediseñado con estilo sobrio y minimalista, reemplazando el icono verde saturado por `text-zinc-300`.
+- **Iconografía Semántica por Tipo de Compromiso (`getDebtIcon`)**:
+  - Mapeo diferenciado para los 7 tipos de pasivos: Hipoteca (`Home`), Préstamo Auto (`Car`), Préstamo Estudiantil (`GraduationCap`), Tarjeta de Crédito (`CreditCard`), Línea de Crédito (`Landmark`), Familiar/Amigos (`Users`) y Préstamo Personal/Default (`Building2`).
+  - Contenedor en cápsula monocromática `w-10 h-10 rounded-2xl bg-zinc-100 text-zinc-700 border border-zinc-200/60` (o `bg-emerald-50 text-emerald-700` con `CheckCircle2` cuando la deuda está liquidada).
+- **Proyección y Tiempo Estimado de Liquidación**:
+  - Cálculo dinámico de meses restantes: `estimatedMonths = Math.ceil(d.remainingAmount / d.monthlyPayment)`.
+  - Cápsula informativa con icono `Clock`: `~N meses para liquidar` (o `"Sin cuota fija definida"` si no tiene cuota asignada).
+- **Auditoría y Preservación**:
+  - Preservación íntegra de los flujos de creación, edición, eliminación y abono con débito automático a cuenta bancaria y validación de sobregiros.
+  - Veredictos aprobatorios de seguridad (sin riesgos XSS, sin inyección, sanitización) y QA (`tsc --noEmit` y `npm run build` en 0 errores).
+
+---
+
 ## [2026-10-06] - Rediseño de Pantalla de Presupuesto (Fase 2: Ritmo de Gasto Burn Rate y Filtros Rápidos)
 
 ### Resumen

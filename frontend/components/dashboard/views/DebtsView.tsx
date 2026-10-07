@@ -14,6 +14,12 @@ import {
   ArrowDownRight,
   CheckCircle2,
   Wallet,
+  Home,
+  Car,
+  GraduationCap,
+  Landmark,
+  Users,
+  Clock,
 } from "lucide-react";
 import { DebtItem, AccountItem } from "../types";
 import { useLanguage } from "@/context/LanguageContext";
@@ -25,6 +31,26 @@ import {
   payDebtApi,
   fetchAccountsApi,
 } from "@/lib/api";
+
+const getDebtIcon = (type: string) => {
+  switch (type) {
+    case "Hipoteca Vivienda":
+      return Home;
+    case "Préstamo Coche / Auto":
+      return Car;
+    case "Préstamo Estudiantil":
+      return GraduationCap;
+    case "Tarjeta de Crédito":
+      return CreditCard;
+    case "Línea de Crédito":
+      return Landmark;
+    case "Deuda Familiar / Amigos":
+      return Users;
+    case "Préstamo Personal":
+    default:
+      return Building2;
+  }
+};
 
 export default function DebtsView() {
   const { t } = useLanguage();
@@ -260,9 +286,9 @@ export default function DebtsView() {
         <div className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-zinc-500">{t.debts.totalPendingDebt}</span>
-            <Building2 className="w-4 h-4 text-rose-600" />
+            <Building2 className="w-4 h-4 text-zinc-500" />
           </div>
-          <div className="text-2xl font-bold tracking-tight text-rose-600">
+          <div className="text-2xl font-bold tracking-tight text-zinc-950">
             ${totalRemaining.toLocaleString("en-US", { minimumFractionDigits: 2 })}
           </div>
           <div className="text-[11px] text-zinc-400">
@@ -274,7 +300,7 @@ export default function DebtsView() {
         <div className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-zinc-500">{t.debts.monthlyCommitment}</span>
-            <CreditCard className="w-4 h-4 text-zinc-900" />
+            <CreditCard className="w-4 h-4 text-zinc-500" />
           </div>
           <div className="text-2xl font-bold tracking-tight text-zinc-950">
             ${totalMonthlyCommitment.toLocaleString("en-US", { minimumFractionDigits: 2 })}
@@ -287,13 +313,13 @@ export default function DebtsView() {
         <div className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs space-y-2 sm:col-span-2 lg:col-span-1">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-zinc-500">{t.debts.liquidationProgress}</span>
-            <span className="text-xs font-bold text-emerald-600">
+            <span className="text-xs font-bold text-zinc-950">
               {liquidationPercent}% {t.debts.paidTag}
             </span>
           </div>
           <div className="w-full bg-zinc-100 rounded-full h-2 overflow-hidden mt-2">
             <motion.div
-              className="bg-emerald-500 h-2 rounded-full"
+              className={`${liquidationPercent === 100 ? "bg-emerald-600" : "bg-zinc-950"} h-2 rounded-full`}
               initial={{ width: "0%" }}
               animate={{ width: `${liquidationPercent}%` }}
               transition={{ duration: 0.8, ease: "easeOut" }}
@@ -312,6 +338,8 @@ export default function DebtsView() {
           const paidAmount = d.totalAmount - d.remainingAmount;
           const percentPaid = d.totalAmount > 0 ? Math.round((paidAmount / d.totalAmount) * 100) : 0;
           const isLiquidated = d.remainingAmount <= 0;
+          const DebtIcon = getDebtIcon(d.type);
+          const estimatedMonths = d.monthlyPayment > 0 ? Math.ceil(d.remainingAmount / d.monthlyPayment) : null;
 
           return (
             <motion.div
@@ -322,15 +350,17 @@ export default function DebtsView() {
             >
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${
-                    isLiquidated ? "bg-emerald-50 text-emerald-600" : "bg-zinc-100 text-zinc-800"
-                  }`}>
+                  <div
+                    className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-xs shrink-0 border ${
+                      isLiquidated
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-200/60"
+                        : "bg-zinc-100 text-zinc-700 border-zinc-200/60"
+                    }`}
+                  >
                     {isLiquidated ? (
                       <CheckCircle2 className="w-5 h-5" />
-                    ) : d.type.includes("Tarjeta") ? (
-                      <CreditCard className="w-5 h-5" />
                     ) : (
-                      <Building2 className="w-5 h-5" />
+                      <DebtIcon className="w-5 h-5" />
                     )}
                   </div>
                   <div>
@@ -352,12 +382,22 @@ export default function DebtsView() {
                       <span>•</span>
                       <span>{d.dueDate}</span>
                     </div>
+                    {!isLiquidated && (
+                      <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-100 text-zinc-600 text-[10px] font-medium border border-zinc-200/60 mt-1.5">
+                        <Clock className="w-3 h-3 text-zinc-400" />
+                        <span>
+                          {d.monthlyPayment > 0 && estimatedMonths !== null
+                            ? `~${estimatedMonths} ${estimatedMonths === 1 ? "mes" : "meses"} para liquidar`
+                            : "Sin cuota fija definida"}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
                 <div className="flex items-center justify-between sm:justify-end gap-4">
                   <div className="text-left sm:text-right">
-                    <div className={`text-base font-bold ${isLiquidated ? "text-emerald-600" : "text-rose-600"}`}>
+                    <div className={`text-base font-bold ${isLiquidated ? "text-emerald-600 line-through" : "text-zinc-950"}`}>
                       ${d.remainingAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}{" "}
                       <span className="text-xs text-zinc-400 font-normal">
                         de ${d.totalAmount.toLocaleString()}
@@ -375,7 +415,7 @@ export default function DebtsView() {
                       onClick={(e) => openPayModal(e, d)}
                       className="flex items-center gap-1.5 py-2 px-3.5 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-semibold shadow-2xs transition-all cursor-pointer shrink-0"
                     >
-                      <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
+                      <DollarSign className="w-3.5 h-3.5 text-zinc-300" />
                       <span>Pagar / Abonar</span>
                     </button>
                   )}
@@ -390,7 +430,7 @@ export default function DebtsView() {
                 </div>
                 <div className="w-full bg-zinc-100 rounded-full h-2 overflow-hidden">
                   <motion.div
-                    className="bg-emerald-500 h-2 rounded-full"
+                    className={`${isLiquidated ? "bg-emerald-600" : "bg-zinc-950"} h-2 rounded-full`}
                     initial={{ width: "0%" }}
                     animate={{ width: `${percentPaid}%` }}
                     transition={{ duration: 0.6, ease: "easeOut" }}
