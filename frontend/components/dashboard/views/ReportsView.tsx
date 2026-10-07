@@ -93,6 +93,121 @@ export default function ReportsView() {
   const savingsRate = totalIncomes > 0 ? Math.round((Math.max(netFlow, 0) / totalIncomes) * 100) : 0;
   const totalCustody = accounts.reduce((acc, curr) => acc + curr.balance, 0);
 
+  // Métricas Patrimoniales y de Solvencia (Fase 2)
+  const totalDebts = debts.reduce((acc, curr) => acc + curr.remainingAmount, 0);
+  const totalMonthlyDebtPayment = debts.reduce((acc, curr) => acc + curr.monthlyPayment, 0);
+  const netWorth = totalCustody - totalDebts;
+  const dtiRatio = totalIncomes > 0 ? Math.round((totalMonthlyDebtPayment / totalIncomes) * 100) : 0;
+
+  // Score de Salud Financiera FyDry (0 a 100)
+  let calculatedScore = 50;
+  if (savingsRate >= 20) {
+    calculatedScore += 25;
+  } else if (savingsRate >= 10) {
+    calculatedScore += 15;
+  }
+
+  if (netFlow > 0) {
+    calculatedScore += 15;
+  } else if (netFlow < 0) {
+    calculatedScore -= 20;
+  }
+
+  if (debts.length === 0 || dtiRatio <= 30) {
+    calculatedScore += 10;
+  }
+
+  if (dtiRatio > 40) {
+    calculatedScore -= 15;
+  }
+
+  const healthScore = Math.min(100, Math.max(0, calculatedScore));
+
+  let healthLabel = "";
+  let healthTier: "A+" | "B" | "C" | "D" = "A+";
+  if (healthScore >= 80) {
+    healthLabel = language === "es" ? "Salud Financiera Excelente (A+)" : "Excellent Financial Health (A+)";
+    healthTier = "A+";
+  } else if (healthScore >= 60) {
+    healthLabel = language === "es" ? "Salud Financiera Estable (B)" : "Stable Financial Health (B)";
+    healthTier = "B";
+  } else if (healthScore >= 40) {
+    healthLabel = language === "es" ? "En Observación (C)" : "Under Observation (C)";
+    healthTier = "C";
+  } else {
+    healthLabel = language === "es" ? "Alerta Financiera (D)" : "Financial Alert (D)";
+    healthTier = "D";
+  }
+
+  // Recomendaciones analíticas personalizadas
+  const cashFlowRecommendation = (() => {
+    const isEs = language === "es";
+    const formattedNetFlow = `$${Math.abs(netFlow).toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
+    const marginPct = totalIncomes > 0 ? Math.round((Math.abs(netFlow) / totalIncomes) * 100) : 0;
+
+    if (netFlow > 0) {
+      return isEs
+        ? `Superávit operativo mensual positivo de ${formattedNetFlow} (${marginPct}% de tus ingresos). Cuentas con cobertura suficiente para amortiguar desviaciones presupuestarias y mantener solvencia operativa sin comprometer liquidez.`
+        : `Positive monthly operating surplus of ${formattedNetFlow} (${marginPct}% of revenue). Monthly coverage is adequate to absorb recurring operating obligations without straining liquidity.`;
+    }
+    if (netFlow === 0) {
+      return isEs
+        ? `Flujo de caja en punto de equilibrio ($0.00). Los ingresos cubren exactamente las salidas; se recomienda priorizar márgenes de holgura operativa para evitar déficits ante contingencias.`
+        : `Operating cash flow is at break-even ($0.00). Incomes precisely balance expenses; generating operating buffer margin is advised to prevent potential deficits.`;
+    }
+    return isEs
+      ? `Déficit operativo mensual de -${formattedNetFlow} (${marginPct}% por encima del ingreso). Las salidas superan la capacidad de generación del ciclo; audita las categorías con mayor desvío para restaurar el equilibrio de caja.`
+      : `Monthly operating deficit of -${formattedNetFlow} (${marginPct}% above income). Expenses exceed period income; reduce non-essential discretionary categories to restore cash flow equilibrium.`;
+  })();
+
+  const savingsRecommendation = (() => {
+    const isEs = language === "es";
+    if (savingsRate >= 20) {
+      return isEs
+        ? `Tasa de ahorro robusta del ${savingsRate}%, superando el estándar institucional recomendado del 20%. Mantener este ritmo permite acumular o consolidar un fondo de tranquilidad de 3 a 6 meses de gastos fijos y potenciar metas de inversión.`
+        : `Robust savings rate of ${savingsRate}%, exceeding the optimal 20% benchmark. Sustaining this pace strengthens your 3 to 6-month safety reserve and accelerates capital accumulation.`;
+    }
+    if (savingsRate >= 10) {
+      return isEs
+        ? `Tasa de ahorro moderada del ${savingsRate}%. Continúas acumulando excedentes netos, pero ajustar gastos secundarios te permitirá alcanzar el objetivo recomendado del 20% para tu fondo de tranquilidad.`
+        : `Moderate savings rate of ${savingsRate}%. You maintain net accumulation; trimming secondary expenditures will help attain the recommended 20% emergency reserve target.`;
+    }
+    if (savingsRate > 0) {
+      return isEs
+        ? `Tasa de ahorro ajustada del ${savingsRate}%. La capitalización neta es vulnerable a imprevistos; se aconseja fijar techos de gasto por categoría para expandir el margen de reserva hacia al menos el 10-15%.`
+        : `Tight savings rate of ${savingsRate}%. While net cash is positive, establishing strict category spending limits is suggested to expand your reserve margin toward 10-15%.`;
+    }
+    return isEs
+      ? `Tasa de ahorro del 0% durante el ciclo. No se ha generado excedente neto para el fondo de tranquilidad; evalúa reasignar partidas presupuestarias para reactivar la capacidad de ahorro.`
+      : `0% savings rate during this cycle. No net surplus was generated for safety reserves; consider reallocating budget categories to regain savings capacity.`;
+  })();
+
+  const debtRecommendation = (() => {
+    const isEs = language === "es";
+    const formattedDebts = `$${totalDebts.toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
+    const formattedNetWorth = `$${netWorth.toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
+    const formattedPayment = `$${totalMonthlyDebtPayment.toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
+
+    if (debts.length === 0) {
+      return isEs
+        ? `Sin pasivos ni deudas activas registradas (Carga DTI: 0%). Tu patrimonio neto operativo (${formattedNetWorth}) se encuentra al 100% libre de gravámenes, brindando máxima solvencia y autonomía financiera.`
+        : `Zero active liabilities registered (DTI ratio: 0%). Your net operating worth (${formattedNetWorth}) is 100% unencumbered, offering prime solvency and financial autonomy.`;
+    }
+    if (dtiRatio <= 30) {
+      return isEs
+        ? `Carga financiera de deuda (DTI) controlada al ${dtiRatio}% del ingreso mensual (saldo pendiente total: ${formattedDebts}, cuotas: ${formattedPayment}/mes). Tu nivel de apalancamiento se mantiene dentro de los límites saludables recomendados (≤ 30%).`
+        : `Debt-to-income (DTI) ratio well-managed at ${dtiRatio}% of monthly income (total remaining debt: ${formattedDebts}, installments: ${formattedPayment}/mo). Leverage remains strictly within healthy recommended guidelines (≤ 30%).`;
+    }
+    if (dtiRatio <= 40) {
+      return isEs
+        ? `Carga financiera de deuda (DTI) moderada al ${dtiRatio}% del ingreso (cuotas mensuales acumuladas de ${formattedPayment}). Mantén puntualidad en amortizaciones y evita contraer nuevos pasivos hasta reducir este ratio bajo el 30%.`
+        : `Moderate debt burden (DTI) at ${dtiRatio}% of income (combined monthly debt payments of ${formattedPayment}). Keep timely payments and avoid taking on new liabilities until this ratio drops below 30%.`;
+    }
+    return isEs
+      ? `Alerta en carga financiera (DTI del ${dtiRatio}%). Las cuotas de amortización (${formattedPayment}/mes) comprometen más del 40% de tus ingresos. Se recomienda implementar un plan acelerado de reducción de deudas (método bola de nieve o avalancha) para mitigar el riesgo de liquidez.`
+      : `Debt burden alert (DTI of ${dtiRatio}%). Monthly debt installments (${formattedPayment}/mo) consume over 40% of income. Implementing an accelerated debt payoff plan (snowball or avalanche method) is strongly advised.`;
+  })();
+
   // Desglose de gastos por categoría
   const expensesByCategory: { [cat: string]: number } = {};
   filteredExpenses.forEach((e) => {
@@ -283,13 +398,15 @@ export default function ReportsView() {
             <p className="text-xs text-zinc-500">{t.reports.section1Desc}</p>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 print:grid-cols-3 gap-3">
             <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200/80 space-y-1">
               <span className="text-[11px] font-semibold text-zinc-500">{t.reports.totalIncomes}</span>
               <div className="text-lg font-bold text-zinc-950">
                 ${totalIncomes.toLocaleString("en-US", { minimumFractionDigits: 2 })}
               </div>
-              <div className="text-[10px] text-zinc-500 font-medium">{filteredIncomes.length} fuentes registradas</div>
+              <div className="text-[10px] text-zinc-500 font-medium">
+                {language === "es" ? `${filteredIncomes.length} fuentes registradas` : `${filteredIncomes.length} recorded sources`}
+              </div>
             </div>
 
             <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200/80 space-y-1">
@@ -298,7 +415,7 @@ export default function ReportsView() {
                 ${totalExpenses.toLocaleString("en-US", { minimumFractionDigits: 2 })}
               </div>
               <div className="text-[10px] text-zinc-500">
-                {totalIncomes > 0 ? Math.round((totalExpenses / totalIncomes) * 100) : 0}% del ingreso
+                {totalIncomes > 0 ? Math.round((totalExpenses / totalIncomes) * 100) : 0}% {language === "es" ? "del ingreso" : "of income"}
               </div>
             </div>
 
@@ -312,14 +429,42 @@ export default function ReportsView() {
                 ${netFlow.toLocaleString("en-US", { minimumFractionDigits: 2 })}
               </div>
               <div className="text-[10px] text-zinc-500 font-semibold">
-                {netFlow >= 0 ? "Superávit Positivo" : "Déficit Operativo"}
+                {netFlow >= 0
+                  ? (language === "es" ? "Superávit Positivo" : "Positive Surplus")
+                  : (language === "es" ? "Déficit Operativo" : "Operating Deficit")}
               </div>
             </div>
 
             <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200/80 space-y-1">
               <span className="text-[11px] font-semibold text-zinc-500">{t.reports.savingsRate}</span>
               <div className="text-lg font-bold text-zinc-950">{savingsRate}%</div>
-              <div className="text-[10px] text-zinc-500 font-medium">Margen neto</div>
+              <div className="text-[10px] text-zinc-500 font-medium">
+                {language === "es" ? "Margen neto" : "Net margin"}
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200/80 space-y-1">
+              <span className="text-[11px] font-semibold text-zinc-500">
+                {language === "es" ? "Patrimonio Neto" : "Net Worth"}
+              </span>
+              <div className="text-lg font-bold text-zinc-950">
+                ${netWorth.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+              </div>
+              <div className="text-[10px] text-zinc-500 font-medium">
+                {language === "es" ? "Activos Líquidos - Deudas" : "Liquid Assets - Debts"}
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200/80 space-y-1">
+              <span className="text-[11px] font-semibold text-zinc-500">
+                {language === "es" ? "Carga Financiera (DTI)" : "Debt Burden (DTI)"}
+              </span>
+              <div className="text-lg font-bold text-zinc-950">
+                {dtiRatio}%
+              </div>
+              <div className="text-[10px] text-zinc-500 font-medium">
+                {language === "es" ? "Cuotas de Deuda / Ingreso" : "Debt Payments / Income"}
+              </div>
             </div>
           </div>
         </div>
@@ -484,27 +629,78 @@ export default function ReportsView() {
         </div>
 
         {/* SECTION 5: Diagnóstico y Recomendaciones FyDry */}
-        <div className="report-section avoid-break space-y-3 pt-2">
+        <div className="report-section avoid-break space-y-4 pt-2">
           <div className="border-b border-zinc-100 pb-2">
             <h2 className="text-sm font-bold text-zinc-950 uppercase tracking-wide">
               {t.reports.section5Title}
             </h2>
           </div>
 
-          <div className="recommendations-box p-4 rounded-2xl bg-zinc-50 border border-zinc-200/80 space-y-2 text-xs text-zinc-700">
-            <div className="flex items-start gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 mt-1.5 shrink-0" />
-              <span>
-                {netFlow >= 0
-                  ? `Superávit operativo mensual positivo de $${netFlow.toFixed(2)}. Excelente control presupuestario.`
-                  : `Atención: Déficit mensual de -$${Math.abs(netFlow).toFixed(2)}. Revisa las categorías con mayor consumo.`}
+          {/* Badge o cápsula destacada del Score de Salud Financiera */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-zinc-950 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-zinc-900 shadow-xs">
+            <div className="flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-white/10 text-white flex items-center justify-center font-black text-sm tracking-tight border border-white/15 shrink-0">
+                {healthTier}
+              </div>
+              <div className="space-y-0.5">
+                <div className="text-[10px] uppercase font-semibold text-zinc-400 tracking-wider">
+                  {language === "es" ? "Diagnóstico Algorítmico FyDry" : "FyDry Algorithmic Diagnostic"}
+                </div>
+                <div className="text-sm sm:text-base font-bold text-white tracking-tight">
+                  {language === "es" ? "Índice de Salud Financiera" : "Financial Health Score"}: {healthScore} / 100 · {healthLabel}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
+              <div className="w-28 sm:w-36 h-2 bg-zinc-800 rounded-full overflow-hidden border border-zinc-700/50">
+                <div
+                  className="h-full bg-white rounded-full transition-all duration-300"
+                  style={{ width: `${healthScore}%` }}
+                />
+              </div>
+              <span className="text-xs font-mono font-bold text-zinc-300 min-w-8 text-right">
+                {healthScore}%
               </span>
             </div>
-            <div className="flex items-start gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 mt-1.5 shrink-0" />
-              <span>
-                Tasa de ahorro actual del {savingsRate}%. Mantén la disciplina financiera para robustecer tu fondo de emergencia.
-              </span>
+          </div>
+
+          {/* Tres bullets de recomendación financiera personalizados y analíticos */}
+          <div className="recommendations-box p-4 sm:p-5 rounded-2xl bg-zinc-50 border border-zinc-200/80 space-y-3.5 text-xs text-zinc-700">
+            <div className="flex items-start gap-3">
+              <span className="w-1.5 h-1.5 rounded-full bg-zinc-950 mt-1.5 shrink-0" />
+              <div className="space-y-0.5">
+                <div className="font-bold text-zinc-950">
+                  {language === "es" ? "1. Flujo de caja y cobertura mensual" : "1. Cash flow & monthly coverage"}
+                </div>
+                <p className="text-zinc-600 leading-relaxed">
+                  {cashFlowRecommendation}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3">
+              <span className="w-1.5 h-1.5 rounded-full bg-zinc-950 mt-1.5 shrink-0" />
+              <div className="space-y-0.5">
+                <div className="font-bold text-zinc-950">
+                  {language === "es" ? "2. Tasa de ahorro y proyección del fondo de tranquilidad" : "2. Savings rate & emergency reserve projection"}
+                </div>
+                <p className="text-zinc-600 leading-relaxed">
+                  {savingsRecommendation}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3">
+              <span className="w-1.5 h-1.5 rounded-full bg-zinc-950 mt-1.5 shrink-0" />
+              <div className="space-y-0.5">
+                <div className="font-bold text-zinc-950">
+                  {language === "es" ? "3. Nivel de endeudamiento y solvencia" : "3. Debt burden & solvency"}
+                </div>
+                <p className="text-zinc-600 leading-relaxed">
+                  {debtRecommendation}
+                </p>
+              </div>
             </div>
           </div>
         </div>

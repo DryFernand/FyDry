@@ -1,5 +1,27 @@
 # Registro de Cambios y Documentación del Proyecto (Documentatio.md)
 
+## [2026-10-07] - Rediseño de Pantalla de Reportes (Fase 2: Métricas Patrimoniales, Score de Salud Financiera y Diagnóstico)
+
+### Resumen
+Se implementó la Fase 2 del módulo de reportes en `ReportsView.tsx`, convirtiendo el informe formal en un estado financiero ejecutivo completo. Se expandió el resumen a 6 indicadores clave (incorporando Patrimonio Neto Operativo y Carga Financiera DTI), y se introdujo la Sección de Diagnóstico con el algoritmo del Índice de Salud Financiera FyDry (0 a 100), acompañado de clasificación por niveles (A+, B, C, D) y tres recomendaciones analíticas personalizadas.
+
+### Cambios Realizados:
+- **Métricas Patrimoniales y de Solvencia**:
+  - Incorporación del cómputo de `totalDebts`, `totalMonthlyDebtPayment`, `netWorth` (Patrimonio Neto: Activos Líquidos - Deudas Pendientes) y `dtiRatio` (Debt-to-Income: Cuotas de Deuda / Ingresos).
+  - Expansión de la Sección 1 a 6 tarjetas ejecutivas: Total Ingresos, Total Gastos, Flujo Neto, Tasa de Ahorro, Patrimonio Neto y Carga Financiera DTI.
+- **Índice de Salud Financiera FyDry (Sección 5)**:
+  - Algoritmo ponderado de scoring (0 a 100) evaluando tasa de ahorro, margen operativo de flujo y ratio de endeudamiento, acotado con clamping matemático estricto.
+  - Clasificación por categorías con badge de alto contraste (`A+`, `B`, `C`, `D`) y barra visual de progreso de salud.
+  - 3 bloques de recomendaciones financieras dinámicas y adaptadas al estado real del usuario:
+    1. Diagnóstico de flujo de caja y cobertura mensual.
+    2. Proyección de tasa de ahorro hacia el fondo de tranquilidad (3-6 meses).
+    3. Análisis de solvencia, apalancamiento y sugerencias de amortización acelerada.
+- **Auditoría de Calidad**:
+  - Blindaje matemático contra divisiones por cero (`totalIncomes > 0`) y desbordamientos numéricos.
+  - Veredictos aprobatorios de Seguridad (LUZ VERDE) y QA (LUZ VERDE, `tsc --noEmit` exit code 0 y build Next.js Turbopack en 1.4s).
+
+---
+
 ## [2026-10-07] - Rediseño de Pantalla de Reportes (Fase 1: Navegador de Ciclos Históricos, Homogeneización y Barras de Distribución)
 
 ### Resumen
