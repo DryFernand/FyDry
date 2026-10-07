@@ -1,5 +1,26 @@
 # Registro de Cambios y Documentación del Proyecto (Documentatio.md)
 
+## [2026-10-07] - Rediseño de Pantalla de Reportes (Fase 1: Navegador de Ciclos Históricos, Homogeneización y Barras de Distribución)
+
+### Resumen
+Se implementó la Fase 1 del módulo de reportes en `ReportsView.tsx`, permitiendo por primera vez auditar y exportar estados financieros de cualquier mes o ciclo histórico configurable (`budgetResetDay`). Asimismo, se aplicó la homogeneización estética monocromática en tablas y resúmenes ejecutivos, complementado con mini-barras visuales de peso porcentual en el desglose de gastos.
+
+### Cambios Realizados:
+- **Navegador de Meses / Ciclos Históricos**:
+  - Estado `selectedDate` y controles interactivos `<` `Ciclo Seleccionado` `>` que recalculan dinámicamente el rango del ciclo (`cycleRange`) y su etiqueta formal (`cycleLabel`).
+  - Selector de alcance con alternancia fluida entre *"Ciclo Seleccionado"* e *"Historial Completo"*.
+  - Filtrado reactivo de transacciones (`filteredIncomes`, `filteredExpenses`) según las fechas de inicio y fin del ciclo seleccionado.
+- **Homogeneización Monocromática**:
+  - Unificación de las tarjetas del resumen ejecutivo a contenedores sobrios en `bg-zinc-50 border border-zinc-200/80` con cifras en negro carbón (`text-zinc-950 font-bold`).
+  - En la tabla de deudas y pasivos, sustitución de colores chillones por tipografía monocromática (`text-zinc-950 font-bold`).
+- **Mini-barras de Distribución en Desglose de Gastos**:
+  - Incorporación en cada categoría de gasto de una mini-barra de progreso visual (`bg-zinc-950 h-full rounded-full`) alineada con el porcentaje relativo `{percent}%`.
+- **Auditoría de Calidad y Preservación**:
+  - Mantenimiento íntegro de la exportación a PDF (`handleExportPDF` / `window.print()`), reglas `@media print` y sincronización mediante `fydry_storage_updated`.
+  - Veredictos aprobatorios de seguridad (sin vectores XSS, sin inyección CSS) y QA (`tsc --noEmit` y `npm run build` en 0 errores).
+
+---
+
 ## [2026-10-07] - Rediseño de Pantalla de Deudas (Fase 2: Filtros de Estado, Estrategias Avalancha/Bola de Nieve y Validaciones)
 
 ### Resumen

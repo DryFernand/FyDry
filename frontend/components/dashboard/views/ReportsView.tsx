@@ -6,6 +6,8 @@ import {
   FileText,
   Calendar,
   Layers,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { AccountItem, TransactionItem, DebtItem } from "../types";
 import { useLanguage } from "@/context/LanguageContext";
@@ -26,6 +28,19 @@ export default function ReportsView() {
   const [debts, setDebts] = useState<DebtItem[]>([]);
   const [budgetResetDay, setBudgetResetDay] = useState<number>(1);
   const [reportScope, setReportScope] = useState<"current_cycle" | "all_time">("current_cycle");
+  const [selectedDate, setSelectedDate] = useState(() => new Date());
+
+  const handlePrevMonth = () => {
+    setSelectedDate((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+  };
+
+  const handleNextMonth = () => {
+    setSelectedDate((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+  };
+
+  const handleCurrentMonth = () => {
+    setSelectedDate(new Date());
+  };
 
   const loadData = async () => {
     const [accData, expData, incData, debData, settingsData] = await Promise.all([
@@ -51,13 +66,17 @@ export default function ReportsView() {
   }, []);
 
   // Rango del ciclo mensual activo
-  const cycleRange = getCycleRange(new Date(), budgetResetDay);
+  const cycleRange = getCycleRange(selectedDate, budgetResetDay);
   const cycleLabel = formatCycleLabel(
     cycleRange.startDate,
     cycleRange.endDate,
     budgetResetDay,
     (language as "es" | "en") || "es"
   );
+
+  const isCurrentCycle =
+    selectedDate.getFullYear() === new Date().getFullYear() &&
+    selectedDate.getMonth() === new Date().getMonth();
 
   // Filtrar transacciones según el alcance seleccionado
   const filteredIncomes = reportScope === "current_cycle"
@@ -141,7 +160,7 @@ export default function ReportsView() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          {/* Selector de Alcance del Reporte: Mes Actual vs Historial Completo */}
+          {/* Selector de Alcance del Reporte: Ciclo Seleccionado vs Historial Completo */}
           <div className="flex items-center bg-zinc-100/90 rounded-2xl p-1 border border-zinc-200/60 shadow-2xs">
             <button
               type="button"
@@ -152,9 +171,48 @@ export default function ReportsView() {
                   : "text-zinc-500 hover:text-zinc-900"
               }`}
             >
-              <Calendar className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Mes Actual ({cycleLabel})</span>
+              <Calendar className="w-3.5 h-3.5 text-zinc-950" />
+              <span>
+                {language === "es"
+                  ? `Ciclo Seleccionado (${cycleLabel})`
+                  : `Selected Cycle (${cycleLabel})`}
+              </span>
             </button>
+
+            {reportScope === "current_cycle" && (
+              <div className="flex items-center gap-0.5 px-1 border-l border-zinc-200/80 ml-0.5">
+                <button
+                  type="button"
+                  onClick={handlePrevMonth}
+                  title={language === "es" ? "Mes anterior" : "Previous month"}
+                  aria-label="Previous month"
+                  className="p-1 rounded-lg text-zinc-600 hover:text-zinc-950 hover:bg-zinc-200/70 transition-all cursor-pointer"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCurrentMonth}
+                  title={language === "es" ? "Volver al ciclo actual" : "Current cycle"}
+                  className={`px-1.5 py-0.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
+                    isCurrentCycle
+                      ? "text-zinc-950 font-bold bg-white/80"
+                      : "text-zinc-500 hover:text-zinc-950 hover:bg-zinc-200/70"
+                  }`}
+                >
+                  {language === "es" ? "Actual" : "Current"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleNextMonth}
+                  title={language === "es" ? "Mes siguiente" : "Next month"}
+                  aria-label="Next month"
+                  className="p-1 rounded-lg text-zinc-600 hover:text-zinc-950 hover:bg-zinc-200/70 transition-all cursor-pointer"
+                >
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
 
             <button
               type="button"
@@ -166,7 +224,7 @@ export default function ReportsView() {
               }`}
             >
               <Layers className="w-3.5 h-3.5 text-zinc-700" />
-              <span>Historial Completo</span>
+              <span>{language === "es" ? "Historial Completo" : "Full History"}</span>
             </button>
           </div>
 
@@ -231,7 +289,7 @@ export default function ReportsView() {
               <div className="text-lg font-bold text-zinc-950">
                 ${totalIncomes.toLocaleString("en-US", { minimumFractionDigits: 2 })}
               </div>
-              <div className="text-[10px] text-zinc-500 font-medium">{incomes.length} fuentes registradas</div>
+              <div className="text-[10px] text-zinc-500 font-medium">{filteredIncomes.length} fuentes registradas</div>
             </div>
 
             <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200/80 space-y-1">
@@ -244,16 +302,16 @@ export default function ReportsView() {
               </div>
             </div>
 
-            <div className="p-4 rounded-2xl bg-emerald-50/50 border border-emerald-200/80 space-y-1">
-              <span className="text-[11px] font-semibold text-emerald-800">{t.reports.netOperatingFlow}</span>
+            <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200/80 space-y-1">
+              <span className="text-[11px] font-semibold text-zinc-500">{t.reports.netOperatingFlow}</span>
               <div
                 className={`text-lg font-bold ${
-                  netFlow >= 0 ? "text-emerald-700" : "text-rose-700"
+                  netFlow < 0 ? "text-rose-600" : "text-zinc-950"
                 }`}
               >
                 ${netFlow.toLocaleString("en-US", { minimumFractionDigits: 2 })}
               </div>
-              <div className="text-[10px] text-emerald-600 font-semibold">
+              <div className="text-[10px] text-zinc-500 font-semibold">
                 {netFlow >= 0 ? "Superávit Positivo" : "Déficit Operativo"}
               </div>
             </div>
@@ -349,7 +407,15 @@ export default function ReportsView() {
                       <td className="py-2.5 px-3 text-right font-semibold text-zinc-900">
                         ${amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
                       </td>
-                      <td className="py-2.5 px-3 text-right font-medium text-zinc-500">{percent}%</td>
+                      <td className="py-2.5 px-3 text-right font-medium text-zinc-500 whitespace-nowrap">
+                        <span>{percent}%</span>
+                        <div className="w-16 h-1.5 bg-zinc-100 rounded-full overflow-hidden inline-block ml-2 align-middle">
+                          <div
+                            className="bg-zinc-950 h-full rounded-full"
+                            style={{ width: `${percent}%` }}
+                          />
+                        </div>
+                      </td>
                     </tr>
                   );
                 })}
@@ -395,13 +461,13 @@ export default function ReportsView() {
                       <td className="py-2.5 px-3 text-right font-medium text-zinc-600">
                         ${d.totalAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
                       </td>
-                      <td className="py-2.5 px-3 text-right font-bold text-rose-600">
+                      <td className="py-2.5 px-3 text-right font-bold text-zinc-950">
                         ${d.remainingAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
                       </td>
                       <td className="py-2.5 px-3 text-right font-semibold text-zinc-800">
                         ${d.monthlyPayment}/mes
                       </td>
-                      <td className="py-2.5 px-3 text-right font-bold text-emerald-600">{percent}%</td>
+                      <td className="py-2.5 px-3 text-right font-bold text-zinc-950">{percent}%</td>
                     </tr>
                   );
                 })}
