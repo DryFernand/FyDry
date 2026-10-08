@@ -9,7 +9,10 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  themeColor: "#09090b",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#09090b" },
+  ],
 };
 
 const geistSans = Geist({
@@ -45,6 +48,12 @@ export const metadata: Metadata = {
   authors: [{ name: "FyDry Team" }],
   creator: "FyDry",
   publisher: "FyDry Inc.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "FyDry",
+  },
   icons: {
     icon: [
       {
@@ -72,7 +81,14 @@ export const metadata: Metadata = {
     ],
     apple: [
       {
-        url: "/logo_negro.png",
+        url: "/logo_negro_fondo_blanco.png",
+        media: "(prefers-color-scheme: light)",
+        sizes: "180x180",
+        type: "image/png",
+      },
+      {
+        url: "/logo_blanco_fondo_negro.png",
+        media: "(prefers-color-scheme: dark)",
         sizes: "180x180",
         type: "image/png",
       },
@@ -138,26 +154,40 @@ export default function RootLayout({
   return (
     <html lang="es" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <head>
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="FyDry" />
+        <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+        <meta name="theme-color" content="#09090b" media="(prefers-color-scheme: dark)" />
         <link id="dynamic-favicon" rel="icon" href="/logo_negro.png" type="image/png" media="(prefers-color-scheme: light)" />
         <link rel="icon" href="/logo_blanco.png" type="image/png" media="(prefers-color-scheme: dark)" />
-        <link rel="apple-touch-icon" href="/logo_negro.png" />
+        <link id="apple-touch-icon" rel="apple-touch-icon" href="/logo_negro_fondo_blanco.png" media="(prefers-color-scheme: light)" />
+        <link rel="apple-touch-icon" href="/logo_blanco_fondo_negro.png" media="(prefers-color-scheme: dark)" />
+        <link id="app-manifest" rel="manifest" href="/manifest.json" />
         <script
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
                 try {
                   var mql = window.matchMedia('(prefers-color-scheme: dark)');
-                  function updateFavicon(isDark) {
+                  function updateThemeAssets(isDark) {
+                    // Favicon pestaña
                     var link = document.getElementById('dynamic-favicon') || document.querySelector("link[rel*='icon']");
-                    if (link) {
-                      link.href = isDark ? '/logo_blanco.png' : '/logo_negro.png';
-                    }
+                    if (link) link.href = isDark ? '/logo_blanco.png' : '/logo_negro.png';
+
+                    // Icono de app para teléfonos (iOS Safari)
+                    var appleLink = document.getElementById('apple-touch-icon') || document.querySelector("link[rel='apple-touch-icon']");
+                    if (appleLink) appleLink.href = isDark ? '/logo_blanco_fondo_negro.png' : '/logo_negro_fondo_blanco.png';
+
+                    // Manifest para Android / PWA
+                    var manifestLink = document.getElementById('app-manifest') || document.querySelector("link[rel='manifest']");
+                    if (manifestLink) manifestLink.href = isDark ? '/manifest.dark.json' : '/manifest.light.json';
                   }
-                  updateFavicon(mql.matches);
+                  updateThemeAssets(mql.matches);
                   if (mql.addEventListener) {
-                    mql.addEventListener('change', function(e) { updateFavicon(e.matches); });
+                    mql.addEventListener('change', function(e) { updateThemeAssets(e.matches); });
                   } else if (mql.addListener) {
-                    mql.addListener(function(e) { updateFavicon(e.matches); });
+                    mql.addListener(function(e) { updateThemeAssets(e.matches); });
                   }
                 } catch(e) {}
               })();

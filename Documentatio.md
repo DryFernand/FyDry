@@ -1327,3 +1327,26 @@ Se integró el cómputo automático de los movimientos/traspasos entre cuentas c
 - **Validaciones:**
   - `security-agent`: **LUZ VERDE** (Script inline seguro con IIFE estatica, sin inyecciones dinamicas ni fuga de datos).
   - `qa-agent`: **LUZ VERDE** (`npx tsc --noEmit` exit code 0, `npm run build` Turbopack exit code 0).
+
+
+## [2026-10-08] - Soporte de Instalacion en Pantalla de Inicio Movil (PWA) por Tema
+
+### Modulo: Frontend (Mobile PWA & App Icons)
+- **Archivos afectados:**
+  - `frontend/app/layout.tsx`
+  - `frontend/public/manifest.light.json` (Nuevo)
+  - `frontend/public/manifest.dark.json` (Nuevo)
+  - `frontend/public/manifest.json` (Nuevo)
+- **Cambios realizados:**
+  - **Soporte de Instalacion en Telefonos Moviles (iOS & Android):**
+    - Cuando el dispositivo esta en **modo oscuro**: utiliza `/logo_blanco_fondo_negro.png` como icono de la app agregada al inicio.
+    - Cuando el dispositivo esta en **modo claro**: utiliza `/logo_negro_fondo_blanco.png` como icono de la app agregada al inicio.
+  - **Apple Touch Icon (iOS Safari):**
+    - Declarado en `metadata.icons.apple` y etiquetas `<link rel="apple-touch-icon">` con media queries para modo claro y oscuro.
+  - **Web App Manifests (Android & PWA):**
+    - Creados `manifest.light.json` (tema y fondo blanco, icono `logo_negro_fondo_blanco.png`) y `manifest.dark.json` (tema y fondo oscuro `#09090b`, icono `logo_blanco_fondo_negro.png`) con propositos `any maskable`.
+  - **Conmutacion Dinamica en `<head>`:**
+    - Script inline sincronizado para alternar en tiempo real el favicon de pestana (`logo_blanco.png` / `logo_negro.png`), el icono de app movil (`logo_blanco_fondo_negro.png` / `logo_negro_fondo_blanco.png`) y el manifiesto.
+- **Validaciones:**
+  - `security-agent`: **LUZ VERDE** (Manifests estaticos seguros, rutas locales y sin fuga de datos).
+  - `qa-agent`: **LUZ VERDE** (`npx tsc --noEmit` exit code 0, `npm run build` Turbopack exit code 0).
