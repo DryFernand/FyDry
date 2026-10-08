@@ -1,5 +1,30 @@
 # Registro de Cambios y Documentación del Proyecto (Documentatio.md)
 
+## [2026-10-08] - Rediseño de Pantalla de Gastos (Fase 2: Métricas Analíticas del Ciclo, Filtro Rápido por Cuenta Debitada y Previsualización de Saldo)
+
+### Resumen
+Se completó la implementación de la Fase 2 en `ExpensesView.tsx` para FyDry Frontend. Se enriqueció el tablero analítico superior expandiendo a 4 tarjetas ejecutivas (incorporando el Gasto Promedio Diario según los días transcurridos del ciclo y la Categoría de Mayor Consumo con su peso porcentual), se añadió un filtro directo para auditar gastos por cuenta bancaria debitada, y se integró un simulador contable dentro del modal de gastos que proyecta el saldo resultante y previene sobregiros antes de guardar.
+
+### Cambios Realizados:
+- **Métricas Analíticas del Ciclo (Grilla Responsive de 4 Tarjetas)**:
+  - **Tarjeta 1 - Total Gastado en Ciclo**: `$totalSpentSelectedCycle` con desglose exacto de transacciones del ciclo actual vs historial global.
+  - **Tarjeta 2 - Gasto Promedio Diario (`dailyAverageSpent`)**: Cálculo reactivo basado en los días transcurridos dentro del ciclo (`elapsedDays`), contemplando días transcurridos en el ciclo vigente y duración total en ciclos históricos pasados.
+  - **Tarjeta 3 - Categoría de Mayor Consumo (`topCategory`)**: Detección dinámica de la categoría con mayor impacto financiero en el ciclo, mostrando su icono semántico (`getCategoryIcon`), monto gastado y porcentaje de concentración (`${percentage}% del ciclo`).
+  - **Tarjeta 4 - Historial Total Acumulado**: Total global consolidado con insignia integrada del día de corte mensual (`Reinicio: Día ${budgetResetDay}`).
+- **Filtro Rápido por Cuenta Debitada**:
+  - Selector desplegable con icono de billetera (`Wallet`) junto a la barra de búsqueda y filtros de categoría.
+  - Permite alternar entre *"Todas las Cuentas"* y cuentas específicas del usuario (`acc.name`), evaluado concurrentemente en `filteredExpenses`.
+- **Previsualización de Impacto en Saldo en el Modal de Gastos**:
+  - Simulador contable reactivo (`accountImpactPreview`) que evalúa en tiempo real el saldo de la cuenta elegida, compensando el monto previo si se está editando un gasto existente.
+  - Proyección de *"Saldo disponible actual"* y *"Saldo tras este gasto"*.
+  - Alerta preventiva ámbar si el gasto utiliza cupo de sobregiro autorizado (`⚠️ Usará $X de margen de sobregiro`).
+  - Alerta crítica roja de bloqueo si el gasto supera el saldo disponible y sobregiro total (`⛔ Excede fondos disponibles`).
+- **Auditoría de Calidad y Ciclo de Vida**:
+  - Veredicto de Seguridad: LUZ VERDE (blindaje contra división por cero en días transcurridos o porcentajes, prevención de fugas de datos y preservación de sanitización de inputs).
+  - Veredicto de QA: LUZ VERDE (`npx tsc --noEmit` exit code 0 y build Next.js Turbopack completado con éxito).
+
+---
+
 ## [2026-10-08] - Rediseño de Pantalla de Gastos (Fase 1: Iconografía Semántica, Navegador de Ciclos Históricos y Blindaje de Formularios)
 
 ### Resumen

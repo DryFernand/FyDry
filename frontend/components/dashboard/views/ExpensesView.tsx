@@ -40,6 +40,7 @@ import {
   RotateCcw,
   Calendar,
   Layers,
+  Wallet,
   LucideIcon,
 } from "lucide-react";
 import { TransactionItem, AccountItem } from "../types";
@@ -106,6 +107,7 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
   const [budgetResetDay, setBudgetResetDay] = useState<number>(1);
   const [selectedCategory, setSelectedCategory] = useState("Todos");
+  const [selectedAccountFilter, setSelectedAccountFilter] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<TransactionItem | null>(null);
@@ -216,6 +218,48 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
     return expenses.reduce((acc, curr) => acc + curr.amount, 0);
   }, [expenses]);
 
+  // Gasto promedio diario del ciclo
+  const { elapsedDays, dailyAverageSpent } = useMemo(() => {
+    const now = new Date();
+    const startMs = cycleRange.startDate.getTime();
+    const endMs = cycleRange.endDate.getTime();
+    const totalCycleDays = Math.max(1, Math.ceil((endMs - startMs) / (1000 * 60 * 60 * 24)));
+
+    const isCurrent = isCurrentCycle();
+    let days = totalCycleDays;
+    if (isCurrent) {
+      const diff = Math.max(0, now.getTime() - startMs);
+      days = Math.max(1, Math.min(totalCycleDays, Math.floor(diff / (1000 * 60 * 60 * 24)) + 1));
+    }
+    const avg = days > 0 ? totalSpentSelectedCycle / days : 0;
+    return { elapsedDays: days, dailyAverageSpent: avg };
+  }, [cycleRange, budgetResetDay, totalSpentSelectedCycle]);
+
+  // Categoría de mayor consumo del ciclo
+  const topCategoryInfo = useMemo(() => {
+    if (cycleExpenses.length === 0 || totalSpentSelectedCycle <= 0) {
+      return null;
+    }
+    const categoryTotals: Record<string, number> = {};
+    for (const exp of cycleExpenses) {
+      categoryTotals[exp.category] = (categoryTotals[exp.category] || 0) + exp.amount;
+    }
+    let maxCat = "";
+    let maxAmount = 0;
+    for (const [categoryName, amt] of Object.entries(categoryTotals)) {
+      if (amt > maxAmount) {
+        maxAmount = amt;
+        maxCat = categoryName;
+      }
+    }
+    const percentage = totalSpentSelectedCycle > 0 ? (maxAmount / totalSpentSelectedCycle) * 100 : 0;
+    return {
+      category: maxCat,
+      amount: maxAmount,
+      percentage: Math.round(percentage),
+    };
+  }, [cycleExpenses, totalSpentSelectedCycle]);
+
   // Base de gastos según el alcance actual ("cycle" o "all")
   const baseExpenses = useMemo(() => {
     return scope === "cycle" ? cycleExpenses : expenses;
@@ -234,18 +278,65 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
     }
   }, [activeExpenseCategories, selectedCategory, language]);
 
-  // Lista final filtrada por categoría y búsqueda
+  // Lista final filtrada por categoría, cuenta debitada y búsqueda
   const filteredExpenses = useMemo(() => {
     return baseExpenses.filter((e) => {
-      const isAll = selectedCategory === "Todos" || selectedCategory === "All";
-      const matchesCat = isAll || e.category.toLowerCase() === selectedCategory.toLowerCase();
+      const isAllCat = selectedCategory === "Todos" || selectedCategory === "All";
+      const matchesCat = isAllCat || e.category.toLowerCase() === selectedCategory.toLowerCase();
+      const matchesAccount =
+        selectedAccountFilter === "all" ||
+        e.account.toLowerCase() === selectedAccountFilter.toLowerCase();
       const matchesSearch =
         e.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
         e.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
         e.account.toLowerCase().includes(searchTerm.toLowerCase());
-      return matchesCat && matchesSearch;
+      return matchesCat && matchesAccount && matchesSearch;
     });
-  }, [baseExpenses, selectedCategory, searchTerm]);
+  }, [baseExpenses, selectedCategory, selectedAccountFilter, searchTerm]);
+
+  // Previsualización contable en modal en tiempo real
+  const selectedModalAccount = useMemo(() => {
+    const accountName = selectedAccountId || (accounts.length > 0 ? accounts[0].name : "Efectivo");
+    return (
+      accounts.find((a) => a.name === accountName || a.id === selectedAccountId) ||
+      (accounts.length > 0 ? accounts[0] : null)
+    );
+  }, [accounts, selectedAccountId]);
+
+  const numAmountPreview = useMemo(() => {
+    const parsed = parseFloat(amount.replace(",", "."));
+    return isNaN(parsed) || !isFinite(parsed) || parsed < 0 ? 0 : parsed;
+  }, [amount]);
+
+  const accountImpactPreview = useMemo(() => {
+    if (!selectedModalAccount) return null;
+
+    const isSameAccountAsEditing =
+      editingExpense &&
+      (editingExpense.account === selectedModalAccount.name ||
+        editingExpense.account === selectedModalAccount.id);
+
+    const currentBalance =
+      selectedModalAccount.balance +
+      (isSameAccountAsEditing ? editingExpense.amount : 0);
+
+    const resultingBalance = currentBalance - numAmountPreview;
+    const overdraftLimit = selectedModalAccount.overdraftLimit || 0;
+    const totalAvailableFunds = currentBalance + overdraftLimit;
+    const exceedsFunds = numAmountPreview > totalAvailableFunds;
+    const usesOverdraft = resultingBalance < 0 && !exceedsFunds;
+    const overdraftUsedAmount = usesOverdraft ? Math.abs(resultingBalance) : 0;
+
+    return {
+      currentBalance,
+      resultingBalance,
+      overdraftLimit,
+      totalAvailableFunds,
+      exceedsFunds,
+      usesOverdraft,
+      overdraftUsedAmount,
+    };
+  }, [selectedModalAccount, editingExpense, numAmountPreview]);
 
   const openCreateModal = () => {
     setEditingExpense(null);
@@ -376,6 +467,8 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
             <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-zinc-100 text-zinc-700 border border-zinc-200/60 flex items-center gap-1.5">
               <Calendar className="w-3 h-3 text-zinc-500" />
               <span>Ciclo: {cycleLabel}</span>
+              <span className="text-zinc-400">·</span>
+              <span className="text-zinc-500 font-normal">Reinicio día {budgetResetDay}</span>
             </span>
             {scope === "all" && (
               <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200/60">
@@ -468,64 +561,135 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
         </div>
       </div>
 
-      {/* Overview stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {/* Overview stats: 4 Tarjetas Analíticas Responsive */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Tarjeta 1: Total Gastado en Ciclo */}
         <div className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-zinc-500">
-              {scope === "cycle" ? t.expenses.totalSpentMonth : "Gastado en Ciclo Activo"}
+              {scope === "cycle" ? t.expenses.totalSpentMonth : "Gastado en Ciclo"}
             </span>
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600 border border-zinc-200/50">
               Ciclo
             </span>
           </div>
           <div className="text-2xl font-bold tracking-tight text-zinc-950">
-            ${totalSpentSelectedCycle.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+            ${totalSpentSelectedCycle.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
           <div className="text-[11px] text-zinc-400">
-            {cycleExpenses.length} este ciclo • {expenses.length} en total
+            {cycleExpenses.length} {cycleExpenses.length === 1 ? "transacción" : "transacciones"} este ciclo • {expenses.length} en total
           </div>
         </div>
 
+        {/* Tarjeta 2: Gasto Promedio Diario */}
         <div className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-zinc-500">Historial Total Gastado</span>
+            <span className="text-xs font-semibold text-zinc-500">Promedio Diario</span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600 border border-zinc-200/50">
+              Ritmo
+            </span>
+          </div>
+          <div className="text-2xl font-bold tracking-tight text-zinc-950">
+            ${dailyAverageSpent.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </div>
+          <div className="text-[11px] text-zinc-400 truncate">
+            Gasto medio por día ({elapsedDays} {elapsedDays === 1 ? "día transcurrido" : "días transcurridos"})
+          </div>
+        </div>
+
+        {/* Tarjeta 3: Categoría de Mayor Consumo */}
+        <div className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-zinc-500">Mayor Consumo</span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600 border border-zinc-200/50">
+              Categoría
+            </span>
+          </div>
+          {topCategoryInfo ? (
+            <>
+              <div
+                className="text-xl font-bold tracking-tight text-zinc-950 truncate flex items-center gap-2"
+                title={topCategoryInfo.category}
+              >
+                {(() => {
+                  const TopCatIcon = getCategoryIcon(topCategoryInfo.category);
+                  return <TopCatIcon className="w-5 h-5 text-zinc-700 shrink-0" />;
+                })()}
+                <span className="truncate">{topCategoryInfo.category}</span>
+              </div>
+              <div className="text-[11px] text-zinc-400 truncate">
+                ${topCategoryInfo.amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} • {topCategoryInfo.percentage}% del ciclo
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="text-xl font-bold tracking-tight text-zinc-950">
+                Sin registros
+              </div>
+              <div className="text-[11px] text-zinc-400">
+                0% consumido en el ciclo
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Tarjeta 4: Historial Total Acumulado */}
+        <div className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-zinc-500">Historial Total</span>
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600 border border-zinc-200/50">
               Historial
             </span>
           </div>
           <div className="text-2xl font-bold tracking-tight text-zinc-950">
-            ${totalSpentAllHistory.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+            ${totalSpentAllHistory.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
-          <div className="text-[11px] text-zinc-400">Todos los períodos registrados</div>
-        </div>
-
-        <div className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-zinc-500">Reinicio de Presupuesto</span>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600 border border-zinc-200/50">
-              Configuración
+          <div className="text-[11px] text-zinc-400 flex items-center justify-between">
+            <span>Todos los períodos</span>
+            <span className="text-[10px] font-medium text-zinc-500 bg-zinc-50 px-1.5 py-0.5 rounded border border-zinc-200/40">
+              Reinicio: Día {budgetResetDay}
             </span>
           </div>
-          <div className="text-2xl font-bold tracking-tight text-zinc-950">Día {budgetResetDay}</div>
-          <div className="text-[11px] text-zinc-400">Se reinicia cada mes el día {budgetResetDay}</div>
         </div>
       </div>
 
       {/* Filter and Search Bar */}
       <div className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="relative flex-1 max-w-sm">
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder={t.expenses.searchPlaceholder}
-              className="w-full pl-9 pr-3 py-2 rounded-xl border border-zinc-200 bg-zinc-50/50 text-xs text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:border-zinc-900 focus:bg-white transition-all shadow-2xs"
-            />
-            <Search className="w-4 h-4 text-zinc-400 absolute left-3 top-2.5 pointer-events-none" />
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 flex-1 max-w-xl">
+            {/* Buscador de texto */}
+            <div className="relative flex-1">
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder={t.expenses.searchPlaceholder}
+                className="w-full pl-9 pr-3 py-2 rounded-xl border border-zinc-200 bg-zinc-50/50 text-xs text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:border-zinc-900 focus:bg-white transition-all shadow-2xs"
+              />
+              <Search className="w-4 h-4 text-zinc-400 absolute left-3 top-2.5 pointer-events-none" />
+            </div>
+
+            {/* Selector de filtro por cuenta */}
+            <div className="relative shrink-0 sm:w-48">
+              <div className="absolute left-3 top-2.5 pointer-events-none text-zinc-400">
+                <Wallet className="w-4 h-4" />
+              </div>
+              <select
+                value={selectedAccountFilter}
+                onChange={(e) => setSelectedAccountFilter(e.target.value)}
+                className="w-full pl-9 pr-7 py-2 rounded-xl border border-zinc-200 bg-zinc-50/50 text-xs font-semibold text-zinc-700 hover:text-zinc-950 focus:outline-none focus:border-zinc-900 focus:bg-white transition-all shadow-2xs cursor-pointer truncate"
+              >
+                <option value="all">Todas las Cuentas</option>
+                {accounts.map((acc) => (
+                  <option key={acc.id} value={acc.name}>
+                    {acc.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
+          {/* Filtro por categorías */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
             <div className="flex items-center gap-1 text-xs text-zinc-400 mr-1 shrink-0">
               <Filter className="w-3.5 h-3.5" />
@@ -758,6 +922,64 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
                     </select>
                   </div>
                 </div>
+
+                {/* Previsualización de Impacto en Saldo */}
+                {selectedModalAccount && accountImpactPreview && (
+                  <div className="p-3.5 bg-zinc-50/90 rounded-2xl border border-zinc-200/70 text-xs space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">
+                        Impacto en Saldo ({selectedModalAccount.name})
+                      </span>
+                      {accountImpactPreview.overdraftLimit > 0 && (
+                        <span className="text-[10px] text-zinc-500 bg-zinc-100 px-2 py-0.5 rounded-full border border-zinc-200/60 font-medium">
+                          Sobregiro disp: ${accountImpactPreview.overdraftLimit.toFixed(2)}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-zinc-600 text-xs">
+                        <span>Saldo disponible actual:</span>
+                        <span className="font-semibold text-zinc-900">
+                          ${accountImpactPreview.currentBalance.toFixed(2)}
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between text-xs">
+                        <span className="text-zinc-600">Saldo tras este gasto:</span>
+                        <span
+                          className={`font-bold ${
+                            accountImpactPreview.exceedsFunds
+                              ? "text-rose-600"
+                              : accountImpactPreview.usesOverdraft
+                              ? "text-amber-600"
+                              : "text-zinc-900"
+                          }`}
+                        >
+                          ${accountImpactPreview.resultingBalance.toFixed(2)}
+                        </span>
+                      </div>
+
+                      {accountImpactPreview.usesOverdraft && (
+                        <div className="text-[11px] text-amber-700 bg-amber-50 px-2.5 py-1.5 rounded-lg border border-amber-200/60 font-medium flex items-center gap-1.5 mt-1.5">
+                          <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-amber-600" />
+                          <span>
+                            ⚠️ Usará ${accountImpactPreview.overdraftUsedAmount.toFixed(2)} de margen de sobregiro.
+                          </span>
+                        </div>
+                      )}
+
+                      {accountImpactPreview.exceedsFunds && (
+                        <div className="text-[11px] text-rose-700 bg-rose-50 px-2.5 py-1.5 rounded-lg border border-rose-200/60 font-medium flex items-center gap-1.5 mt-1.5">
+                          <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-rose-600" />
+                          <span>
+                            ⛔ Excede fondos disponibles: El gasto supera el saldo y sobregiro permitido (${accountImpactPreview.totalAvailableFunds.toFixed(2)} máx).
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 <div className="flex items-center justify-between gap-2.5 pt-3 border-t border-zinc-100">
                   {editingExpense ? (
