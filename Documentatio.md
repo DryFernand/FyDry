@@ -1368,3 +1368,24 @@ Se integró el cómputo automático de los movimientos/traspasos entre cuentas c
 - **Validaciones:**
   - `security-agent`: **LUZ VERDE** (Endpoint protegido, sin SSRF, sin inyecciones y cabeceras seguras).
   - `qa-agent`: **LUZ VERDE** (`npx tsc --noEmit` exit code 0, `npm run build` Turbopack exit code 0).
+
+
+## [2026-10-08] - Chat de Asistencia de IA para Bienestar Financiero
+
+### Modulo: Frontend & API (AI Assistant, Streaming UX & Guardrails)
+- **Archivos afectados:**
+  - `frontend/app/api/ai/chat/route.ts` (Nuevo Route Handler)
+  - `frontend/components/ai/AiAssistantChat.tsx` (Nuevo componente de UI)
+  - `frontend/components/dashboard/DashboardLayout.tsx` (Montaje global del asistente)
+  - `frontend/.env.local.example` (Variables de configuracion)
+- **Caracteristicas implementadas:**
+  - **Boton flotante ergonomico:** Boton monocromatico con icono `Bot` ubicado en la esquina inferior derecha (`bottom-20 md:bottom-6 right-5 md:right-6`), con transiciones fluidas. Al desplegarse el chat, el boton desaparece y reaparece al cerrarlo.
+  - **Encabezado interactivo:** Menu contextual de tres puntos a la izquierda con opciones de agrandar/restaurar (`Maximize2` / `Minimize2`) para alternar entre modal compacto (380px) y expandido (600px), y vaciado rapido del historial (`Trash2`). Boton de cierre cruzado a la derecha.
+  - **Fallback sin configuracion:** Si `AI_API_KEY` no esta presente, la interfaz presenta una vista informativa con instrucciones claras para anadir la clave en `.env.local`, sin bloquear ni provocar fallas en la aplicacion.
+  - **System prompt especializado en finanzas:** Disenado con enfoque en habitos de ahorro, orden presupuestario y tranquilidad financiera. Tono conversacional humano y directo, sin muletillas corporativas ni rodeos.
+  - **Segmentacion de mensajes extensos:** Algoritmo de division que separa respuestas largas en bloques consecutivos con retardo escalonado de 500ms y animacion de escritura, logrando una lectura comoda.
+  - **Delimitacion estricta de alcance:** Asistente centrado exclusivamente en finanzas personales y en las funciones de FyDry, rechazando con cortesia preguntas ajenas al sistema.
+  - **Blindaje de seguridad y API:** Endpoint protegido contra peticiones no autenticadas (requiere token de sesion o cookie), ofuscacion total de errores de terceros con respuesta 502 generica, limites estrictos de entrada (maximo 12 mensajes de contexto, limite por mensaje de 1,500 caracteres y tope total de 15,000) y directivas contra extraccion de instrucciones internas.
+- **Validaciones:**
+  - `security-agent`: **LUZ VERDE** (Endpoint autenticado, claves resguardadas en servidor, ofuscacion de upstream y defensas anti-DoS).
+  - `qa-agent`: **LUZ VERDE** (`npx tsc --noEmit` exit code 0, `npm run build` Turbopack exit code 0, 8 requerimientos probados).

@@ -35,6 +35,7 @@ import QuickTransactionModal from "./QuickTransactionModal";
 import { apiRequest, checkFinancialAlertsApi } from "@/lib/api";
 import { useLanguage } from "@/context/LanguageContext";
 import { dispatchNativeAlerts } from "@/lib/pushNotifications";
+import AiAssistantChat from "@/components/ai/AiAssistantChat";
 
 export default function DashboardLayout() {
   const router = useRouter();
@@ -584,6 +585,9 @@ export default function DashboardLayout() {
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
       />
+
+      {/* Asistente Flotante de IA */}
+      <AiAssistantChat />
     </div>
   );
 }
