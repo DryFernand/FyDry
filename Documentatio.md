@@ -1158,3 +1158,27 @@ Se integró el cómputo automático de los movimientos/traspasos entre cuentas c
 - **Validaciones:**
   - `security-agent`: **LUZ VERDE** (Sin inyecciones XSS, layouts seguros y filtrado estricto).
   - `qa-agent`: **LUZ VERDE** (`npx tsc --noEmit` exit code 0, `npm run build` Turbopack exit code 0).
+
+
+## [2026-10-08] - Pantalla de Ingresos: Iconos Semanticos, Navegacion de Ciclos y Blindaje (Fase 1)
+
+### Modulo: Frontend (Incomes & Streams)
+- **Archivo afectado:**
+  - `frontend/components/dashboard/views/IncomesView.tsx`
+- **Cambios realizados:**
+  - **Iconografia Semantica Dinamica (`getIncomeCategoryIcon`):**
+    - Mapeo de las 15 categorias de ingresos con iconos contextuales de `lucide-react` (nomina, freelance, dividendos, negocios, rentas, intereses, ventas de segunda mano, etc.) y fallback defensivo `ArrowUpRight`.
+    - Capsula visual estilizada en la lista (`bg-emerald-50 text-emerald-700 border-emerald-100`) y visualizador dinamico en el modal en tiempo real.
+  - **Navegador de Ciclos y Meses Historicos:**
+    - Incorporacion de selector de alcance interactivo (`Por Ciclo` vs `Historial Completo`).
+    - Navegacion mensual (`<` mes anterior / mes siguiente `>`) alineada al dia de corte contable (`budgetResetDay`).
+    - Boton de retorno al ciclo actual (`RotateCcw`) que aparece cuando se exploran periodos historicos pasados o futuros.
+  - **Blindaje Defensivo del Formulario de Ingresos:**
+    - Normalizacion de comas decimales regionales en inputs de monto (`amount.replace(",", ".")`).
+    - Validacion contra `NaN`, valores infinitos y montos menores o iguales a cero.
+    - Sanitizacion de concepto (`desc.trim()`) y atributos de precision numerica (`min="0.01"`, `step="0.01"`, `inputMode="decimal"`).
+  - **Preservacion Integral:**
+    - Compatibilidad con borradores de notificaciones (`initialDraft`), eventos de reactividad (`fydry_storage_updated`) y persistencia.
+- **Validaciones:**
+  - `security-agent`: **LUZ VERDE** (Sin inyecciones XSS, parseo numerico blindado y aislamiento estricto de scope contable).
+  - `qa-agent`: **LUZ VERDE** (`npx tsc --noEmit` exit code 0, `npm run build` Turbopack exit code 0).
