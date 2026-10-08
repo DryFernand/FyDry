@@ -7,12 +7,13 @@ import {
   Plus,
   X,
   PiggyBank,
-  Filter,
   Search,
   Trash2,
   Edit3,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  Wallet,
   Calendar,
   Layers,
   RotateCcw,
@@ -101,6 +102,7 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
   const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
   const [scope, setScope] = useState<"cycle" | "all">("cycle");
   const [selectedCategory, setSelectedCategory] = useState("Todos");
+  const [selectedAccountFilter, setSelectedAccountFilter] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingIncome, setEditingIncome] = useState<TransactionItem | null>(null);
@@ -209,18 +211,36 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
     return scope === "cycle" ? cycleIncomes : incomes;
   }, [scope, cycleIncomes, incomes]);
 
-  // Dinámicamente obtener SOLO las categorías en las que realmente se han registrado ingresos en la vista activa
-  const activeIncomeCategories = useMemo(() => {
-    const consumedCategories = Array.from(new Set(baseIncomes.map((i) => i.category)));
-    return [language === "es" ? "Todos" : "All", ...consumedCategories];
-  }, [baseIncomes, language]);
-
-  useEffect(() => {
-    const isAll = selectedCategory === "Todos" || selectedCategory === "All";
-    if (!isAll && !activeIncomeCategories.includes(selectedCategory)) {
-      setSelectedCategory(language === "es" ? "Todos" : "All");
+  // Categoría de ingreso con mayor volumen acumulado en el ciclo activo
+  const topCategoryInfo = useMemo(() => {
+    if (cycleIncomes.length === 0 || totalIncomesSelectedCycle <= 0) {
+      return null;
     }
-  }, [activeIncomeCategories, selectedCategory, language]);
+    const categoryTotals: Record<string, number> = {};
+    for (const inc of cycleIncomes) {
+      categoryTotals[inc.category] = (categoryTotals[inc.category] || 0) + inc.amount;
+    }
+    let maxCat = "";
+    let maxAmount = 0;
+    for (const [categoryName, amt] of Object.entries(categoryTotals)) {
+      if (amt > maxAmount) {
+        maxAmount = amt;
+        maxCat = categoryName;
+      }
+    }
+    if (!maxCat || maxAmount <= 0) return null;
+    const percentage = Math.round((maxAmount / totalIncomesSelectedCycle) * 100);
+    return {
+      category: maxCat,
+      amount: maxAmount,
+      percentage,
+    };
+  }, [cycleIncomes, totalIncomesSelectedCycle]);
+
+  // Ticket promedio por depósito en el ciclo activo
+  const averagePerIncome = useMemo(() => {
+    return cycleIncomes.length > 0 ? totalIncomesSelectedCycle / cycleIncomes.length : 0;
+  }, [cycleIncomes, totalIncomesSelectedCycle]);
 
   useEffect(() => {
     if (selectedCategory === "Todos" && language === "en") {
@@ -230,7 +250,7 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
     }
   }, [language, selectedCategory]);
 
-  // Lista de ingresos filtrados por categoría y búsqueda
+  // Lista de ingresos filtrados por categoría, cuenta receptora y búsqueda
   const filteredIncomes = useMemo(() => {
     return baseIncomes.filter((inc) => {
       const isAll = selectedCategory === "Todos" || selectedCategory === "All";
@@ -239,9 +259,11 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
         inc.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
         inc.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
         inc.account.toLowerCase().includes(searchTerm.toLowerCase());
-      return matchesCat && matchesSearch;
+      const matchesAccount =
+        selectedAccountFilter === "all" || inc.account === selectedAccountFilter;
+      return matchesCat && matchesSearch && matchesAccount;
     });
-  }, [baseIncomes, selectedCategory, searchTerm]);
+  }, [baseIncomes, selectedCategory, searchTerm, selectedAccountFilter]);
 
   const openCreateModal = () => {
     setEditingIncome(null);
@@ -322,6 +344,14 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
       setEditingIncome(null);
     }
   };
+
+  // Simulador contable de saldo resultante en el modal
+  const selectedAcc = accounts.find((a) => a.name === selectedAccountId || a.id === selectedAccountId) || accounts[0];
+  const numAmountPreview = parseFloat(amount.replace(",", ".")) || 0;
+  const currentBalance = selectedAcc
+    ? selectedAcc.balance - (editingIncome && editingIncome.account === selectedAcc.name ? editingIncome.amount : 0)
+    : 0;
+  const resultingBalance = currentBalance + numAmountPreview;
 
   const ModalCategoryIcon = getIncomeCategoryIcon(cat);
 
@@ -431,14 +461,20 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
         </div>
       </div>
 
-      {/* Overview stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {/* Overview stats: 4 Tarjetas Analíticas Responsive */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Tarjeta 1: Total Ingresado (Ciclo) */}
         <div className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs space-y-2">
-          <span className="text-xs font-semibold text-zinc-500">
-            {scope === "cycle" ? t.incomes.totalIncomesMonth : "Ingresos en Pantalla"}
-          </span>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-zinc-500">
+              {scope === "cycle" ? t.incomes.totalIncomesMonth : "Ingresos en Pantalla"}
+            </span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+              Ciclo
+            </span>
+          </div>
           <div className="text-2xl font-bold tracking-tight text-emerald-600">
-            +${(scope === "cycle" ? totalIncomesSelectedCycle : totalIncomesAllHistory).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+            +${totalIncomesSelectedCycle.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
           <div className="text-[11px] text-zinc-400">
             {scope === "cycle"
@@ -447,25 +483,83 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
           </div>
         </div>
 
+        {/* Tarjeta 2: Fuente Principal de Ingresos */}
         <div className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs space-y-2">
-          <span className="text-xs font-semibold text-zinc-500">Historial Total Ingresos</span>
-          <div className="text-2xl font-bold tracking-tight text-zinc-950">
-            +${totalIncomesAllHistory.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-zinc-500">Fuente Principal</span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600 border border-zinc-200/50">
+              Categoría
+            </span>
           </div>
-          <div className="text-[11px] text-zinc-400">Todos los períodos registrados</div>
+          {topCategoryInfo ? (
+            <>
+              <div
+                className="text-xl font-bold tracking-tight text-zinc-950 truncate flex items-center gap-2"
+                title={topCategoryInfo.category}
+              >
+                {(() => {
+                  const TopCatIcon = getIncomeCategoryIcon(topCategoryInfo.category);
+                  return <TopCatIcon className="w-5 h-5 text-emerald-600 shrink-0" />;
+                })()}
+                <span className="truncate">{topCategoryInfo.category}</span>
+              </div>
+              <div className="text-[11px] text-zinc-400 truncate">
+                +${topCategoryInfo.amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} • {topCategoryInfo.percentage}% del ciclo
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="text-xl font-bold tracking-tight text-zinc-950">
+                Sin registros
+              </div>
+              <div className="text-[11px] text-zinc-400">
+                0% ingresado en el ciclo
+              </div>
+            </>
+          )}
         </div>
 
+        {/* Tarjeta 3: Ticket Promedio por Depósito */}
         <div className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs space-y-2">
-          <span className="text-xs font-semibold text-zinc-500">Reinicio de Presupuesto</span>
-          <div className="text-2xl font-bold tracking-tight text-zinc-950">Día {budgetResetDay}</div>
-          <div className="text-[11px] text-zinc-400">Se reinicia cada mes el día {budgetResetDay}</div>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-zinc-500">Ticket Promedio</span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600 border border-zinc-200/50">
+              Por Entrada
+            </span>
+          </div>
+          <div className="text-2xl font-bold tracking-tight text-zinc-950">
+            +${averagePerIncome.toFixed(2)}
+          </div>
+          <div className="text-[11px] text-zinc-400 truncate">
+            Promedio por entrada registrada
+          </div>
+        </div>
+
+        {/* Tarjeta 4: Historial Total Acumulado */}
+        <div className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-zinc-500">Historial Total</span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600 border border-zinc-200/50">
+              Historial
+            </span>
+          </div>
+          <div className="text-2xl font-bold tracking-tight text-zinc-950">
+            +${totalIncomesAllHistory.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </div>
+          <div className="text-[11px] text-zinc-400 flex items-center justify-between">
+            <span>Todos los períodos registrados</span>
+            <span className="text-[10px] font-medium text-zinc-500 bg-zinc-50 px-1.5 py-0.5 rounded border border-zinc-200/40">
+              Día {budgetResetDay}
+            </span>
+          </div>
         </div>
       </div>
 
       {/* Filter and Search Bar */}
       <div className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="relative flex-1 max-w-sm">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          {/* Buscador max-w-md */}
+          <div className="relative flex-1 max-w-md">
             <input
               type="text"
               value={searchTerm}
@@ -476,25 +570,45 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
             <Search className="w-4 h-4 text-zinc-400 absolute left-3 top-2.5 pointer-events-none" />
           </div>
 
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
-            <div className="flex items-center gap-1 text-xs text-zinc-400 mr-1 shrink-0">
-              <Filter className="w-3.5 h-3.5" />
-              <span>Filtro:</span>
-            </div>
-            {activeIncomeCategories.map((c) => (
-              <button
-                key={c}
-                type="button"
-                onClick={() => setSelectedCategory(c)}
-                className={`py-1.5 px-3 rounded-xl text-xs font-semibold transition-colors cursor-pointer shrink-0 ${
-                  selectedCategory === c
-                    ? "bg-zinc-950 text-white"
-                    : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
-                }`}
+          {/* Selectores a la derecha */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 shrink-0">
+            {/* Selector de cuenta receptora */}
+            <div className="relative shrink-0 sm:w-48">
+              <Wallet className="w-4 h-4 text-zinc-400 absolute left-3 top-2.5 pointer-events-none" />
+              <select
+                value={selectedAccountFilter}
+                onChange={(e) => setSelectedAccountFilter(e.target.value)}
+                className="w-full pl-9 pr-8 py-2 rounded-xl border border-zinc-200 bg-zinc-50/50 text-xs font-semibold text-zinc-700 hover:text-zinc-950 focus:outline-none focus:border-zinc-900 focus:bg-white transition-all shadow-2xs cursor-pointer truncate appearance-none"
               >
-                {c}
-              </button>
-            ))}
+                <option value="all">Todas las Cuentas</option>
+                {accounts.map((a) => (
+                  <option key={a.id} value={a.name}>
+                    {a.name}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-zinc-400 absolute right-3 top-3 pointer-events-none" />
+            </div>
+
+            {/* Selector de categoría */}
+            <div className="relative shrink-0 sm:w-56">
+              <Tag className="w-4 h-4 text-zinc-400 absolute left-3 top-2.5 pointer-events-none" />
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="w-full pl-9 pr-8 py-2 rounded-xl border border-zinc-200 bg-zinc-50/50 text-xs font-semibold text-zinc-700 hover:text-zinc-950 focus:outline-none focus:border-zinc-900 focus:bg-white transition-all shadow-2xs cursor-pointer truncate appearance-none"
+              >
+                <option value={language === "es" ? "Todos" : "All"}>
+                  {language === "es" ? "Todas las Categorías" : "All Categories"}
+                </option>
+                {INCOME_CATEGORIES.map((catName) => (
+                  <option key={catName} value={catName}>
+                    {catName}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-zinc-400 absolute right-3 top-3 pointer-events-none" />
+            </div>
           </div>
         </div>
 
@@ -554,7 +668,7 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
                   ? scope === "cycle"
                     ? "No se han registrado ingresos en este ciclo. Cambia de ciclo o añade uno nuevo."
                     : "Registra tu nómina, proyectos freelance o dividendos para ver tu flujo mensual."
-                  : "Prueba seleccionando otra categoría o borrando el término de búsqueda."}
+                  : "Prueba seleccionando otra cuenta, categoría o borrando el término de búsqueda."}
               </p>
             </div>
           )}
@@ -686,6 +800,44 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
                     </select>
                   </div>
                 </div>
+
+                {/* Simulador Contable de Saldo Resultante */}
+                {selectedAcc && (
+                  <div className="bg-zinc-50 border border-zinc-200/80 rounded-2xl p-3.5 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 font-bold text-zinc-900 text-xs">
+                        <TrendingUp className="w-4 h-4 text-emerald-600" />
+                        <span>Simulación de Saldo</span>
+                      </div>
+                      <span className="text-[10px] font-semibold text-zinc-500 bg-zinc-200/60 px-2 py-0.5 rounded-full">
+                        {selectedAcc.name}
+                      </span>
+                    </div>
+
+                    <div className="space-y-1 pt-1 text-xs">
+                      <div className="flex items-center justify-between text-zinc-600">
+                        <span>Saldo actual:</span>
+                        <span className="font-semibold text-zinc-900">
+                          ${currentBalance.toFixed(2)}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between text-zinc-600">
+                        <span>Acreditación estimada:</span>
+                        <span className="text-emerald-600 font-semibold">
+                          +${numAmountPreview.toFixed(2)}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-1.5 border-t border-zinc-200/60">
+                        <span className="text-zinc-600 font-medium">Saldo final estimado:</span>
+                        <span className="text-zinc-950 font-bold">
+                          +${resultingBalance.toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div className="flex items-center justify-between gap-2.5 pt-3 border-t border-zinc-100">
                   {editingIncome ? (

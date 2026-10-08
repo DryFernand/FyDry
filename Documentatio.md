@@ -1182,3 +1182,27 @@ Se integró el cómputo automático de los movimientos/traspasos entre cuentas c
 - **Validaciones:**
   - `security-agent`: **LUZ VERDE** (Sin inyecciones XSS, parseo numerico blindado y aislamiento estricto de scope contable).
   - `qa-agent`: **LUZ VERDE** (`npx tsc --noEmit` exit code 0, `npm run build` Turbopack exit code 0).
+
+
+## [2026-10-08] - Pantalla de Ingresos: Metricas del Ciclo, Filtros Unificados y Simulador (Fase 2)
+
+### Modulo: Frontend (Incomes & Streams)
+- **Archivo afectado:**
+  - `frontend/components/dashboard/views/IncomesView.tsx`
+- **Cambios realizados:**
+  - **Grilla de 4 Tarjetas Analiticas del Ciclo:**
+    - Total Ingresado en el Ciclo con recuento de fuentes.
+    - Fuente Principal de Ingreso (Top Category) con icono contextual, monto acumulado y calculo de porcentaje sobre el ciclo activo.
+    - Ticket Promedio por Deposito con proteccion ante division por cero.
+    - Historial Total Acumulado con indicador del dia de reinicio de presupuesto (`budgetResetDay`).
+  - **Barra de Filtros Homogenea:**
+    - Buscador restringido a `max-w-md` alineado con Gastos y Movimientos.
+    - Selector desplegable de cuenta receptora con icono `Wallet` (`selectedAccountFilter`).
+    - Selector desplegable de categoria con icono `Tag` cubriendo las 15 fuentes de ingresos.
+    - Eliminacion del carrusel de pildoras horizontales saturadas, consolidando una barra de herramientas limpia.
+  - **Simulador Contable en el Modal de Ingresos:**
+    - Desglose antes de guardar con saldo actual de la cuenta, acreditacion estimada y saldo proyectado resultante.
+    - Manejo dinamico de saldo previo al editar una transaccion existente.
+- **Validaciones:**
+  - `security-agent`: **LUZ VERDE** (Sin inyecciones XSS, integridad aritmetica en porcentajes y promedios, ausencia de fuga de datos).
+  - `qa-agent`: **LUZ VERDE** (`npx tsc --noEmit` exit code 0, `npm run build` Turbopack exit code 0).
