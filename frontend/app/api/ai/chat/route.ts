@@ -69,7 +69,7 @@ const TOOLS = [
           },
           account: {
             type: "string",
-            description: "Nombre de la cuenta de origen (ej. Efectivo, BBVA, Banco, Tarjeta).",
+            description: "Nombre de la cuenta de origen (debe ser una de las cuentas disponibles del usuario en FyDry).",
           },
           date: {
             type: "string",
@@ -103,7 +103,7 @@ const TOOLS = [
           },
           account: {
             type: "string",
-            description: "Nombre de la cuenta de destino (ej. Banco, Efectivo, Tarjeta de Débito).",
+            description: "Nombre de la cuenta de destino (debe ser una de las cuentas disponibles del usuario en FyDry).",
           },
           date: {
             type: "string",
@@ -128,11 +128,11 @@ const TOOLS = [
           },
           from_account: {
             type: "string",
-            description: "Nombre de la cuenta de origen.",
+            description: "Nombre de la cuenta de origen registrada del usuario.",
           },
           to_account: {
             type: "string",
-            description: "Nombre de la cuenta de destino.",
+            description: "Nombre de la cuenta de destino registrada del usuario.",
           },
           description: {
             type: "string",
@@ -284,7 +284,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    let body: { messages?: Array<{ role?: string; content?: string }> };
+    let body: {
+      messages?: Array<{ role?: string; content?: string }>;
+      userAccounts?: Array<{ id?: string; name?: string; type?: string; balance?: number }>;
+    };
     try {
       body = await req.json();
     } catch {
@@ -302,6 +305,58 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Procesar y validar cuentas disponibles del usuario (Anti-Prompt Injection y Anti-DoS)
+    const rawAccounts = Array.isArray(body?.userAccounts) ? body.userAccounts : [];
+    const safeAccounts = rawAccounts.slice(0, 30);
+    const validAccounts = safeAccounts
+      .filter((a) => a && typeof a.name === "string" && a.name.trim().length > 0)
+      .map((a) => {
+        const name = String(a.name || "")
+          .replace(/[\r\n\t]+/g, " ")
+          .trim()
+          .slice(0, 80);
+        const type = String(a.type || "bank")
+          .replace(/[\r\n\t]+/g, " ")
+          .trim()
+          .slice(0, 30);
+        const balance = Number.isFinite(Number(a.balance)) ? Number(a.balance) : 0;
+        return {
+          id: typeof a.id === "string" ? a.id : undefined,
+          name,
+          type: type || "bank",
+          balance: Math.round(balance * 100) / 100,
+        };
+      })
+      .filter((a) => a.name.length > 0);
+
+    let accountsPromptSection = "";
+    if (validAccounts.length > 0) {
+      let accountsListStr = validAccounts
+        .map((a) => `- ${a.name} (Tipo: ${a.type}, Saldo: $${a.balance.toFixed(2)})`)
+        .join("\n");
+
+      if (accountsListStr.length > 3000) {
+        accountsListStr = accountsListStr.slice(0, 3000);
+      }
+
+      accountsPromptSection = `CUENTAS DISPONIBLES DEL USUARIO:
+El usuario tiene actualmente las siguientes cuentas registradas en FyDry:
+${accountsListStr}
+
+REGLAS ESTRICTAS PARA CUENTAS Y MÉTODOS DE PAGO:
+1. Al registrar un gasto, ingreso o transferencia, debes consultar estas cuentas disponibles para asociar la operación a la cuenta que el usuario utilizó.
+2. Si el usuario menciona una cuenta o método de pago que NO está registrado en su lista de cuentas (por ejemplo, 'pagué con tarjeta Visa Oro', 'con PayPal', 'tarjeta de crédito' y no existe en su lista):
+   DEBES detectarlo de inmediato y señalárselo amablemente al usuario antes de ejecutar nada:
+   'Veo que mencionas pagar con [Método], pero no lo tienes registrado entre tus cuentas de FyDry. Tus cuentas disponibles son: [Cuenta A, Cuenta B...]. ¿Deseas asociar el movimiento a alguna de estas o prefieres que primero registremos [Método] como una nueva cuenta?'
+   NUNCA inventes cuentas ni registres operaciones en cuentas inexistentes.
+3. Si el usuario pide registrar una acción pero no indica la cuenta, pregúntale amablemente desde cuál de sus cuentas registradas desea hacerlo, mostrándole sus opciones disponibles.`;
+    } else {
+      accountsPromptSection = `CUENTAS DISPONIBLES DEL USUARIO:
+El usuario no tiene cuentas registradas aún. Si pide registrar un gasto o ingreso, indícale amablemente que primero debe crear una cuenta (o ofrécele registrar una cuenta primero).`;
+    }
+
+    const fullSystemPrompt = `${SYSTEM_PROMPT}\n\n${accountsPromptSection}`;
 
     // 3. Límites defensivos de payload (Anti-DoS / Token Overflow)
     // Rechazar mensajes desproporcionados (>5,000 caracteres)
@@ -382,7 +437,7 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         model,
-        messages: [{ role: "system", content: SYSTEM_PROMPT }, ...cleanMessages],
+        messages: [{ role: "system", content: fullSystemPrompt }, ...cleanMessages],
         temperature: 0.6,
         max_tokens: 2048,
         tools: TOOLS,

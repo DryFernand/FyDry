@@ -1447,3 +1447,24 @@ Se integró el cómputo automático de los movimientos/traspasos entre cuentas c
 - **Validaciones:**
   - `security-agent`: **LUZ VERDE** (Normalizacion segura contra prototype pollution, regex estatica lineal y preservacion de whitelist).
   - `qa-agent`: **LUZ VERDE** (`npx tsc --noEmit` exit code 0, `npm run build` Turbopack exit code 0, validacion funcional completa).
+
+
+## [2026-10-08] - Consulta de Cuentas Disponibles y Deteccion de Metodos No Registrados
+
+### Modulo: Frontend & API (AI Chat Account Verification & Unregistered Payment Detection)
+- **Archivos afectados:**
+  - `frontend/app/api/ai/chat/route.ts`
+  - `frontend/components/ai/AiAssistantChat.tsx`
+- **Cambios realizados:**
+  - **Consulta activa e inyeccion de cuentas del usuario:**
+    - Carga reactiva de `accountsList` mediante `fetchAccountsApi()` suscrita a eventos en tiempo real.
+    - Envio seguro de cuentas disponibles en el payload del chat y parseo defensivo en el servidor (maximo 30 cuentas, sanitizacion de saltos de linea y caracteres de control, techo de 3,000 caracteres en el bloque de contexto).
+  - **Deteccion de metodos de pago no registrados:**
+    - Helper `findMatchingAccount` con proteccion contra fallos de tipo, evaluando coincidencia exacta, normalizacion diacritica y token matching con descarte de palabras vacias.
+    - Si el usuario menciona una cuenta o metodo no registrado al registrar gastos, ingresos, transferencias o abonos a deuda, el asistente frena la accion, detalla las cuentas disponibles y consulta si desea usar una existente o registrarla primero.
+  - **Defensa en profundidad:**
+    - Bloqueo en dos capas: intercepcion antes de crear la accion pendiente y validacion obligatoria en `executeAction`, impidiendo llamadas hacia `lib/api.ts` con cuentas inexistentes.
+    - Resolucion al nombre canonico de la cuenta real al coincidir.
+- **Validaciones:**
+  - `security-agent`: **LUZ VERDE** (Sanitizacion anti-prompt-injection en nombres de cuenta, limite anti-DoS, validacion defensiva en pay_debt y executeAction).
+  - `qa-agent`: **LUZ VERDE** (`npx tsc --noEmit` exit code 0, `npm run build` Turbopack exit code 0, flujo de cuentas y deteccion verificado).

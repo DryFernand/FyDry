@@ -32,7 +32,9 @@ import {
   createDebtApi,
   payDebtApi,
   fetchDebtsApi,
+  fetchAccountsApi,
 } from "@/lib/api";
+import { AccountItem } from "@/components/dashboard/types";
 
 export interface PendingAction {
   id: string;
@@ -200,6 +202,64 @@ export function findClosestCategory(
   }
 
   return defaultCategory;
+}
+
+export function findMatchingAccount(
+  accountInput: string,
+  accounts: AccountItem[]
+): AccountItem | null {
+  if (!accountInput || !accountInput.trim() || !accounts || accounts.length === 0) {
+    return null;
+  }
+
+  const validAccounts = accounts.filter(
+    (a) => a && typeof a?.name === "string" && a.name.trim().length > 0
+  );
+  if (validAccounts.length === 0) return null;
+
+  const raw = accountInput.trim();
+  const normInput = normalizeText(raw);
+  if (!normInput) return null;
+
+  // 1. Coincidencia exacta por nombre
+  const exact = validAccounts.find((a) => a.name.trim().toLowerCase() === raw.toLowerCase());
+  if (exact) return exact;
+
+  // 2. Coincidencia normalizada exacta
+  const normExact = validAccounts.find((a) => normalizeText(a.name) === normInput);
+  if (normExact) return normExact;
+
+  // 3. Coincidencia si el nombre de la cuenta contiene el término buscado (ej. "popular" dentro de "Banco Popular")
+  if (normInput.length >= 3) {
+    const nameContainsInput = validAccounts.find((a) => {
+      const normA = normalizeText(a.name);
+      return normA.includes(normInput);
+    });
+    if (nameContainsInput) return nameContainsInput;
+  }
+
+  // 4. Coincidencia si el input del usuario contiene el nombre completo de la cuenta
+  const inputContainsName = validAccounts.find((a) => {
+    const normA = normalizeText(a.name);
+    return normA.length >= 3 && normInput.includes(normA);
+  });
+  if (inputContainsName) return inputContainsName;
+
+  // 5. Coincidencia por palabras clave no genéricas si el input tiene varias palabras
+  const GENERIC_WORDS = new Set(["banco", "tarjeta", "cuenta", "de", "del", "la", "el", "los", "las", "mi", "mis"]);
+  const inputWords = normInput
+    .split(/[\s,+/&-]+/)
+    .filter((w) => w.length >= 3 && !GENERIC_WORDS.has(w));
+
+  if (inputWords.length > 0) {
+    const wordMatch = validAccounts.find((a) => {
+      const normA = normalizeText(a.name);
+      return inputWords.some((w) => normA.includes(w));
+    });
+    if (wordMatch) return wordMatch;
+  }
+
+  return null;
 }
 
 const INITIAL_GREETING =
@@ -444,6 +504,36 @@ export default function AiAssistantChat() {
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [accountsList, setAccountsList] = useState<AccountItem[]>([]);
+
+  // Cargar cuentas registradas del usuario
+  const loadAccounts = useCallback(async () => {
+    try {
+      const data = await fetchAccountsApi();
+      if (Array.isArray(data)) {
+        setAccountsList(data);
+      }
+    } catch (err) {
+      console.error("[AiAssistantChat] Error al cargar cuentas:", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadAccounts();
+    const handleRefresh = () => {
+      loadAccounts();
+    };
+    if (typeof window !== "undefined") {
+      window.addEventListener("fydry_refresh_data", handleRefresh);
+      window.addEventListener("fydry_storage_updated", handleRefresh);
+    }
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("fydry_refresh_data", handleRefresh);
+        window.removeEventListener("fydry_storage_updated", handleRefresh);
+      }
+    };
+  }, [loadAccounts]);
 
   // Inicializar preferencia de confirmación desde localStorage
   useEffect(() => {
@@ -566,7 +656,14 @@ export default function AiAssistantChat() {
         const amount = parseStrictAmount(args.amount);
         const description = String(args.description || "Gasto general");
         const category = findClosestCategory(String(args.category || ""), "expense");
-        const account = String(args.account || "Efectivo");
+        let account = String(args.account || "Efectivo");
+        if (accountsList.length > 0) {
+          const matched = findMatchingAccount(account, accountsList);
+          if (!matched) {
+            throw new Error(`La cuenta "${account}" no está registrada en tus cuentas de FyDry.`);
+          }
+          account = matched.name;
+        }
         const date = sanitizeDate(args.date);
 
         await createExpenseApi({
@@ -581,7 +678,14 @@ export default function AiAssistantChat() {
         const amount = parseStrictAmount(args.amount);
         const description = String(args.description || "Ingreso general");
         const category = findClosestCategory(String(args.category || ""), "income");
-        const account = String(args.account || "Efectivo");
+        let account = String(args.account || "Efectivo");
+        if (accountsList.length > 0) {
+          const matched = findMatchingAccount(account, accountsList);
+          if (!matched) {
+            throw new Error(`La cuenta "${account}" no está registrada en tus cuentas de FyDry.`);
+          }
+          account = matched.name;
+        }
         const date = sanitizeDate(args.date);
 
         await createIncomeApi({
@@ -594,8 +698,21 @@ export default function AiAssistantChat() {
         confirmNote = `Listo, he registrado el ingreso de $${amount.toFixed(2)} (${description}) en la categoría "${category}" y cuenta ${account}.`;
       } else if (name === "create_transfer") {
         const amount = parseStrictAmount(args.amount);
-        const fromAccount = String(args.from_account || "Cuenta Origen");
-        const toAccount = String(args.to_account || "Cuenta Destino");
+        let fromAccount = String(args.from_account || "Cuenta Origen");
+        let toAccount = String(args.to_account || "Cuenta Destino");
+        if (accountsList.length > 0) {
+          const matchedFrom = findMatchingAccount(fromAccount, accountsList);
+          if (!matchedFrom) {
+            throw new Error(`La cuenta "${fromAccount}" no está registrada en tus cuentas de FyDry.`);
+          }
+          fromAccount = matchedFrom.name;
+
+          const matchedTo = findMatchingAccount(toAccount, accountsList);
+          if (!matchedTo) {
+            throw new Error(`La cuenta "${toAccount}" no está registrada en tus cuentas de FyDry.`);
+          }
+          toAccount = matchedTo.name;
+        }
         const description = String(args.description || `Transferencia de ${fromAccount} a ${toAccount}`);
         const date = sanitizeDate(args.date);
 
@@ -652,7 +769,14 @@ export default function AiAssistantChat() {
           throw new Error("Debe indicarse el nombre o identificador de la deuda a abonar.");
         }
         const amount = parseStrictAmount(args.amount);
-        const fromAccount = String(args.from_account || "Cuenta Principal");
+        let fromAccount = String(args.from_account || "Cuenta Principal");
+        if (accountsList.length > 0) {
+          const matchedFrom = findMatchingAccount(fromAccount, accountsList);
+          if (!matchedFrom) {
+            throw new Error(`La cuenta "${fromAccount}" no está registrada en tus cuentas de FyDry.`);
+          }
+          fromAccount = matchedFrom.name;
+        }
 
         const debtsList = await fetchDebtsApi();
         const search = debtRef.toLowerCase().trim();
@@ -683,6 +807,7 @@ export default function AiAssistantChat() {
         window.dispatchEvent(new CustomEvent("fydry_refresh_data"));
         window.dispatchEvent(new Event("fydry_storage_updated"));
       }
+      loadAccounts();
 
       if (messageId) {
         setMessages((prev) =>
@@ -783,6 +908,12 @@ export default function AiAssistantChat() {
             role: m.role,
             content: m.content,
           })),
+          userAccounts: accountsList.map((a) => ({
+            id: a.id,
+            name: a.name,
+            type: a.type,
+            balance: a.balance,
+          })),
         }),
       });
 
@@ -874,6 +1005,138 @@ export default function AiAssistantChat() {
         toolArgs.category = findClosestCategory(String(toolArgs.category || ""), "expense");
       } else if (toolCall.name === "create_income") {
         toolArgs.category = findClosestCategory(String(toolArgs.category || ""), "income");
+      }
+
+      // Validación y verificación de cuentas y métodos de pago registrados
+      if (toolCall.name === "create_expense") {
+        if (accountsList.length === 0) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `assistant-warn-${Date.now()}`,
+              role: "assistant",
+              content:
+                "Aún no tienes cuentas registradas en FyDry. Para registrar este gasto, primero necesitas crear una cuenta. ¿Deseas que registremos una cuenta primero?",
+              timestamp: new Date(),
+            },
+          ]);
+          return;
+        }
+
+        const rawAccount = String(toolArgs.account || "").trim();
+        const matchedAcc = findMatchingAccount(rawAccount, accountsList);
+
+        if (!matchedAcc) {
+          const available = accountsList.map((a) => a.name).join(", ");
+          const methodStr = rawAccount || "ese método de pago";
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `assistant-warn-${Date.now()}`,
+              role: "assistant",
+              content: `Veo que mencionas pagar con "${methodStr}", pero no lo tienes registrado entre tus cuentas de FyDry. Tus cuentas disponibles son: ${available}. ¿Deseas asociar el movimiento a alguna de estas o prefieres que primero registremos "${methodStr}" como una nueva cuenta?`,
+              timestamp: new Date(),
+            },
+          ]);
+          return;
+        }
+
+        toolArgs.account = matchedAcc.name;
+      } else if (toolCall.name === "create_income") {
+        if (accountsList.length === 0) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `assistant-warn-${Date.now()}`,
+              role: "assistant",
+              content:
+                "Aún no tienes cuentas registradas en FyDry. Para registrar este ingreso, primero necesitas crear una cuenta. ¿Deseas que registremos una cuenta primero?",
+              timestamp: new Date(),
+            },
+          ]);
+          return;
+        }
+
+        const rawAccount = String(toolArgs.account || "").trim();
+        const matchedAcc = findMatchingAccount(rawAccount, accountsList);
+
+        if (!matchedAcc) {
+          const available = accountsList.map((a) => a.name).join(", ");
+          const methodStr = rawAccount || "esa cuenta";
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `assistant-warn-${Date.now()}`,
+              role: "assistant",
+              content: `Veo que mencionas recibir el ingreso en "${methodStr}", pero no lo tienes registrado entre tus cuentas de FyDry. Tus cuentas disponibles son: ${available}. ¿Deseas asociar el movimiento a alguna de estas o prefieres que primero registremos "${methodStr}" como una nueva cuenta?`,
+              timestamp: new Date(),
+            },
+          ]);
+          return;
+        }
+
+        toolArgs.account = matchedAcc.name;
+      } else if (toolCall.name === "create_transfer") {
+        if (accountsList.length === 0) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `assistant-warn-${Date.now()}`,
+              role: "assistant",
+              content:
+                "Aún no tienes cuentas registradas en FyDry. Para realizar una transferencia, primero necesitas crear cuentas. ¿Deseas que registremos una cuenta primero?",
+              timestamp: new Date(),
+            },
+          ]);
+          return;
+        }
+
+        const rawFrom = String(toolArgs.from_account || "").trim();
+        const rawTo = String(toolArgs.to_account || "").trim();
+        const matchedFrom = findMatchingAccount(rawFrom, accountsList);
+        const matchedTo = findMatchingAccount(rawTo, accountsList);
+
+        if (!matchedFrom || !matchedTo) {
+          const available = accountsList.map((a) => a.name).join(", ");
+          const missing = !matchedFrom
+            ? rawFrom || "la cuenta de origen"
+            : rawTo || "la cuenta de destino";
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `assistant-warn-${Date.now()}`,
+              role: "assistant",
+              content: `Veo que mencionas la cuenta "${missing}", pero no la tienes registrada entre tus cuentas de FyDry. Tus cuentas disponibles son: ${available}. ¿Deseas asociar la transferencia a alguna de estas o prefieres que primero registremos "${missing}" como una nueva cuenta?`,
+              timestamp: new Date(),
+            },
+          ]);
+          return;
+        }
+
+        toolArgs.from_account = matchedFrom.name;
+        toolArgs.to_account = matchedTo.name;
+      } else if (toolCall.name === "pay_debt") {
+        if (accountsList.length > 0) {
+          const rawFrom = String(toolArgs.from_account || "").trim();
+          const matchedFrom = findMatchingAccount(rawFrom, accountsList);
+
+          if (!matchedFrom) {
+            const available = accountsList.map((a) => a.name).join(", ");
+            const fromAccountName = toolArgs.from_account || rawFrom || "esa cuenta";
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: `assistant-warn-${Date.now()}`,
+                role: "assistant",
+                content: `Veo que deseas abonar a la deuda usando "${fromAccountName}", pero no lo tienes registrado entre tus cuentas de FyDry. Tus cuentas disponibles son: ${available}. ¿Deseas asociar el pago a alguna de estas o prefieres registrar esa cuenta primero?`,
+                timestamp: new Date(),
+              },
+            ]);
+            return;
+          }
+
+          toolArgs.from_account = matchedFrom.name;
+        }
       }
 
       const pendingAction: PendingAction = {
