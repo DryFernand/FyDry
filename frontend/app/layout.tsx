@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { cookies, headers } from "next/headers";
 import "./globals.css";
 import { LanguageProvider } from "@/context/LanguageContext";
 
@@ -48,7 +49,6 @@ export const metadata: Metadata = {
   authors: [{ name: "FyDry Team" }],
   creator: "FyDry",
   publisher: "FyDry Inc.",
-  manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -76,20 +76,6 @@ export const metadata: Metadata = {
       {
         url: "/logo_blanco.png",
         media: "(prefers-color-scheme: dark)",
-        type: "image/png",
-      },
-    ],
-    apple: [
-      {
-        url: "/logo_negro_fondo_blanco.png",
-        media: "(prefers-color-scheme: light)",
-        sizes: "180x180",
-        type: "image/png",
-      },
-      {
-        url: "/logo_blanco_fondo_negro.png",
-        media: "(prefers-color-scheme: dark)",
-        sizes: "180x180",
         type: "image/png",
       },
     ],
@@ -129,11 +115,20 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const cookieStore = await cookies();
+  const headerList = await headers();
+  const themeCookie = cookieStore.get("fydry_theme")?.value;
+  const secChTheme = headerList.get("sec-ch-prefers-color-scheme");
+  const isDark = themeCookie === "dark" || secChTheme === "dark";
+
+  const mobileIcon = isDark ? "/logo_blanco_fondo_negro.png" : "/logo_negro_fondo_blanco.png";
+  const manifestPath = isDark ? "/manifest.dark.json" : "/manifest.light.json";
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "WebApplication",
@@ -154,6 +149,46 @@ export default function RootLayout({
   return (
     <html lang="es" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  var mql = window.matchMedia('(prefers-color-scheme: dark)');
+                  function applyTheme(dark) {
+                    var theme = dark ? 'dark' : 'light';
+                    document.cookie = "fydry_theme=" + theme + "; path=/; max-age=31536000; SameSite=Lax";
+
+                    // Actualizar Apple Touch Icon para iOS Safari
+                    var appleLink = document.getElementById('apple-touch-icon');
+                    if (appleLink) {
+                      appleLink.href = dark ? '/logo_blanco_fondo_negro.png' : '/logo_negro_fondo_blanco.png';
+                    }
+
+                    // Actualizar Manifest para Android Chrome
+                    var manLink = document.getElementById('app-manifest');
+                    if (manLink) {
+                      manLink.href = dark ? '/manifest.dark.json' : '/manifest.light.json';
+                    }
+
+                    // Actualizar Favicon de pestaña
+                    var favLink = document.getElementById('dynamic-favicon');
+                    if (favLink) {
+                      favLink.href = dark ? '/logo_blanco.png' : '/logo_negro.png';
+                    }
+                  }
+                  applyTheme(mql.matches);
+                  if (mql.addEventListener) {
+                    mql.addEventListener('change', function(e) { applyTheme(e.matches); });
+                  } else if (mql.addListener) {
+                    mql.addListener(function(e) { applyTheme(e.matches); });
+                  }
+                } catch(e) {}
+              })();
+            `,
+          }}
+        />
+        <meta httpEquiv="Accept-CH" content="Sec-CH-Prefers-Color-Scheme" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="FyDry" />
@@ -161,39 +196,8 @@ export default function RootLayout({
         <meta name="theme-color" content="#09090b" media="(prefers-color-scheme: dark)" />
         <link id="dynamic-favicon" rel="icon" href="/logo_negro.png" type="image/png" media="(prefers-color-scheme: light)" />
         <link rel="icon" href="/logo_blanco.png" type="image/png" media="(prefers-color-scheme: dark)" />
-        <link id="apple-touch-icon" rel="apple-touch-icon" href="/logo_negro_fondo_blanco.png" media="(prefers-color-scheme: light)" />
-        <link rel="apple-touch-icon" href="/logo_blanco_fondo_negro.png" media="(prefers-color-scheme: dark)" />
-        <link id="app-manifest" rel="manifest" href="/manifest.json" />
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                try {
-                  var mql = window.matchMedia('(prefers-color-scheme: dark)');
-                  function updateThemeAssets(isDark) {
-                    // Favicon pestaña
-                    var link = document.getElementById('dynamic-favicon') || document.querySelector("link[rel*='icon']");
-                    if (link) link.href = isDark ? '/logo_blanco.png' : '/logo_negro.png';
-
-                    // Icono de app para teléfonos (iOS Safari)
-                    var appleLink = document.getElementById('apple-touch-icon') || document.querySelector("link[rel='apple-touch-icon']");
-                    if (appleLink) appleLink.href = isDark ? '/logo_blanco_fondo_negro.png' : '/logo_negro_fondo_blanco.png';
-
-                    // Manifest para Android / PWA
-                    var manifestLink = document.getElementById('app-manifest') || document.querySelector("link[rel='manifest']");
-                    if (manifestLink) manifestLink.href = isDark ? '/manifest.dark.json' : '/manifest.light.json';
-                  }
-                  updateThemeAssets(mql.matches);
-                  if (mql.addEventListener) {
-                    mql.addEventListener('change', function(e) { updateThemeAssets(e.matches); });
-                  } else if (mql.addListener) {
-                    mql.addListener(function(e) { updateThemeAssets(e.matches); });
-                  }
-                } catch(e) {}
-              })();
-            `,
-          }}
-        />
+        <link id="apple-touch-icon" rel="apple-touch-icon" sizes="180x180" href={mobileIcon} />
+        <link id="app-manifest" rel="manifest" href={manifestPath} />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

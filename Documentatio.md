@@ -1350,3 +1350,21 @@ Se integró el cómputo automático de los movimientos/traspasos entre cuentas c
 - **Validaciones:**
   - `security-agent`: **LUZ VERDE** (Manifests estaticos seguros, rutas locales y sin fuga de datos).
   - `qa-agent`: **LUZ VERDE** (`npx tsc --noEmit` exit code 0, `npm run build` Turbopack exit code 0).
+
+
+## [2026-10-08] - Correccion de Icono al Agregar al Inicio en Moviles (iOS & Android) por Tema
+
+### Modulo: Frontend (Mobile PWA, Safari Web Clip & Dynamic Manifest)
+- **Archivos afectados:**
+  - `frontend/app/layout.tsx`
+  - `frontend/app/manifest.json/route.ts` (Nuevo Route Handler)
+  - `frontend/public/manifest.json` (Eliminado para habilitar el endpoint dinamico)
+  - `frontend/public/manifest.light.json`
+  - `frontend/public/manifest.dark.json`
+- **Diagnostico y solucion:**
+  - **iOS Safari:** Safari ignora los atributos `media` en las etiquetas `apple-touch-icon` y toma la primera etiqueta estatica generada por el servidor. Para solucionarlo, se retiro la inyeccion duplicada de `metadata.icons.apple` y se implemento un Server Component asincrono en `layout.tsx` que detecta la cookie `fydry_theme` y cabeceras `Sec-CH-Prefers-Color-Scheme`, renderizando un unico `<link id="apple-touch-icon" rel="apple-touch-icon" sizes="180x180">` con `/logo_blanco_fondo_negro.png` en modo oscuro y `/logo_negro_fondo_blanco.png` en modo claro.
+  - **Android Chrome / PWA:** Chrome solicita directamente `/manifest.json` via HTTP. Se creo el Route Handler `app/manifest.json/route.ts` (`force-dynamic`) que evalua el tema y devuelve dinamicamente el manifest con el icono correcto (`/logo_blanco_fondo_negro.png` para oscuro y `/logo_negro_fondo_blanco.png` para claro), eliminando el archivo estatico conflictivo.
+  - **Script de sincronizacion en caliente:** Sincroniza al instante cookies y etiquetas en el cliente ante eventos de cambio de tema del sistema sin recarga.
+- **Validaciones:**
+  - `security-agent`: **LUZ VERDE** (Endpoint protegido, sin SSRF, sin inyecciones y cabeceras seguras).
+  - `qa-agent`: **LUZ VERDE** (`npx tsc --noEmit` exit code 0, `npm run build` Turbopack exit code 0).
