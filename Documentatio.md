@@ -1253,3 +1253,28 @@ Se integró el cómputo automático de los movimientos/traspasos entre cuentas c
 - **Validaciones:**
   - `security-agent`: **LUZ VERDE** (Resolucion de SEC-01, SEC-02 y SEC-03, arquitectura Fail-Closed y blindaje contra bypass).
   - `qa-agent`: **LUZ VERDE** (`npx tsc --noEmit` exit code 0, `npm run build` Turbopack exit code 0).
+
+
+## [2026-10-08] - Soporte de Modo Claro y Oscuro para Logos de Marca (ThemeLogo)
+
+### Modulo: Frontend (Brand & UI Themes)
+- **Archivos afectados:**
+  - `frontend/components/ThemeLogo.tsx` (Nuevo componente)
+  - `frontend/components/Navbar.tsx`
+  - `frontend/components/Footer.tsx`
+  - `frontend/components/auth/AuthCard.tsx`
+  - `frontend/components/dashboard/DashboardLayout.tsx`
+  - `frontend/components/onboarding/OnboardingWizard.tsx`
+  - `frontend/app/layout.tsx`
+- **Cambios realizados:**
+  - **Componente Dinamico `ThemeLogo`:**
+    - Creado componente reactivo que detecta automaticamente la preferencia de color del navegador (`prefers-color-scheme: dark` / `light`) y clases CSS de tema.
+    - Renderiza `/logo_negro.png` en modo claro y `/logo_blanco.png` en modo oscuro con CSS inmediato sin parpadeo (FOUC).
+    - Optimizado con `next/image` manteniendo soporte de `fill`, `sizes` y `priority`.
+  - **Reemplazo Integral en la Plataforma:**
+    - Actualizado en Navbar principal, Footer, formulario de Autenticacion, barra lateral de Dashboard (escritorio y cabecera movil) y Wizard de Onboarding.
+  - **Favicons Dinamicos en Navegador:**
+    - Configurado en `layout.tsx` y `<head>` para alternar el favicon de la pestana entre `/logo_negro.png` y `/logo_blanco.png` segun el tema del sistema operativo.
+- **Validaciones:**
+  - `security-agent`: **LUZ VERDE** (Rutas estaticas seguras, sin vectores XSS ni fugas en el DOM).
+  - `qa-agent`: **LUZ VERDE** (`npx tsc --noEmit` exit code 0, `npm run build` Turbopack exit code 0).

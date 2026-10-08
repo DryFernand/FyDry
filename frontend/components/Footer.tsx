@@ -1,5 +1,5 @@
 import Link from "next/link";
-import Image from "next/image";
+import ThemeLogo from "@/components/ThemeLogo";
 
 export default function Footer() {
   return (
@@ -10,8 +10,7 @@ export default function Footer() {
           <div className="col-span-2">
             <Link href="/" className="flex items-center gap-2.5 mb-3 group">
               <div className="relative w-7 h-7 rounded-full overflow-hidden ring-1 ring-zinc-900/10 shrink-0">
-                <Image
-                  src="/FyDry.jpeg"
+                <ThemeLogo
                   alt="FyDry Logo"
                   fill
                   sizes="28px"

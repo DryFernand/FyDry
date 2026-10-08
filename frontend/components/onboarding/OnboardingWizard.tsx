@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
-import Image from "next/image";
+import ThemeLogo from "@/components/ThemeLogo";
 import { User, Briefcase, Wallet, Target, Sparkles, CheckCircle2 } from "lucide-react";
 import { OnboardingFormData, initialOnboardingData } from "./types";
 import StepPersonal from "./StepPersonal";
@@ -155,8 +155,7 @@ export default function OnboardingWizard() {
         <div className="flex items-center justify-between mb-6 pb-4 border-b border-zinc-100">
           <div className="flex items-center gap-2.5">
             <div className="relative w-7 h-7 rounded-full overflow-hidden ring-1 ring-zinc-900/10 shrink-0">
-              <Image
-                src="/FyDry.jpeg"
+              <ThemeLogo
                 alt="FyDry Logo"
                 fill
                 sizes="28px"

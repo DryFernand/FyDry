@@ -47,6 +47,8 @@ export const metadata: Metadata = {
   publisher: "FyDry Inc.",
   icons: {
     icon: [
+      { url: "/logo_negro.png", media: "(prefers-color-scheme: light)" },
+      { url: "/logo_blanco.png", media: "(prefers-color-scheme: dark)" },
       { url: "/favicon.ico", sizes: "any" },
       { url: "/icon.png", type: "image/png", sizes: "512x512" },
     ],
@@ -115,6 +117,8 @@ export default function RootLayout({
   return (
     <html lang="es" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <head>
+        <link rel="icon" href="/logo_negro.png" media="(prefers-color-scheme: light)" />
+        <link rel="icon" href="/logo_blanco.png" media="(prefers-color-scheme: dark)" />
         <link rel="icon" href="/favicon.ico" sizes="any" />
         <link rel="icon" href="/icon.png" type="image/png" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />

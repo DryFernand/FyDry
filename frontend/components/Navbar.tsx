@@ -3,7 +3,7 @@
 import { motion } from "motion/react";
 import { ArrowRight, Sparkles } from "lucide-react";
 import Link from "next/link";
-import Image from "next/image";
+import ThemeLogo from "@/components/ThemeLogo";
 
 export default function Navbar() {
   return (
@@ -17,8 +17,7 @@ export default function Navbar() {
         {/* Brand Logo */}
         <Link href="/" className="flex items-center gap-2.5 group">
           <div className="relative w-8 h-8 rounded-full overflow-hidden ring-1 ring-zinc-900/10 shadow-xs transition-transform duration-200 group-hover:scale-105 shrink-0">
-            <Image
-              src="/FyDry.jpeg"
+            <ThemeLogo
               alt="FyDry Logo"
               fill
               sizes="32px"

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
-import Image from "next/image";
+import ThemeLogo from "@/components/ThemeLogo";
 import Link from "next/link";
 import LoginForm from "./LoginForm";
 import RegisterForm from "./RegisterForm";
@@ -95,8 +95,7 @@ export default function AuthCard({ initialView = "login" }: AuthCardProps) {
       <div className="mb-6 text-center z-10">
         <Link href="/" className="inline-flex items-center gap-2.5 group">
           <div className="relative w-10 h-10 rounded-full overflow-hidden ring-1 ring-zinc-900/10 shadow-sm transition-transform duration-200 group-hover:scale-105 shrink-0">
-            <Image
-              src="/FyDry.jpeg"
+            <ThemeLogo
               alt="FyDry Logo"
               fill
               sizes="40px"
