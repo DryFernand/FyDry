@@ -155,26 +155,26 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
       return;
     }
 
-    const parsedAmount = parseFloat(amount);
-    if (!parsedAmount || parsedAmount <= 0) {
+    const parsedAmount = parseFloat(amount.replace(",", "."));
+    if (isNaN(parsedAmount) || !isFinite(parsedAmount) || parsedAmount <= 0) {
       setFormError("Ingresa un monto de transferencia válido mayor a 0.");
       return;
     }
 
-    const parsedTax = parseFloat(taxAmount) || 0.0;
-    if (parsedTax < 0) {
-      setFormError("El impuesto o comisión no puede ser negativo.");
+    const parsedTax = taxAmount ? parseFloat(taxAmount.replace(",", ".")) : 0.0;
+    if (isNaN(parsedTax) || !isFinite(parsedTax) || parsedTax < 0) {
+      setFormError("El impuesto o comisión no puede ser negativo o inválido.");
       return;
     }
 
     const fromAccObj = accounts.find((a) => a.name === fromAccount);
     const toAccObj = accounts.find((a) => a.name === toAccount);
 
-    if (fromAccObj && fromAccObj.type === "credit_card") {
+    if (fromAccObj) {
       const availableFunds = fromAccObj.balance + (fromAccObj.overdraftLimit || 0);
       if (parsedAmount + parsedTax > availableFunds) {
         setFormError(
-          `Traspaso rechazado: El monto total con impuestos ($${(parsedAmount + parsedTax).toFixed(2)}) supera el saldo disponible más el sobregiro permitido ($${availableFunds.toFixed(2)}) de la tarjeta "${fromAccObj.name}".`
+          `Traspaso rechazado: El monto total con impuestos ($${(parsedAmount + parsedTax).toFixed(2)}) supera el saldo disponible más el sobregiro permitido ($${availableFunds.toFixed(2)}) de "${fromAccObj.name}".`
         );
         return;
       }
@@ -251,8 +251,8 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
     return true;
   });
 
-  const numAmount = parseFloat(amount) || 0;
-  const numTax = parseFloat(taxAmount) || 0;
+  const numAmount = parseFloat(amount.replace(",", ".")) || 0;
+  const numTax = parseFloat(taxAmount.replace(",", ".")) || 0;
   const totalDebitedPreview = numAmount + numTax;
 
   return (
@@ -305,11 +305,11 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
         <div className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-zinc-500">Impuestos / Comisiones (Este Mes)</span>
-            <div className="w-7 h-7 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+            <div className="w-7 h-7 rounded-xl bg-zinc-100 text-zinc-800 flex items-center justify-center">
               <Receipt className="w-3.5 h-3.5" />
             </div>
           </div>
-          <div className="text-2xl font-bold tracking-tight text-amber-600">
+          <div className="text-2xl font-bold tracking-tight text-zinc-950">
             ${totalTaxesThisMonth.toLocaleString("en-US", { minimumFractionDigits: 2 })}
           </div>
           <div className="text-[11px] text-zinc-400">
@@ -321,7 +321,7 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
         <div className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-zinc-500">Reinicio de Presupuesto</span>
-            <div className="w-7 h-7 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+            <div className="w-7 h-7 rounded-xl bg-zinc-100 text-zinc-800 flex items-center justify-center">
               <Percent className="w-3.5 h-3.5" />
             </div>
           </div>
@@ -386,15 +386,15 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
                     <Edit3 className="w-3 h-3 text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
                   <div className="text-[11px] text-zinc-500 flex flex-wrap items-center gap-2 mt-0.5">
-                    <span className="font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md">
+                    <span className="font-semibold text-zinc-800 bg-zinc-100 border border-zinc-200/60 px-2 py-0.5 rounded-md">
                       De: {item.fromAccount}
                     </span>
-                    <span>➔</span>
-                    <span className="font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">
+                    <span className="text-zinc-400">➔</span>
+                    <span className="font-semibold text-zinc-800 bg-zinc-100 border border-zinc-200/60 px-2 py-0.5 rounded-md">
                       A: {item.toAccount}
                     </span>
                     {item.taxAmount && item.taxAmount > 0 ? (
-                      <span className="font-semibold text-amber-700 bg-amber-50 border border-amber-200/60 px-2 py-0.5 rounded-md">
+                      <span className="font-semibold text-zinc-700 bg-zinc-100 border border-zinc-200/60 px-2 py-0.5 rounded-md">
                         +${item.taxAmount.toFixed(2)} Impuesto
                       </span>
                     ) : null}

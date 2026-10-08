@@ -41,6 +41,7 @@ export default function QuickTransactionModal({
 
   const [type, setType] = useState<TransactionType>(defaultType);
   const [amount, setAmount] = useState<string>("");
+  const [taxAmount, setTaxAmount] = useState<string>("");
   const [description, setDescription] = useState<string>("");
   const [category, setCategory] = useState<string>(EXPENSE_CATEGORIES[0]);
   const [fromAccount, setFromAccount] = useState<string>("");
@@ -126,6 +127,7 @@ export default function QuickTransactionModal({
 
   const resetForm = () => {
     setAmount("");
+    setTaxAmount("");
     setDescription("");
     setDate(new Date().toISOString().split("T")[0]);
     setErrorMessage(null);
@@ -176,17 +178,27 @@ export default function QuickTransactionModal({
       return;
     }
 
+    const parsedTax = taxAmount ? parseFloat(taxAmount.replace(",", ".")) : 0;
+    if (isNaN(parsedTax) || !isFinite(parsedTax) || parsedTax < 0) {
+      setErrorMessage(
+        isEn
+          ? "Fee or tax amount cannot be negative or invalid."
+          : "La comisión o impuesto no puede ser negativo o inválido."
+      );
+      return;
+    }
+
     const currentFromAccount =
       fromAccount || (accounts.length > 0 ? accounts[0].name : "Efectivo Principal");
 
     const fromAccObj = accounts.find((a) => a.name === currentFromAccount);
     if (fromAccObj) {
       const availableFunds = fromAccObj.balance + (fromAccObj.overdraftLimit || 0);
-      if (type !== "income" && parsedAmount > availableFunds) {
+      if (type !== "income" && parsedAmount + parsedTax > availableFunds) {
         setErrorMessage(
           isEn
-            ? `Amount ($${parsedAmount.toFixed(2)}) exceeds available balance and overdraft ($${availableFunds.toFixed(2)}) of "${fromAccObj.name}".`
-            : `El monto ($${parsedAmount.toFixed(2)}) supera el disponible más sobregiro ($${availableFunds.toFixed(2)}) de "${fromAccObj.name}".`
+            ? `Amount ($${(parsedAmount + parsedTax).toFixed(2)}) exceeds available balance and overdraft ($${availableFunds.toFixed(2)}) of "${fromAccObj.name}".`
+            : `El monto ($${(parsedAmount + parsedTax).toFixed(2)}) supera el disponible más sobregiro ($${availableFunds.toFixed(2)}) de "${fromAccObj.name}".`
         );
         return;
       }
@@ -249,7 +261,7 @@ export default function QuickTransactionModal({
           toAccount: targetToAccount,
           toAccountId: toAccObj?.id,
           amount: parsedAmount,
-          taxAmount: 0,
+          taxAmount: parsedTax,
           description:
             cleanDesc ||
             (isEn
@@ -365,11 +377,11 @@ export default function QuickTransactionModal({
                 onClick={() => handleTypeChange("transfer")}
                 className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                   type === "transfer"
-                    ? "bg-white text-sky-600 shadow-xs border border-sky-200/60"
+                    ? "bg-white text-zinc-950 shadow-xs border border-zinc-200/80 font-bold"
                     : "text-zinc-500 hover:text-zinc-900"
                 }`}
               >
-                <ArrowLeftRight className="w-4 h-4 shrink-0 text-sky-500" />
+                <ArrowLeftRight className="w-4 h-4 shrink-0 text-zinc-800" />
                 <span className="truncate">{isEn ? "Transfer" : "Transferir"}</span>
               </button>
             </div>
@@ -552,6 +564,34 @@ export default function QuickTransactionModal({
                 )}
               </div>
 
+              {/* Comisión / Impuesto bancario (solo para transferencias) */}
+              {type === "transfer" && (
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-800 mb-1 flex items-center justify-between">
+                    <span>{isEn ? "Bank Fee / Tax ($)" : "Comisión / Impuesto bancario ($)"}</span>
+                    <span className="text-[10px] text-zinc-400 font-normal">{isEn ? "Optional" : "Opcional"}</span>
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 font-bold text-xs pointer-events-none">
+                      $
+                    </span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={taxAmount}
+                      onChange={(e) => setTaxAmount(e.target.value)}
+                      placeholder={
+                        isEn
+                          ? "0.00 (Optional, e.g. 0.15% DGII or interbank fee)"
+                          : "0.00 (Opcional, ej. 0.15% DGII o comisión interbancaria)"
+                      }
+                      className="w-full pl-7 pr-3 py-2 rounded-xl border border-zinc-200 bg-white text-zinc-900 text-xs placeholder:text-zinc-400 focus:outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 transition-colors shadow-2xs"
+                    />
+                  </div>
+                </div>
+              )}
+
               {/* Botones de Acción */}
               <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-zinc-100">
                 <button
@@ -570,7 +610,7 @@ export default function QuickTransactionModal({
                       ? "bg-rose-600 hover:bg-rose-700"
                       : type === "income"
                       ? "bg-emerald-600 hover:bg-emerald-700"
-                      : "bg-sky-600 hover:bg-sky-700"
+                      : "bg-zinc-950 hover:bg-zinc-800 text-white"
                   }`}
                 >
                   {isSubmitting ? (

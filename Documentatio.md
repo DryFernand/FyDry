@@ -1,5 +1,28 @@
 # Registro de Cambios y Documentación del Proyecto (Documentatio.md)
 
+## [2026-10-08] - Rediseño de Pantalla de Movimientos y Modal Rápido (Fase 1: Homogeneización Visual, Impuesto en Transferencias y Blindaje)
+
+### Resumen
+Se implementó la Fase 1 del rediseño en `MovementsView.tsx` y en el modal global `QuickTransactionModal.tsx`. Se unificó la estética visual monocromática eliminando colores discordantes en transferencias entre cuentas propias, se incorporó el soporte para registrar comisiones e impuestos bancarios directamente en la pestaña de transferencia del modal rápido, y se blindaron los cálculos contra comisiones negativas, decimales regionales con coma y desbordamientos aritméticos.
+
+### Cambios Realizados:
+- **Homogeneización en `MovementsView.tsx`**:
+  - Unificación de las tarjetas superiores de resumen (Total Traspasado, Retenciones/Impuestos y Reinicio de Presupuesto) a escala monocromática `zinc-950` y contenedores neutros `zinc-100`.
+  - Reemplazo de las píldoras de colores discordantes (`text-rose-600` y `text-emerald-600`) en la lista de movimientos por un flujo neutral y sobrio: `De: Cuenta` ➔ `A: Cuenta` en `bg-zinc-100 text-zinc-800 border-zinc-200/60`.
+  - Badge de impuestos unificado a tono carbón neutro.
+- **Unificación y Nuevas Capacidades en `QuickTransactionModal.tsx`**:
+  - Estilización del tab de "Transferir" y botón de envío a negro carbón de alto contraste (`bg-zinc-950 hover:bg-zinc-800 text-white`), reemplazando el azul cielo chillón.
+  - Nuevo campo opcional: *"Comisión / Impuesto bancario ($)"* en la pestaña de transferencia para capturar retenciones DGII o comisiones interbancarias, sincronizado con `createTransferApi`.
+- **Blindaje de Seguridad y Validación Financiera**:
+  - Normalización de decimales regionales con coma (`.replace(",", ".")`) en montos y comisiones.
+  - Validación matemática estricta contra valores negativos, `NaN` e `Infinity` en comisiones e importes transferidos.
+  - Validación universal de fondos disponibles (`balance + overdraftLimit`) aplicada a todas las cuentas emisoras contra el monto total debitado (`parsedAmount + parsedTax`).
+- **Auditoría de Calidad**:
+  - Veredicto de Seguridad: LUZ VERDE tras la resolución de hallazgos SEC-01 a SEC-04.
+  - Veredicto de QA: LUZ VERDE (`tsc --noEmit` exit code 0 y build Next.js Turbopack en 2.2s).
+
+---
+
 ## [2026-10-07] - Rediseño de Pantalla de Reportes (Fase 2: Métricas Patrimoniales, Score de Salud Financiera y Diagnóstico)
 
 ### Resumen
