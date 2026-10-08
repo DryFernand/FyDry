@@ -196,6 +196,22 @@ export default function SettingsModal({
     await updateUserSettingsApi({ language: newLang });
   };
 
+  const handleBudgetResetDayChange = async (val: number) => {
+    setBudgetResetDay(val);
+    await updateUserSettingsApi({ budget_reset_day: val });
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("fydry_storage_updated"));
+    }
+  };
+
+  const handleCurrencyChange = async (newCurr: string) => {
+    setCurrency(newCurr);
+    await updateUserSettingsApi({ preferred_currency: newCurr });
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("fydry_storage_updated"));
+    }
+  };
+
   const handleNotificationSave = async (
     updates: { emailAlerts?: boolean; budgetWarnings?: boolean; weeklyDigest?: boolean }
   ) => {
@@ -340,16 +356,16 @@ export default function SettingsModal({
         className="w-full max-w-3xl bg-white rounded-3xl border border-zinc-200 shadow-2xl overflow-hidden flex flex-col md:flex-row max-h-[90vh]"
       >
         {/* Sidebar Tabs */}
-        <div className="w-full md:w-60 bg-zinc-50 border-b md:border-b-0 md:border-r border-zinc-200/80 p-4 shrink-0 flex flex-col justify-between">
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 px-2 pt-1">
+        <div className="w-full md:w-60 bg-zinc-50 border-b md:border-b-0 md:border-r border-zinc-200/80 p-2.5 md:p-4 shrink-0 flex flex-col justify-between">
+          <div className="space-y-0 md:space-y-4">
+            <div className="hidden md:flex items-center gap-2 px-2 pt-1">
               <div className="w-7 h-7 rounded-lg bg-zinc-950 text-white flex items-center justify-center font-bold text-xs">
                 FD
               </div>
               <span className="font-bold text-sm text-zinc-950">{t.settings.title}</span>
             </div>
 
-            <nav className="space-y-1">
+            <nav className="overflow-x-auto scrollbar-none flex flex-row md:flex-col gap-1.5 pb-1 md:pb-0">
               {tabs.map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
@@ -359,10 +375,10 @@ export default function SettingsModal({
                     key={tab.id}
                     type="button"
                     onClick={() => setActiveTab(tab.id as SettingsTab)}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                    className={`w-auto md:w-full shrink-0 md:shrink whitespace-nowrap md:whitespace-normal flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                       isActive
                         ? isDanger
-                          ? "bg-rose-600 text-white"
+                          ? "bg-rose-50 text-rose-700 border border-rose-200/80 font-bold shadow-2xs"
                           : "bg-zinc-950 text-white"
                         : isDanger
                         ? "text-rose-600 hover:bg-rose-50"
@@ -496,8 +512,8 @@ export default function SettingsModal({
                 </div>
 
                 {scanFeedback && (
-                  <div className="p-3 rounded-2xl bg-purple-50 border border-purple-200 text-xs text-purple-900 flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-purple-600 shrink-0" />
+                  <div className="p-3 rounded-2xl bg-zinc-50 border border-zinc-200 text-xs text-zinc-900 flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
                     <span>{scanFeedback}</span>
                   </div>
                 )}
@@ -507,7 +523,7 @@ export default function SettingsModal({
                     <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200 space-y-3">
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-2xl bg-white border border-zinc-200 flex items-center justify-center text-rose-500 shadow-2xs font-bold text-sm">
+                          <div className="w-10 h-10 rounded-2xl bg-white border border-zinc-200 flex items-center justify-center text-zinc-900 shadow-2xs font-bold text-sm">
                             G
                           </div>
                           <div>
@@ -563,9 +579,9 @@ export default function SettingsModal({
                   </div>
                 ) : (
                   <form onSubmit={handleConnectGmail} className="space-y-4">
-                    <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200 space-y-2 text-xs text-zinc-600">
+                    <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200/80 space-y-2 text-xs text-zinc-600">
                       <div className="font-semibold text-zinc-900 flex items-center gap-1.5">
-                        <Mail className="w-4 h-4 text-purple-600" />
+                        <Mail className="w-4 h-4 text-zinc-800" />
                         <span>¿Cómo funciona la automatización?</span>
                       </div>
                       <p className="text-[11px] text-zinc-500 leading-relaxed">
@@ -599,7 +615,7 @@ export default function SettingsModal({
                         </>
                       ) : (
                         <>
-                          <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                          <Sparkles className="w-3.5 h-3.5 text-zinc-400" />
                           <span>Conectar Google Gmail & Activar Automatización</span>
                         </>
                       )}
@@ -789,11 +805,7 @@ export default function SettingsModal({
                   </label>
                   <select
                     value={currency}
-                    onChange={(e) => {
-                      const newCurr = e.target.value;
-                      setCurrency(newCurr);
-                      updateUserSettingsApi({ preferred_currency: newCurr });
-                    }}
+                    onChange={(e) => handleCurrencyChange(e.target.value)}
                     className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 text-xs text-zinc-900 focus:outline-none focus:border-zinc-900 cursor-pointer"
                   >
                     <option value="DOP">DOP (RD$) - Peso Dominicano</option>
@@ -826,11 +838,7 @@ export default function SettingsModal({
                     <div>
                       <select
                         value={budgetResetDay}
-                        onChange={(e) => {
-                          const val = parseInt(e.target.value) || 1;
-                          setBudgetResetDay(val);
-                          updateUserSettingsApi({ budget_reset_day: val });
-                        }}
+                        onChange={(e) => handleBudgetResetDayChange(parseInt(e.target.value) || 1)}
                         className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 text-xs text-zinc-900 focus:outline-none focus:border-zinc-900 cursor-pointer bg-white"
                       >
                         {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
@@ -846,10 +854,7 @@ export default function SettingsModal({
                         <button
                           key={d}
                           type="button"
-                          onClick={() => {
-                            setBudgetResetDay(d);
-                            updateUserSettingsApi({ budget_reset_day: d });
-                          }}
+                          onClick={() => handleBudgetResetDayChange(d)}
                           className={`flex-1 py-2 text-[11px] font-semibold rounded-xl border transition-all cursor-pointer ${
                             budgetResetDay === d
                               ? "bg-zinc-950 text-white border-zinc-950 shadow-2xs"

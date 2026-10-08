@@ -1206,3 +1206,25 @@ Se integró el cómputo automático de los movimientos/traspasos entre cuentas c
 - **Validaciones:**
   - `security-agent`: **LUZ VERDE** (Sin inyecciones XSS, integridad aritmetica en porcentajes y promedios, ausencia de fuga de datos).
   - `qa-agent`: **LUZ VERDE** (`npx tsc --noEmit` exit code 0, `npm run build` Turbopack exit code 0).
+
+
+## [2026-10-08] - Modal de Configuracion: Usabilidad Movil, Reactividad Global y Limpieza Cromatica (Fase 1)
+
+### Modulo: Frontend (Settings & System Preferences)
+- **Archivo afectado:**
+  - `frontend/components/dashboard/SettingsModal.tsx`
+- **Cambios realizados:**
+  - **Navegacion Movil Adaptativa de Pestanas:**
+    - Sidebar adaptado a barra horizontal scrollable en pantallas pequenas (`overflow-x-auto scrollbar-none flex flex-row md:flex-col gap-1.5`), evitando que los 7 menus ocupen el alto del viewport en moviles.
+    - Preservacion del sidebar vertical refinado (`w-60`) en pantallas medianas y de escritorio.
+  - **Sincronizacion Reactiva Global (`fydry_storage_updated`):**
+    - Handlers dedicados `handleBudgetResetDayChange` y `handleCurrencyChange` que despachan `window.dispatchEvent(new Event("fydry_storage_updated"))`.
+    - Actualizacion en tiempo real del ciclo contable y moneda en las pantallas de Gastos, Ingresos, Movimientos y Presupuesto sin requerir recarga manual.
+  - **Limpieza Cromatica Monocromatica:**
+    - Retiro de colores purpuras y morados en la pestana de sincronizacion de Gmail, unificando bajo la escala sobria `zinc` con micro-acentos funcionales en `emerald`.
+    - Refinamiento del boton activo de la pestana Zona de Peligro (`bg-rose-50 text-rose-700 border-rose-200/80`) para integrarlo de forma elegante al menu lateral.
+  - **Preservacion Integral:**
+    - 100% de los flujos de configuracion conservados (Perfil, OTP de contrasena, notificaciones push, soporte con WhatsApp y reseteo de datos).
+- **Validaciones:**
+  - `security-agent`: **LUZ VERDE** (Sin inyecciones XSS, integridad en despacho de eventos y mutaciones seguras hacia la API).
+  - `qa-agent`: **LUZ VERDE** (`npx tsc --noEmit` exit code 0, `npm run build` Turbopack exit code 0).
