@@ -10,7 +10,6 @@ import {
   Minimize2,
   Trash2,
   Send,
-  Sparkles,
   Settings,
   ArrowDownRight,
   ArrowUpRight,
@@ -23,6 +22,7 @@ import {
   AlertCircle,
   Loader2,
 } from "lucide-react";
+import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from "@/lib/categories";
 import {
   createExpenseApi,
   createIncomeApi,
@@ -90,6 +90,116 @@ function sanitizeDate(dateStr?: any): string {
     return dateStr.trim();
   }
   return new Date().toISOString().split("T")[0];
+}
+
+function normalizeText(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
+
+export function findClosestCategory(
+  categoryInput: string,
+  type: "expense" | "income"
+): string {
+  const categories = (type === "expense" ? EXPENSE_CATEGORIES : INCOME_CATEGORIES) as readonly string[];
+  const defaultCategory = type === "expense" ? "Otros Gastos" : "Otros Ingresos";
+
+  if (!categoryInput || !categoryInput.trim()) {
+    return defaultCategory;
+  }
+
+  const raw = categoryInput.trim();
+
+  // 1. Coincidencia exacta
+  const exact = categories.find((c) => c === raw);
+  if (exact) return exact;
+
+  const normalizedInput = normalizeText(raw);
+
+  // 2. Coincidencia normalizada exacta (sin tildes ni mayúsculas)
+  const normExact = categories.find((c) => normalizeText(c) === normalizedInput);
+  if (normExact) return normExact;
+
+  // 3. Contención directa (categoría contiene input o viceversa)
+  const containsMatch = categories.find((c) => {
+    const normC = normalizeText(c);
+    return normC.includes(normalizedInput) || normalizedInput.includes(normC);
+  });
+  if (containsMatch) return containsMatch;
+
+  // 4. Mapeo semántico y heurístico de palabras clave comunes
+  const keywordsMap: Record<string, string[]> =
+    type === "expense"
+      ? {
+          "Vivienda & Alquiler": ["alquiler", "renta", "casa", "depa", "departamento", "hipoteca", "vivienda", "arriendo"],
+          "Supermercado & Alimentación": ["super", "mercado", "supermercado", "despensa", "mandado", "viveres", "compras", "alimento", "alimentos"],
+          "Restaurantes & Bares": ["restaurante", "bar", "comida", "almuerzo", "cena", "desayuno", "cafe", "cafeteria", "starbucks", "mcdonalds", "pizza", "hamburguesa", "tragos", "cerveza"],
+          "Servicios Públicos (Luz/Agua/Gas)": ["luz", "agua", "gas", "electricidad", "cfe", "servicio", "servicios"],
+          "Telefonía & Internet": ["telefono", "telefonia", "celular", "internet", "wifi", "recarga", "movistar", "claro", "telcel"],
+          "Gasolina & Combustible": ["gasolina", "combustible", "nafta", "diesel", "tanque"],
+          "Transporte Público & Taxi": ["transporte", "uber", "taxi", "didi", "cabify", "metro", "bus", "camion", "pasaje", "peaje", "estacionamiento"],
+          "Salud & Farmacia": ["salud", "farmacia", "medicina", "medicamento", "doctor", "medico", "consulta", "dentista", "optica", "hospital", "clinica"],
+          "Seguros & Pólizas": ["seguro", "seguros", "poliza", "aseguradora"],
+          "Gimnasio & Deporte": ["gym", "gimnasio", "deporte", "fitness", "crossfit", "entrenamiento", "padel", "futbol"],
+          "Ropa & Calzado": ["ropa", "calzado", "zapatos", "zapatillas", "vestimenta", "moda", "tienda"],
+          "Cuidado Personal & Barbería": ["barberia", "peluqueria", "corte", "estetica", "belleza", "skincare", "cuidado", "unas"],
+          "Educación & Cursos": ["educacion", "curso", "cursos", "universidad", "colegio", "escuela", "udemy", "platzi", "matricula", "libro", "libros"],
+          "Entretenimiento & Cine": ["cine", "pelicula", "entretenimiento", "concierto", "fiesta", "salida", "juegos", "videojuegos", "steam"],
+          "Suscripciones Digitales": ["suscripcion", "suscripciones", "netflix", "spotify", "youtube", "amazon", "disney", "apple", "icloud"],
+          "Viajes & Vacaciones": ["viaje", "viajes", "vacaciones", "hotel", "vuelo", "pasajes", "airbnb", "turismo"],
+          "Mascotas & Veterinario": ["mascota", "mascotas", "perro", "gato", "veterinario", "veterinaria", "croquetas"],
+          "Tecnología & Gadgets": ["tecnologia", "gadget", "gadgets", "laptop", "computadora", "celular", "audifonos"],
+          "Mantenimiento del Hogar": ["mantenimiento", "reparacion", "plomero", "electricista", "pintura", "ferreteria", "hogar"],
+          "Regalos & Celebraciones": ["regalo", "regalos", "cumpleanos", "celebracion", "aniversario", "navidad"],
+          "Impuestos & Tasas": ["impuesto", "impuestos", "sat", "tasas", "tributo"],
+          "Pago de Deudas & Préstamos": ["deuda", "prestamo", "tarjeta", "credito", "interes", "intereses", "abono"],
+          "Imprevistos & Emergencias": ["imprevisto", "imprevistos", "emergencia", "urgencia"],
+          "Inversiones": ["inversion", "inversiones", "acciones", "cetes", "fondos"],
+          "Ahorro Programado": ["ahorro", "ahorros"],
+          "Otros Gastos": ["otros", "otro", "gasto", "general", "varios"],
+        }
+      : {
+          "Salario / Nómina Principal": ["salario", "sueldo", "nomina", "quincena", "pago", "empleo", "trabajo"],
+          "Horas Extras & Guardias": ["horas extras", "guardias", "hora extra"],
+          "Bonificaciones & Comisiones": ["bono", "bonos", "comision", "comisiones", "aguinaldo", "prima"],
+          "Servicios Freelance": ["freelance", "proyecto", "trabajo independiente", "freelancer", "chamba"],
+          "Consultoría & Asesoría": ["consultoria", "asesoria", "asesor"],
+          "Negocio Propio / Ventas": ["negocio", "venta", "ventas", "comercio", "tienda", "emprendimiento"],
+          "Dividendos & Acciones": ["dividendo", "dividendos", "acciones", "bolsa"],
+          "Rentas / Alquileres de Inmuebles": ["renta", "alquiler", "arriendo", "inmueble"],
+          "Rendimientos & Intereses Bancarios": ["rendimiento", "rendimientos", "interes", "intereses", "banco", "plazo fijo"],
+          "Reembolsos & Devoluciones": ["reembolso", "devolucion", "retorno"],
+          "Venta de Artículos de Segunda Mano": ["segunda mano", "usado", "garage", "marketplace"],
+          "Premios & Sorteos": ["premio", "premios", "sorteo", "sorteos", "loteria"],
+          "Regalos & Ayudas Familiares": ["regalo", "regalos", "ayuda", "familiar", "remesa", "donacion"],
+          "Criptomonedas & Staking": ["cripto", "crypto", "bitcoin", "staking", "usdt", "ethereum"],
+          "Otros Ingresos": ["otros", "otro", "ingreso", "general", "varios"],
+        };
+
+  const words = normalizedInput.split(/[\s,+/&-]+/).filter((w) => w.length >= 3);
+  for (const [cat, kws] of Object.entries(keywordsMap)) {
+    for (const kw of kws) {
+      const normKw = normalizeText(kw);
+      if (normalizedInput.includes(normKw) || words.some((w) => normKw.includes(w) || w.includes(normKw))) {
+        return cat;
+      }
+    }
+  }
+
+  // 5. Comparación token por token con los nombres de categorías oficiales
+  for (const cat of categories) {
+    const catWords = normalizeText(cat).split(/[\s,+/&()-]+/).filter((w) => w.length >= 3);
+    for (const w of words) {
+      if (catWords.some((cw) => cw.includes(w) || w.includes(cw))) {
+        return cat;
+      }
+    }
+  }
+
+  return defaultCategory;
 }
 
 const INITIAL_GREETING =
@@ -163,7 +273,10 @@ function ActionCard({ action, onConfirm, onCancel }: ActionCardProps) {
       const amt = Number(args.amount) || 0;
       details.push({ label: "Monto", value: `$${amt.toFixed(2)}` });
       details.push({ label: "Concepto", value: args.description || "Gasto" });
-      details.push({ label: "Categoría", value: args.category || "General" });
+      details.push({
+        label: "Categoría",
+        value: findClosestCategory(String(args.category || ""), "expense"),
+      });
       details.push({ label: "Cuenta", value: args.account || "Efectivo" });
       if (args.date) details.push({ label: "Fecha", value: args.date });
       break;
@@ -175,7 +288,10 @@ function ActionCard({ action, onConfirm, onCancel }: ActionCardProps) {
       const amt = Number(args.amount) || 0;
       details.push({ label: "Monto", value: `$${amt.toFixed(2)}` });
       details.push({ label: "Concepto", value: args.description || "Ingreso" });
-      details.push({ label: "Categoría", value: args.category || "General" });
+      details.push({
+        label: "Categoría",
+        value: findClosestCategory(String(args.category || ""), "income"),
+      });
       details.push({ label: "Cuenta", value: args.account || "Banco" });
       if (args.date) details.push({ label: "Fecha", value: args.date });
       break;
@@ -205,7 +321,10 @@ function ActionCard({ action, onConfirm, onCancel }: ActionCardProps) {
       title = "Nuevo Presupuesto";
       badge = "Presupuesto";
       icon = <PieChart className="w-4 h-4 text-amber-600" />;
-      details.push({ label: "Categoría", value: args.category || "General" });
+      details.push({
+        label: "Categoría",
+        value: findClosestCategory(String(args.category || ""), "expense"),
+      });
       const lim = Number(args.limit_amount) || 0;
       details.push({ label: "Límite Mensual", value: `$${lim.toFixed(2)}` });
       break;
@@ -446,7 +565,7 @@ export default function AiAssistantChat() {
       if (name === "create_expense") {
         const amount = parseStrictAmount(args.amount);
         const description = String(args.description || "Gasto general");
-        const category = String(args.category || "General");
+        const category = findClosestCategory(String(args.category || ""), "expense");
         const account = String(args.account || "Efectivo");
         const date = sanitizeDate(args.date);
 
@@ -457,11 +576,11 @@ export default function AiAssistantChat() {
           account,
           date,
         });
-        confirmNote = `Listo, he registrado el gasto de $${amount.toFixed(2)} (${description}) en la cuenta ${account}.`;
+        confirmNote = `Listo, he registrado el gasto de $${amount.toFixed(2)} (${description}) en la categoría "${category}" y cuenta ${account}.`;
       } else if (name === "create_income") {
         const amount = parseStrictAmount(args.amount);
         const description = String(args.description || "Ingreso general");
-        const category = String(args.category || "General");
+        const category = findClosestCategory(String(args.category || ""), "income");
         const account = String(args.account || "Efectivo");
         const date = sanitizeDate(args.date);
 
@@ -472,7 +591,7 @@ export default function AiAssistantChat() {
           account,
           date,
         });
-        confirmNote = `Listo, he registrado el ingreso de $${amount.toFixed(2)} (${description}) en la cuenta ${account}.`;
+        confirmNote = `Listo, he registrado el ingreso de $${amount.toFixed(2)} (${description}) en la categoría "${category}" y cuenta ${account}.`;
       } else if (name === "create_transfer") {
         const amount = parseStrictAmount(args.amount);
         const fromAccount = String(args.from_account || "Cuenta Origen");
@@ -503,7 +622,7 @@ export default function AiAssistantChat() {
         });
         confirmNote = `Listo, he creado la cuenta "${nameAcc}" con un saldo inicial de $${balance.toFixed(2)}.`;
       } else if (name === "create_budget") {
-        const category = String(args.category || "General");
+        const category = findClosestCategory(String(args.category || ""), "expense");
         const limit = parseStrictAmount(args.limit_amount);
 
         await createBudgetApi({
@@ -750,10 +869,17 @@ export default function AiAssistantChat() {
       }
 
       // Hay una herramienta para ejecutar
+      const toolArgs = { ...(toolCall.arguments || {}) };
+      if (toolCall.name === "create_expense" || toolCall.name === "create_budget") {
+        toolArgs.category = findClosestCategory(String(toolArgs.category || ""), "expense");
+      } else if (toolCall.name === "create_income") {
+        toolArgs.category = findClosestCategory(String(toolArgs.category || ""), "income");
+      }
+
       const pendingAction: PendingAction = {
         id: `act-${Date.now()}`,
         name: toolCall.name,
-        arguments: toolCall.arguments || {},
+        arguments: toolArgs,
         status: requireConfirmation ? "pending" : "executing",
       };
 
@@ -1066,23 +1192,12 @@ export default function AiAssistantChat() {
                 );
               })}
 
-              {/* Indicador de "Escribiendo..." */}
-              {isTyping && (
-                <div className="flex items-center gap-1.5 py-1 px-3 bg-zinc-100 border border-zinc-200/50 rounded-2xl w-fit text-[11px] text-zinc-500 rounded-bl-xs animate-pulse">
+              {/* Indicador visual de carga y escritura unificado (Tres puntos en movimiento) */}
+              {(isLoading || isTyping) && (
+                <div className="flex items-center gap-1.5 py-2 px-3 bg-zinc-100 border border-zinc-200/50 rounded-2xl w-fit rounded-bl-xs">
                   <span className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
                   <span className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
                   <span className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce"></span>
-                  <span className="ml-1 text-[11px] text-zinc-500">
-                    escribiendo...
-                  </span>
-                </div>
-              )}
-
-              {/* Indicador de Carga General de Red */}
-              {isLoading && !isTyping && (
-                <div className="flex items-center gap-2 py-1 px-3 bg-zinc-100 border border-zinc-200/50 rounded-2xl w-fit text-[11px] text-zinc-500 rounded-bl-xs">
-                  <Sparkles className="w-3.5 h-3.5 text-zinc-500 animate-spin" />
-                  <span>Pensando con calma...</span>
                 </div>
               )}
 

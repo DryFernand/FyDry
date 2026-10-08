@@ -1429,3 +1429,21 @@ Se integró el cómputo automático de los movimientos/traspasos entre cuentas c
 - **Validaciones:**
   - `security-agent`: **LUZ VERDE** (Mitigados VULN-01 a VULN-06; cero fuga de credenciales, control estricto de ejecucion y validacion de tipos).
   - `qa-agent`: **LUZ VERDE** (`npx tsc --noEmit` exit code 0, `npm run build` Turbopack exit code 0, pruebas funcionales de chat y vistas sincronizadas).
+
+
+## [2026-10-08] - Mapeo Estricto de Categorias Oficiales e Indicador Visual de 3 Puntos
+
+### Modulo: Frontend & API (AI Chat Category Normalization & Minimalist Typing Bubble)
+- **Archivos afectados:**
+  - `frontend/app/api/ai/chat/route.ts`
+  - `frontend/components/ai/AiAssistantChat.tsx`
+- **Cambios realizados:**
+  - **Asociacion estricta a categorias oficiales:**
+    - Integracion de `EXPENSE_CATEGORIES` e `INCOME_CATEGORIES` en el `SYSTEM_PROMPT` y en los esquemas de herramientas con validacion `enum`.
+    - Implementacion de `findClosestCategory` en el cliente con normalizacion fonetica, token matching y diccionario semantico de terminos cotidianos, garantizando que todo gasto, ingreso o presupuesto quede asignado a una categoria oficial de FyDry sin crear categorias dispersas.
+  - **Indicador visual estilizado de 3 puntos:**
+    - Se elimino el texto "Pensando con calma..." y el icono `Sparkles`.
+    - Se unifico el estado de carga y escritura en una burbuja limpia con 3 puntos animados con efecto bounce (`animate-bounce`), ofreciendo una sensacion visual mas comoda y fluida.
+- **Validaciones:**
+  - `security-agent`: **LUZ VERDE** (Normalizacion segura contra prototype pollution, regex estatica lineal y preservacion de whitelist).
+  - `qa-agent`: **LUZ VERDE** (`npx tsc --noEmit` exit code 0, `npm run build` Turbopack exit code 0, validacion funcional completa).

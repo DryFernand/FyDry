@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from "@/lib/categories";
 
 export const runtime = "nodejs";
 
@@ -21,6 +22,13 @@ Directivas Estrictas de Registro y Ejecución de Acciones:
 - Dispones de herramientas para interactuar con FyDry: create_expense, create_income, create_transfer, create_account, create_budget, create_debt y pay_debt.
 - Si el usuario te solicita registrar o crear un gasto, ingreso, transferencia, presupuesto o deuda, pero faltan datos esenciales (como monto, categoría, cuenta o concepto): NO llames a ninguna herramienta todavía. Pregunta de forma directa y amable por los datos que faltan. Solo invoca la herramienta correspondiente cuando el usuario te haya proporcionado toda la información necesaria.
 - Al invocar una herramienta, si lo deseas puedes incluir un mensaje muy breve y sereno indicando lo que has preparado para el usuario.
+- Al invocar herramientas como create_expense, create_income o create_budget, NUNCA inventes categorías nuevas. Debes seleccionar estrictamente la categoría oficial que mejor se adapte a la descripción del usuario (por ejemplo, si el usuario dice 'comida' o 'almuerzo' usa 'Restaurantes & Bares' o 'Supermercado & Alimentación'; si dice 'uber' usa 'Transporte Público & Taxi'; si dice 'sueldo' usa 'Salario / Nómina Principal'). Si ninguna coincide de forma exacta, asóciala a la más afín de la lista oficial, o a 'Otros Gastos' / 'Otros Ingresos'.
+
+Categorías Oficiales de FyDry para Gastos y Presupuestos:
+${EXPENSE_CATEGORIES.map((c) => `- "${c}"`).join("\n")}
+
+Categorías Oficiales de FyDry para Ingresos:
+${INCOME_CATEGORIES.map((c) => `- "${c}"`).join("\n")}
 
 Delimitación temática estricta:
 - Tu único ámbito de conocimiento y ayuda son las finanzas personales, el bienestar financiero y las funciones de FyDry.
@@ -56,7 +64,8 @@ const TOOLS = [
           },
           category: {
             type: "string",
-            description: "Categoría del gasto (ej. Alimentación, Transporte, Servicios, Entretenimiento, Salud, Vivienda, etc.).",
+            enum: [...EXPENSE_CATEGORIES],
+            description: "Categoría oficial del gasto. Debe ser estrictamente una de las categorías oficiales de FyDry.",
           },
           account: {
             type: "string",
@@ -89,7 +98,8 @@ const TOOLS = [
           },
           category: {
             type: "string",
-            description: "Categoría del ingreso (ej. Salario, Ventas, Rendimientos, Regalo).",
+            enum: [...INCOME_CATEGORIES],
+            description: "Categoría oficial del ingreso. Debe ser estrictamente una de las categorías oficiales de FyDry.",
           },
           account: {
             type: "string",
@@ -172,7 +182,8 @@ const TOOLS = [
         properties: {
           category: {
             type: "string",
-            description: "Nombre de la categoría (ej. Alimentación, Transporte, Entretenimiento).",
+            enum: [...EXPENSE_CATEGORIES],
+            description: "Categoría oficial del gasto asignada al presupuesto. Debe ser estrictamente una de las categorías oficiales de FyDry.",
           },
           limit_amount: {
             type: "number",
