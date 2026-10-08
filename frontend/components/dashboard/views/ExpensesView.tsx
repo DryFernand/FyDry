@@ -669,9 +669,9 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
 
       {/* Filter and Search Bar */}
       <div className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs space-y-4">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           {/* Buscador de texto */}
-          <div className="relative flex-1 min-w-[160px]">
+          <div className="relative flex-1 max-w-md">
             <input
               type="text"
               value={searchTerm}
@@ -682,50 +682,53 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
             <Search className="w-4 h-4 text-zinc-400 absolute left-3 top-2.5 pointer-events-none" />
           </div>
 
-          {/* Selector de filtro por cuenta */}
-          <div className="relative shrink-0 sm:w-48">
-            <div className="absolute left-3 top-2.5 pointer-events-none text-zinc-400">
-              <Wallet className="w-4 h-4" />
+          {/* Selectores de filtro */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 shrink-0">
+            {/* Selector de filtro por cuenta */}
+            <div className="relative shrink-0 sm:w-48">
+              <div className="absolute left-3 top-2.5 pointer-events-none text-zinc-400">
+                <Wallet className="w-4 h-4" />
+              </div>
+              <select
+                value={selectedAccountFilter}
+                onChange={(e) => setSelectedAccountFilter(e.target.value)}
+                className="w-full pl-9 pr-7 py-2 rounded-xl border border-zinc-200 bg-zinc-50/50 text-xs font-semibold text-zinc-700 hover:text-zinc-950 focus:outline-none focus:border-zinc-900 focus:bg-white transition-all shadow-2xs cursor-pointer truncate"
+              >
+                <option value="all">{language === "es" ? "Todas las Cuentas" : "All Accounts"}</option>
+                {accounts.map((acc) => (
+                  <option key={acc.id} value={acc.name}>
+                    {acc.name}
+                  </option>
+                ))}
+              </select>
             </div>
-            <select
-              value={selectedAccountFilter}
-              onChange={(e) => setSelectedAccountFilter(e.target.value)}
-              className="w-full pl-9 pr-7 py-2 rounded-xl border border-zinc-200 bg-zinc-50/50 text-xs font-semibold text-zinc-700 hover:text-zinc-950 focus:outline-none focus:border-zinc-900 focus:bg-white transition-all shadow-2xs cursor-pointer truncate"
-            >
-              <option value="all">{language === "es" ? "Todas las Cuentas" : "All Accounts"}</option>
-              {accounts.map((acc) => (
-                <option key={acc.id} value={acc.name}>
-                  {acc.name}
-                </option>
-              ))}
-            </select>
-          </div>
 
-          {/* Selector de filtro por categoría */}
-          <div className="relative shrink-0 sm:w-56">
-            <div className="absolute left-3 top-2.5 pointer-events-none text-zinc-400">
-              <Tag className="w-4 h-4" />
-            </div>
-            <select
-              value={
-                selectedCategory === "Todos" || selectedCategory === "All"
-                  ? language === "es"
-                    ? "Todos"
-                    : "All"
-                  : selectedCategory
-              }
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full pl-9 pr-7 py-2 rounded-xl border border-zinc-200 bg-zinc-50/50 text-xs font-semibold text-zinc-700 hover:text-zinc-950 focus:outline-none focus:border-zinc-900 focus:bg-white transition-all shadow-2xs cursor-pointer truncate"
-            >
-              <option value={language === "es" ? "Todos" : "All"}>
-                {language === "es" ? "Todas las Categorías" : "All Categories"}
-              </option>
-              {allCategoryOptions.map((catName) => (
-                <option key={catName} value={catName}>
-                  {catName}
+            {/* Selector de filtro por categoría */}
+            <div className="relative shrink-0 sm:w-56">
+              <div className="absolute left-3 top-2.5 pointer-events-none text-zinc-400">
+                <Tag className="w-4 h-4" />
+              </div>
+              <select
+                value={
+                  selectedCategory === "Todos" || selectedCategory === "All"
+                    ? language === "es"
+                      ? "Todos"
+                      : "All"
+                    : selectedCategory
+                }
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="w-full pl-9 pr-7 py-2 rounded-xl border border-zinc-200 bg-zinc-50/50 text-xs font-semibold text-zinc-700 hover:text-zinc-950 focus:outline-none focus:border-zinc-900 focus:bg-white transition-all shadow-2xs cursor-pointer truncate"
+              >
+                <option value={language === "es" ? "Todos" : "All"}>
+                  {language === "es" ? "Todas las Categorías" : "All Categories"}
                 </option>
-              ))}
-            </select>
+                {allCategoryOptions.map((catName) => (
+                  <option key={catName} value={catName}>
+                    {catName}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 

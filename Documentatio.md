@@ -1137,3 +1137,24 @@ Se integró el cómputo automático de los movimientos/traspasos entre cuentas c
 - **Validaciones:**
   - `security-agent`: **🟢 LUZ VERDE** (Prevención XSS, higiene de listeners y permisos nativos).
   - `qa-agent`: **🟢 LUZ VERDE** (`npx tsc --noEmit` exit code 0, `npm run build` Turbopack exit code 0).
+
+
+## [2026-10-08] - Homogeneizacion de Ancho de Buscador y Layout en Pantalla de Gastos
+
+### Modulo: Frontend (Expenses & Filters)
+- **Archivo afectado:**
+  - `frontend/components/dashboard/views/ExpensesView.tsx`
+- **Cambios realizados:**
+  - **Homogeneizacion del Ancho del Buscador:**
+    - Ajustado el contenedor del input de busqueda con `max-w-md` (`relative flex-1 max-w-md`), coincidiendo exactamente con la dimension empleada en `MovementsView.tsx`.
+    - Eliminado el estiramiento desproporcionado en monitores de escritorio.
+  - **Distribucion Responsive del Layout de Filtros:**
+    - Reestructurado el contenedor superior a `flex flex-col lg:flex-row lg:items-center justify-between gap-3`.
+    - Agrupados los selectores de cuenta debitada (`sm:w-48`) y categoria (`sm:w-56`) en un subcontenedor `flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 shrink-0` a la derecha.
+    - Adaptacion fluida en dispositivos moviles, tablets y monitores ultraanchos.
+  - **Preservacion Funcional:**
+    - Filtrado compuesto en tiempo real intacto (texto descriptivo, cuenta y categoria).
+    - Metricas analiticas del ciclo y modales de transaccion preservados al 100%.
+- **Validaciones:**
+  - `security-agent`: **LUZ VERDE** (Sin inyecciones XSS, layouts seguros y filtrado estricto).
+  - `qa-agent`: **LUZ VERDE** (`npx tsc --noEmit` exit code 0, `npm run build` Turbopack exit code 0).
