@@ -1228,3 +1228,28 @@ Se integró el cómputo automático de los movimientos/traspasos entre cuentas c
 - **Validaciones:**
   - `security-agent`: **LUZ VERDE** (Sin inyecciones XSS, integridad en despacho de eventos y mutaciones seguras hacia la API).
   - `qa-agent`: **LUZ VERDE** (`npx tsc --noEmit` exit code 0, `npm run build` Turbopack exit code 0).
+
+
+## [2026-10-08] - Modal de Configuracion: OTP Avanzado, Medidor de Contrasena y Divisas Enriquecidas (Fase 2)
+
+### Modulo: Frontend (Settings & Security)
+- **Archivo afectado:**
+  - `frontend/components/dashboard/SettingsModal.tsx`
+- **Cambios realizados:**
+  - **Experiencia Avanzada de Entrada OTP (6 digitos):**
+    - Soporte completo para pegar el codigo completo (`onPaste`), limpiando caracteres no numericos y distribuyendo los 6 digitos automaticamente en los casilleros con auto-enfoque al ultimo elemento.
+    - Navegacion fluida por teclado (`onKeyDown`): retroceso con `Backspace` a la celda anterior y desplazamiento con flechas izquierda/derecha.
+  - **Medidor Visual de Fortaleza y Validacion de Contrasenas:**
+    - Medidor dinamico de fortaleza (Debil / Aceptable / Fuerte) con barra reactiva en tonos rojo, ambar y esmeralda.
+    - Checklist en tiempo real de longitud minima (8 caracteres), presencia de numero y coincidencia exacta entre contrasena y confirmacion.
+    - Boton de envio bloqueado si no se satisfacen todas las reglas de complejidad.
+  - **Blindaje Fail-Closed en Autenticacion:**
+    - Manejo seguro ante excepciones o caidas de red en `handleVerifyOtp` y `handleUpdatePassword` evitando falsos positivos de exito o transiciones no autorizadas.
+  - **Sanitizacion Defensiva en Perfil:**
+    - Aplicacion de `.trim()` en nombre, telefono y ciudad, con validacion de obligatoriedad en el nombre antes de enviar el payload.
+  - **Selector de Divisas Enriquecido:**
+    - Grilla visual de tarjetas para DOP, USD, EUR, MXN, COP, ARS y CLP con simbolos representativos grandes (`RD$`, `$`, `€`, etc.) y seleccion activa en `zinc-950`.
+    - Sincronizacion inmediata con backend y reactividad en tiempo real mediante `fydry_storage_updated`.
+- **Validaciones:**
+  - `security-agent`: **LUZ VERDE** (Resolucion de SEC-01, SEC-02 y SEC-03, arquitectura Fail-Closed y blindaje contra bypass).
+  - `qa-agent`: **LUZ VERDE** (`npx tsc --noEmit` exit code 0, `npm run build` Turbopack exit code 0).

@@ -52,6 +52,16 @@ type SettingsTab =
   | "support"
   | "danger";
 
+const CURRENCIES = [
+  { code: "DOP", symbol: "RD$", name: "Peso Dominicano" },
+  { code: "USD", symbol: "$", name: "Dólar Estadounidense" },
+  { code: "EUR", symbol: "€", name: "Euro" },
+  { code: "MXN", symbol: "MX$", name: "Peso Mexicano" },
+  { code: "COP", symbol: "COL$", name: "Peso Colombiano" },
+  { code: "ARS", symbol: "AR$", name: "Peso Argentino" },
+  { code: "CLP", symbol: "CLP$", name: "Peso Chileno" },
+];
+
 export default function SettingsModal({
   isOpen,
   onClose,
@@ -66,6 +76,7 @@ export default function SettingsModal({
   const [phone, setPhone] = useState("");
   const [city, setCity] = useState("");
   const [isSavedProfile, setIsSavedProfile] = useState(false);
+  const [profileError, setProfileError] = useState("");
 
   // Security / Password Reset with OTP State
   const [securityStep, setSecurityStep] = useState<"initial" | "otp" | "new_password" | "success">("initial");
@@ -138,10 +149,28 @@ export default function SettingsModal({
   // Handlers
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+    setProfileError("");
+    const trimmedName = name.trim();
+    const trimmedPhone = phone.trim();
+    const trimmedCity = city.trim();
+
+    if (!trimmedName) {
+      setProfileError(
+        language === "es"
+          ? "El nombre completo no puede estar vacío."
+          : "Full name cannot be empty."
+      );
+      return;
+    }
+
+    setName(trimmedName);
+    setPhone(trimmedPhone);
+    setCity(trimmedCity);
+
     await updateUserSettingsApi({
-      full_name: name,
-      phone: phone || null,
-      city: city || null,
+      full_name: trimmedName,
+      phone: trimmedPhone || null,
+      city: trimmedCity || null,
       preferred_currency: currency,
     });
     setIsSavedProfile(true);
@@ -150,7 +179,7 @@ export default function SettingsModal({
       if (u) {
         try {
           const parsed = JSON.parse(u);
-          parsed.full_name = name;
+          parsed.full_name = trimmedName;
           localStorage.setItem("fydry_user", JSON.stringify(parsed));
         } catch {}
       }
@@ -247,6 +276,85 @@ export default function SettingsModal({
     }
   };
 
+  const handleOtpPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData("text").trim();
+    const digits = pasted.replace(/\D/g, "").slice(0, 6);
+    if (!digits) return;
+    const newOtp = [...otpCode];
+    for (let i = 0; i < 6; i++) {
+      newOtp[i] = digits[i] || "";
+    }
+    setOtpCode(newOtp);
+    const targetIdx = Math.min(digits.length, 5);
+    const targetInput = document.getElementById(`settings-otp-${targetIdx}`);
+    targetInput?.focus();
+  };
+
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Backspace" && !otpCode[index] && index > 0) {
+      e.preventDefault();
+      const prevInput = document.getElementById(`settings-otp-${index - 1}`);
+      prevInput?.focus();
+    } else if (e.key === "ArrowLeft" && index > 0) {
+      e.preventDefault();
+      const prevInput = document.getElementById(`settings-otp-${index - 1}`);
+      prevInput?.focus();
+    } else if (e.key === "ArrowRight" && index < 5) {
+      e.preventDefault();
+      const nextInput = document.getElementById(`settings-otp-${index + 1}`);
+      nextInput?.focus();
+    }
+  };
+
+  const hasMinLength = newPassword.length >= 8;
+  const hasNumber = /\d/.test(newPassword);
+  const passwordsMatch =
+    newPassword.length > 0 &&
+    confirmPassword.length > 0 &&
+    newPassword === confirmPassword;
+  const passwordsMismatch =
+    newPassword.length > 0 &&
+    confirmPassword.length > 0 &&
+    newPassword !== confirmPassword;
+
+  const getPasswordStrength = () => {
+    if (!newPassword) return { score: 0, label: "", percent: "0%", color: "bg-zinc-200", textColor: "text-zinc-500" };
+    let score = 0;
+    if (hasMinLength) score++;
+    if (hasNumber) score++;
+    if (/[A-Z]/.test(newPassword) || /[^A-Za-z0-9]/.test(newPassword)) score++;
+    if (newPassword.length >= 10) score++;
+
+    if (score <= 1) {
+      return {
+        score: 1,
+        label: language === "es" ? "Débil" : "Weak",
+        percent: "33%",
+        color: "bg-rose-500",
+        textColor: "text-rose-600",
+      };
+    }
+    if (score <= 2) {
+      return {
+        score: 2,
+        label: language === "es" ? "Aceptable" : "Fair",
+        percent: "66%",
+        color: "bg-amber-500",
+        textColor: "text-amber-600",
+      };
+    }
+    return {
+      score: 3,
+      label: language === "es" ? "Fuerte" : "Strong",
+      percent: "100%",
+      color: "bg-emerald-500",
+      textColor: "text-emerald-600",
+    };
+  };
+
+  const passwordStrength = getPasswordStrength();
+
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     const fullCode = otpCode.join("");
@@ -264,7 +372,11 @@ export default function SettingsModal({
         setSecurityError(res.error || (language === "es" ? "Código incorrecto o expirado." : "Invalid or expired code."));
       }
     } catch {
-      setSecurityStep("new_password");
+      setSecurityError(
+        language === "es"
+          ? "Error de conexión al verificar el código. Intenta de nuevo."
+          : "Connection error verifying code. Please try again."
+      );
     } finally {
       setIsVerifyingOtp(false);
     }
@@ -274,6 +386,14 @@ export default function SettingsModal({
     e.preventDefault();
     if (newPassword.length < 8) {
       setSecurityError(language === "es" ? "La contraseña debe tener al menos 8 caracteres." : "Password must be at least 8 characters.");
+      return;
+    }
+    if (!hasNumber) {
+      setSecurityError(
+        language === "es"
+          ? "La contraseña debe contener al menos un número."
+          : "Password must contain at least one number."
+      );
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -291,7 +411,11 @@ export default function SettingsModal({
         setSecurityError(res.error || (language === "es" ? "No se pudo actualizar la contraseña." : "Could not update password."));
       }
     } catch {
-      setSecurityStep("success");
+      setSecurityError(
+        language === "es"
+          ? "Error de conexión al actualizar la contraseña."
+          : "Connection error updating password."
+      );
     } finally {
       setIsVerifyingOtp(false);
     }
@@ -418,6 +542,11 @@ export default function SettingsModal({
             {/* TAB 1: DATOS PERSONALES */}
             {activeTab === "profile" && (
               <form onSubmit={handleSaveProfile} className="space-y-4">
+                {profileError && (
+                  <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs">
+                    {profileError}
+                  </div>
+                )}
                 <div>
                   <label className="block text-xs font-semibold text-zinc-700 mb-1">
                     {t.settings.profile.fullName}
@@ -669,10 +798,13 @@ export default function SettingsModal({
                           key={idx}
                           id={`settings-otp-${idx}`}
                           type="text"
+                          inputMode="numeric"
                           maxLength={1}
                           value={digit}
                           onChange={(e) => handleOtpChange(idx, e.target.value)}
-                          className="w-10 h-12 text-center text-base font-bold rounded-xl border border-zinc-200 bg-white text-zinc-900 focus:outline-none focus:border-zinc-950 focus:ring-1 focus:ring-zinc-950"
+                          onKeyDown={(e) => handleOtpKeyDown(idx, e)}
+                          onPaste={handleOtpPaste}
+                          className="w-10 h-12 text-center text-base font-bold rounded-xl border border-zinc-200 bg-white text-zinc-900 focus:outline-none focus:border-zinc-950 focus:ring-1 focus:ring-zinc-950 transition-colors"
                         />
                       ))}
                     </div>
@@ -727,10 +859,94 @@ export default function SettingsModal({
                         className="w-full px-3 py-2 rounded-xl border border-zinc-200 text-xs text-zinc-900 focus:outline-none focus:border-zinc-900"
                       />
                     </div>
+
+                    {/* Medidor visual y feedback en tiempo real */}
+                    {newPassword.length > 0 && (
+                      <div className="space-y-1.5 pt-1">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-zinc-500 font-medium">
+                            {language === "es" ? "Fortaleza de la contraseña:" : "Password strength:"}
+                          </span>
+                          <span className={`font-semibold ${passwordStrength.textColor}`}>
+                            {passwordStrength.label}
+                          </span>
+                        </div>
+                        <div className="w-full h-1.5 bg-zinc-100 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-300 ${passwordStrength.color}`}
+                            style={{ width: passwordStrength.percent }}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="space-y-1 pt-1 text-[11px]">
+                      <div className="flex items-center gap-1.5">
+                        <div
+                          className={`w-3.5 h-3.5 rounded-full flex items-center justify-center ${
+                            hasMinLength
+                              ? "bg-emerald-100 text-emerald-700"
+                              : "bg-zinc-100 text-zinc-400"
+                          }`}
+                        >
+                          <Check className="w-2.5 h-2.5" />
+                        </div>
+                        <span className={hasMinLength ? "text-emerald-700 font-medium" : "text-zinc-500"}>
+                          {language === "es" ? "Mínimo 8 caracteres" : "At least 8 characters"}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <div
+                          className={`w-3.5 h-3.5 rounded-full flex items-center justify-center ${
+                            hasNumber
+                              ? "bg-emerald-100 text-emerald-700"
+                              : "bg-zinc-100 text-zinc-400"
+                          }`}
+                        >
+                          <Check className="w-2.5 h-2.5" />
+                        </div>
+                        <span className={hasNumber ? "text-emerald-700 font-medium" : "text-zinc-500"}>
+                          {language === "es" ? "Contiene al menos un número" : "Contains at least one number"}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <div
+                          className={`w-3.5 h-3.5 rounded-full flex items-center justify-center ${
+                            passwordsMatch
+                              ? "bg-emerald-100 text-emerald-700"
+                              : passwordsMismatch
+                              ? "bg-rose-100 text-rose-700"
+                              : "bg-zinc-100 text-zinc-400"
+                          }`}
+                        >
+                          <Check className="w-2.5 h-2.5" />
+                        </div>
+                        <span
+                          className={
+                            passwordsMatch
+                              ? "text-emerald-700 font-medium"
+                              : passwordsMismatch
+                              ? "text-rose-600 font-medium"
+                              : "text-zinc-500"
+                          }
+                        >
+                          {passwordsMismatch
+                            ? language === "es"
+                              ? "Las contraseñas no coinciden"
+                              : "Passwords do not match"
+                            : language === "es"
+                            ? "Las contraseñas coinciden"
+                            : "Passwords match"}
+                        </span>
+                      </div>
+                    </div>
+
                     <button
                       type="submit"
-                      disabled={isVerifyingOtp}
-                      className="w-full py-2.5 px-4 rounded-xl bg-zinc-950 text-white text-xs font-semibold hover:bg-zinc-800 flex items-center justify-center gap-1.5"
+                      disabled={isVerifyingOtp || !hasMinLength || !hasNumber || !passwordsMatch}
+                      className="w-full py-2.5 px-4 rounded-xl bg-zinc-950 text-white text-xs font-semibold hover:bg-zinc-800 flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
                     >
                       {isVerifyingOtp ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -800,21 +1016,56 @@ export default function SettingsModal({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
+                  <label className="block text-xs font-semibold text-zinc-800 mb-2">
                     {t.settings.languages.mainCurrency}
                   </label>
+
+                  {/* Grilla de tarjetas compactas de divisas */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 mb-2.5">
+                    {CURRENCIES.map((item) => {
+                      const isSelected = currency === item.code;
+                      return (
+                        <button
+                          key={item.code}
+                          type="button"
+                          onClick={() => handleCurrencyChange(item.code)}
+                          className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                            isSelected
+                              ? "border-zinc-950 bg-zinc-950 text-white shadow-xs"
+                              : "border-zinc-200 bg-white hover:border-zinc-300 text-zinc-800"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between w-full mb-1.5">
+                            <span className="text-sm font-bold tracking-tight">{item.symbol}</span>
+                            {isSelected && <Check className="w-3.5 h-3.5 shrink-0 text-white" />}
+                          </div>
+                          <div>
+                            <div className="text-xs font-bold leading-tight">{item.code}</div>
+                            <div
+                              className={`text-[10px] truncate leading-tight mt-0.5 ${
+                                isSelected ? "text-zinc-300" : "text-zinc-400"
+                              }`}
+                              title={item.name}
+                            >
+                              {item.name}
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Selector desplegable sincronizado bidireccionalmente */}
                   <select
                     value={currency}
                     onChange={(e) => handleCurrencyChange(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 text-xs text-zinc-900 focus:outline-none focus:border-zinc-900 cursor-pointer"
+                    className="w-full px-3 py-2 rounded-xl border border-zinc-200 text-xs text-zinc-800 focus:outline-none focus:border-zinc-950 cursor-pointer bg-zinc-50/50"
                   >
-                    <option value="DOP">DOP (RD$) - Peso Dominicano</option>
-                    <option value="USD">USD ($) - Dólar estadounidense</option>
-                    <option value="EUR">EUR (€) - Euro</option>
-                    <option value="MXN">MXN ($) - Peso Mexicano</option>
-                    <option value="COP">COP ($) - Peso Colombiano</option>
-                    <option value="ARS">ARS ($) - Peso Argentino</option>
-                    <option value="CLP">CLP ($) - Peso Chileno</option>
+                    {CURRENCIES.map((item) => (
+                      <option key={item.code} value={item.code}>
+                        {item.code} ({item.symbol}) - {item.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
