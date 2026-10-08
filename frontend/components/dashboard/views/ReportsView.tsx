@@ -62,7 +62,11 @@ export default function ReportsView() {
   useEffect(() => {
     loadData();
     window.addEventListener("fydry_storage_updated", loadData);
-    return () => window.removeEventListener("fydry_storage_updated", loadData);
+    window.addEventListener("fydry_refresh_data", loadData);
+    return () => {
+      window.removeEventListener("fydry_storage_updated", loadData);
+      window.removeEventListener("fydry_refresh_data", loadData);
+    };
   }, []);
 
   // Rango del ciclo mensual activo

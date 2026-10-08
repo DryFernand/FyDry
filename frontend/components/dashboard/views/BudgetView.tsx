@@ -156,7 +156,11 @@ export default function BudgetView() {
   useEffect(() => {
     loadData();
     window.addEventListener("fydry_storage_updated", loadData);
-    return () => window.removeEventListener("fydry_storage_updated", loadData);
+    window.addEventListener("fydry_refresh_data", loadData);
+    return () => {
+      window.removeEventListener("fydry_storage_updated", loadData);
+      window.removeEventListener("fydry_refresh_data", loadData);
+    };
   }, []);
 
   // Helper para calcular el rango exacto de fechas del ciclo mensual según budgetResetDay

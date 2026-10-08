@@ -1409,3 +1409,23 @@ Se integró el cómputo automático de los movimientos/traspasos entre cuentas c
 - **Validaciones:**
   - `security-agent`: **LUZ VERDE** (Cero fuga de metadatos o credenciales, exclusion confirmada de `.env.local` en `.gitignore`, SSRF y DoS mitigados).
   - `qa-agent`: **LUZ VERDE** (`npx tsc --noEmit` exit code 0, `npm run build` Turbopack exit code 0, flujo de chat verificado).
+
+
+## [2026-10-08] - Tool Calling, Flujo de Confirmacion y Modal de Configuracion del Asistente de IA
+
+### Modulo: Frontend & API (AI Agent Tool Calling, Confirmation Card & System Actions)
+- **Archivos afectados:**
+  - `frontend/app/api/ai/chat/route.ts` (Esquemas de tools y system prompt con control de datos faltantes)
+  - `frontend/components/ai/AiAssistantChat.tsx` (Flujo de confirmacion interactiva, ejecucion segura de tools y modal de configuracion)
+  - `frontend/components/dashboard/DashboardLayout.tsx` (Purga de preferencias en logout)
+  - `frontend/components/dashboard/views/*.tsx` (Sincronizacion reactiva de vistas ante eventos `fydry_refresh_data`)
+- **Caracteristicas implementadas:**
+  - **Tool Calling con endpoints del sistema:** Integracion completa de herramientas para gastos (`create_expense`), ingresos (`create_income`), transferencias (`create_transfer`), cuentas (`create_account`), presupuestos (`create_budget`), deudas (`create_debt`) y abonos (`pay_debt`).
+  - **Gestion de informacion incompleta:** System prompt instruido para abstenerse de emitir tool calls cuando falten parametros esenciales (monto, concepto, categoria o cuenta), solicitando con calma y empatia los datos faltantes al usuario.
+  - **Tarjeta interactiva de confirmacion:** Cuando el asistente dispone de los datos requeridos, presenta una tarjeta resumen en el chat con los datos de la operacion y botones [Confirmar y Registrar] y [Cancelar].
+  - **Modal de configuracion del asistente:** Opcion "Configuracion" (icono `Settings`) agregada al menu de 3 puntos, desplegando un modal con switch accesible para alternar entre ejecucion con confirmacion previa o ejecucion directa, persistido en `localStorage` (`fydry_ai_confirm_actions`).
+  - **Sincronizacion en tiempo real:** Disparo de eventos `fydry_refresh_data` y `fydry_storage_updated` tras cada mutacion exitosa, actualizando al instante todas las vistas del dashboard sin recarga de pagina.
+  - **Blindaje de seguridad:** Whitelist inmutable de tools (`ALLOWED_TOOLS`), busqueda estricta en deudas por ID/nombre, sanitizacion de montos finitos positivos (`parseStrictAmount`), catalogo cerrado de cuentas (`ALLOWED_ACCOUNT_TYPES`), sanitizacion regex de fechas y purga de preferencias en logout.
+- **Validaciones:**
+  - `security-agent`: **LUZ VERDE** (Mitigados VULN-01 a VULN-06; cero fuga de credenciales, control estricto de ejecucion y validacion de tipos).
+  - `qa-agent`: **LUZ VERDE** (`npx tsc --noEmit` exit code 0, `npm run build` Turbopack exit code 0, pruebas funcionales de chat y vistas sincronizadas).

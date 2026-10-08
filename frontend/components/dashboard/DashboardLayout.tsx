@@ -126,6 +126,7 @@ export default function DashboardLayout() {
       "fydry_notifications",
       "fydry_user_settings",
       "fydry_sent_native_alert_ids",
+      "fydry_ai_confirm_actions",
     ];
     keysToRemove.forEach((k) => localStorage.removeItem(k));
   };

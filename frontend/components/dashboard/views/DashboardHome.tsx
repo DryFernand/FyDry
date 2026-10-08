@@ -117,7 +117,11 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
   useEffect(() => {
     loadData();
     window.addEventListener("fydry_storage_updated", loadData);
-    return () => window.removeEventListener("fydry_storage_updated", loadData);
+    window.addEventListener("fydry_refresh_data", loadData);
+    return () => {
+      window.removeEventListener("fydry_storage_updated", loadData);
+      window.removeEventListener("fydry_refresh_data", loadData);
+    };
   }, []);
 
   // Rango del ciclo mensual activo según el día de corte/reinicio (día 1 al 31)

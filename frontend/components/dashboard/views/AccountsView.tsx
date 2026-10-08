@@ -55,7 +55,11 @@ export default function AccountsView() {
   useEffect(() => {
     loadAccounts();
     window.addEventListener("fydry_storage_updated", loadAccounts);
-    return () => window.removeEventListener("fydry_storage_updated", loadAccounts);
+    window.addEventListener("fydry_refresh_data", loadAccounts);
+    return () => {
+      window.removeEventListener("fydry_storage_updated", loadAccounts);
+      window.removeEventListener("fydry_refresh_data", loadAccounts);
+    };
   }, []);
 
   const bankTotal = accounts

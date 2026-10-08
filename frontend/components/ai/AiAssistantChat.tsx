@@ -11,13 +11,85 @@ import {
   Trash2,
   Send,
   Sparkles,
+  Settings,
+  ArrowDownRight,
+  ArrowUpRight,
+  ArrowRightLeft,
+  Wallet,
+  PieChart,
+  CreditCard,
+  Banknote,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
 } from "lucide-react";
+import {
+  createExpenseApi,
+  createIncomeApi,
+  createMovementApi,
+  createAccountApi,
+  createBudgetApi,
+  createDebtApi,
+  payDebtApi,
+  fetchDebtsApi,
+} from "@/lib/api";
+
+export interface PendingAction {
+  id: string;
+  name: string;
+  arguments: Record<string, any>;
+  status: "pending" | "executing" | "completed" | "cancelled" | "failed";
+  error?: string;
+}
 
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant" | "system";
   content: string;
   timestamp: Date;
+  pendingAction?: PendingAction;
+}
+
+const ALLOWED_TOOLS = new Set([
+  "create_expense",
+  "create_income",
+  "create_transfer",
+  "create_account",
+  "create_budget",
+  "create_debt",
+  "pay_debt",
+]);
+
+const ALLOWED_ACCOUNT_TYPES = new Set([
+  "bank",
+  "cash",
+  "credit_card",
+  "savings",
+  "wallet",
+  "investment",
+]);
+
+function parseStrictAmount(val: any): number {
+  const num = typeof val === "number" ? val : parseFloat(String(val));
+  if (!Number.isFinite(num) || num <= 0) {
+    throw new Error("El monto debe ser un número válido y estrictamente mayor a 0.");
+  }
+  return Math.round(num * 100) / 100;
+}
+
+function parseInitialBalance(val: any): number {
+  const num = typeof val === "number" ? val : parseFloat(String(val || 0));
+  if (!Number.isFinite(num) || num < 0) {
+    throw new Error("El balance inicial debe ser un número válido mayor o igual a 0.");
+  }
+  return Math.round(num * 100) / 100;
+}
+
+function sanitizeDate(dateStr?: any): string {
+  if (typeof dateStr === "string" && /^\d{4}-\d{2}-\d{2}$/.test(dateStr.trim())) {
+    return dateStr.trim();
+  }
+  return new Date().toISOString().split("T")[0];
 }
 
 const INITIAL_GREETING =
@@ -25,11 +97,11 @@ const INITIAL_GREETING =
 
 function splitAssistantResponse(text: string): string[] {
   const trimmed = text.trim();
+  if (!trimmed) return [];
   if (trimmed.length <= 250 && !trimmed.includes("\n\n")) {
     return [trimmed];
   }
 
-  // Dividir inicialmente por saltos de línea dobles
   const paragraphs = trimmed
     .split(/\n\s*\n/)
     .map((p) => p.trim())
@@ -41,7 +113,6 @@ function splitAssistantResponse(text: string): string[] {
     if (p.length <= 280) {
       chunks.push(p);
     } else {
-      // Si el párrafo es extenso, dividir por oraciones con puntuación
       const sentences = p.match(/[^.!?]+[.!?]+(?:\s+|$)|[^.!?]+$/g) || [p];
       let currentChunk = "";
 
@@ -71,13 +142,206 @@ function splitAssistantResponse(text: string): string[] {
   return chunks.length > 0 ? chunks : [trimmed];
 }
 
+interface ActionCardProps {
+  action: PendingAction;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+function ActionCard({ action, onConfirm, onCancel }: ActionCardProps) {
+  const args = action.arguments || {};
+  let title = "Operación Financiera";
+  let badge = "Acción";
+  let icon = <Bot className="w-4 h-4 text-zinc-900" />;
+  const details: { label: string; value: string }[] = [];
+
+  switch (action.name) {
+    case "create_expense": {
+      title = "Registrar Gasto";
+      badge = "Gasto";
+      icon = <ArrowDownRight className="w-4 h-4 text-rose-600" />;
+      const amt = Number(args.amount) || 0;
+      details.push({ label: "Monto", value: `$${amt.toFixed(2)}` });
+      details.push({ label: "Concepto", value: args.description || "Gasto" });
+      details.push({ label: "Categoría", value: args.category || "General" });
+      details.push({ label: "Cuenta", value: args.account || "Efectivo" });
+      if (args.date) details.push({ label: "Fecha", value: args.date });
+      break;
+    }
+    case "create_income": {
+      title = "Registrar Ingreso";
+      badge = "Ingreso";
+      icon = <ArrowUpRight className="w-4 h-4 text-emerald-600" />;
+      const amt = Number(args.amount) || 0;
+      details.push({ label: "Monto", value: `$${amt.toFixed(2)}` });
+      details.push({ label: "Concepto", value: args.description || "Ingreso" });
+      details.push({ label: "Categoría", value: args.category || "General" });
+      details.push({ label: "Cuenta", value: args.account || "Banco" });
+      if (args.date) details.push({ label: "Fecha", value: args.date });
+      break;
+    }
+    case "create_transfer": {
+      title = "Transferencia";
+      badge = "Movimiento";
+      icon = <ArrowRightLeft className="w-4 h-4 text-blue-600" />;
+      const amt = Number(args.amount) || 0;
+      details.push({ label: "Monto", value: `$${amt.toFixed(2)}` });
+      details.push({ label: "Origen", value: args.from_account || "Cuenta Origen" });
+      details.push({ label: "Destino", value: args.to_account || "Cuenta Destino" });
+      if (args.description) details.push({ label: "Concepto", value: args.description });
+      break;
+    }
+    case "create_account": {
+      title = "Nueva Cuenta";
+      badge = "Cuenta";
+      icon = <Wallet className="w-4 h-4 text-purple-600" />;
+      details.push({ label: "Nombre", value: args.name || "Cuenta" });
+      details.push({ label: "Tipo", value: args.type || "bank" });
+      const bal = Number(args.initial_balance) || 0;
+      details.push({ label: "Saldo Inicial", value: `$${bal.toFixed(2)}` });
+      break;
+    }
+    case "create_budget": {
+      title = "Nuevo Presupuesto";
+      badge = "Presupuesto";
+      icon = <PieChart className="w-4 h-4 text-amber-600" />;
+      details.push({ label: "Categoría", value: args.category || "General" });
+      const lim = Number(args.limit_amount) || 0;
+      details.push({ label: "Límite Mensual", value: `$${lim.toFixed(2)}` });
+      break;
+    }
+    case "create_debt": {
+      title = "Registrar Deuda";
+      badge = "Deuda";
+      icon = <CreditCard className="w-4 h-4 text-orange-600" />;
+      details.push({ label: "Acreedor", value: args.creditor || "Acreedor" });
+      const tot = Number(args.total_amount) || 0;
+      details.push({ label: "Monto Total", value: `$${tot.toFixed(2)}` });
+      if (args.due_date) details.push({ label: "Fecha Límite", value: args.due_date });
+      break;
+    }
+    case "pay_debt": {
+      title = "Abono a Deuda";
+      badge = "Pago Deuda";
+      icon = <Banknote className="w-4 h-4 text-teal-600" />;
+      details.push({ label: "Deuda", value: args.debt_id_or_name || "Deuda" });
+      const amt = Number(args.amount) || 0;
+      details.push({ label: "Monto Abono", value: `$${amt.toFixed(2)}` });
+      details.push({ label: "Cuenta Origen", value: args.from_account || "Cuenta" });
+      break;
+    }
+    default:
+      title = "Acción del Asistente";
+      break;
+  }
+
+  return (
+    <div className="mt-2.5 p-3 rounded-2xl bg-white border border-zinc-200/90 shadow-2xs space-y-2.5 text-zinc-900 w-full select-none">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-xl bg-zinc-100 flex items-center justify-center shrink-0">
+            {icon}
+          </div>
+          <span className="text-xs font-semibold text-zinc-900 tracking-tight">
+            {title}
+          </span>
+        </div>
+        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600 border border-zinc-200/60 shrink-0">
+          {badge}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-2 gap-x-2 gap-y-1.5 text-[11px] bg-zinc-50/80 p-2.5 rounded-xl border border-zinc-100">
+        {details.map((d, idx) => (
+          <div key={idx} className="flex flex-col min-w-0">
+            <span className="text-[10px] text-zinc-400 font-medium">
+              {d.label}
+            </span>
+            <span className="text-zinc-800 font-semibold truncate" title={d.value}>
+              {d.value}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {action.status === "pending" && (
+        <div className="flex items-center gap-2 pt-1 border-t border-zinc-100">
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="flex-1 flex items-center justify-center gap-1.5 bg-zinc-950 hover:bg-zinc-800 text-white font-medium py-1.5 px-3 rounded-xl text-xs transition-colors cursor-pointer"
+          >
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Confirmar</span>
+          </button>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="flex-1 flex items-center justify-center gap-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-medium py-1.5 px-3 rounded-xl text-xs transition-colors cursor-pointer"
+          >
+            <X className="w-3.5 h-3.5 text-zinc-400" />
+            <span>Cancelar</span>
+          </button>
+        </div>
+      )}
+
+      {action.status === "executing" && (
+        <div className="flex items-center gap-2 pt-1 border-t border-zinc-100 text-zinc-600 text-[11px]">
+          <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-950" />
+          <span>Registrando en FyDry...</span>
+        </div>
+      )}
+
+      {action.status === "completed" && (
+        <div className="flex items-center gap-1.5 pt-1 border-t border-zinc-100 text-emerald-700 text-[11px] font-medium">
+          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+          <span>Registrado exitosamente</span>
+        </div>
+      )}
+
+      {action.status === "cancelled" && (
+        <div className="flex items-center gap-1.5 pt-1 border-t border-zinc-100 text-zinc-500 text-[11px]">
+          <X className="w-3.5 h-3.5 text-zinc-400" />
+          <span>Operación cancelada</span>
+        </div>
+      )}
+
+      {action.status === "failed" && (
+        <div className="flex items-center gap-1.5 pt-1 border-t border-zinc-100 text-rose-600 text-[11px] font-medium">
+          <AlertCircle className="w-3.5 h-3.5 text-rose-500" />
+          <span>No se pudo procesar la solicitud</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AiAssistantChat() {
   const [isOpen, setIsOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [requireConfirmation, setRequireConfirmation] = useState<boolean>(true);
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+
+  // Inicializar preferencia de confirmación desde localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("fydry_ai_confirm_actions");
+      if (saved !== null) {
+        setRequireConfirmation(saved === "true");
+      }
+    }
+  }, []);
+
+  const handleToggleConfirmation = (checked: boolean) => {
+    setRequireConfirmation(checked);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("fydry_ai_confirm_actions", String(checked));
+    }
+  };
 
   const [messages, setMessages] = useState<ChatMessage[]>(() => [
     {
@@ -159,6 +423,212 @@ export default function AiAssistantChat() {
     setMenuOpen(false);
   };
 
+  // Ejecución segura de las herramientas de FyDry
+  const executeAction = async (action: PendingAction, messageId?: string) => {
+    if (messageId) {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId && m.pendingAction
+            ? { ...m, pendingAction: { ...m.pendingAction, status: "executing" } }
+            : m
+        )
+      );
+    }
+
+    try {
+      const { name, arguments: args } = action;
+      let confirmNote = "";
+
+      if (!ALLOWED_TOOLS.has(name)) {
+        throw new Error(`Acción desconocida o no permitida: ${name}`);
+      }
+
+      if (name === "create_expense") {
+        const amount = parseStrictAmount(args.amount);
+        const description = String(args.description || "Gasto general");
+        const category = String(args.category || "General");
+        const account = String(args.account || "Efectivo");
+        const date = sanitizeDate(args.date);
+
+        await createExpenseApi({
+          amount,
+          description,
+          category,
+          account,
+          date,
+        });
+        confirmNote = `Listo, he registrado el gasto de $${amount.toFixed(2)} (${description}) en la cuenta ${account}.`;
+      } else if (name === "create_income") {
+        const amount = parseStrictAmount(args.amount);
+        const description = String(args.description || "Ingreso general");
+        const category = String(args.category || "General");
+        const account = String(args.account || "Efectivo");
+        const date = sanitizeDate(args.date);
+
+        await createIncomeApi({
+          amount,
+          description,
+          category,
+          account,
+          date,
+        });
+        confirmNote = `Listo, he registrado el ingreso de $${amount.toFixed(2)} (${description}) en la cuenta ${account}.`;
+      } else if (name === "create_transfer") {
+        const amount = parseStrictAmount(args.amount);
+        const fromAccount = String(args.from_account || "Cuenta Origen");
+        const toAccount = String(args.to_account || "Cuenta Destino");
+        const description = String(args.description || `Transferencia de ${fromAccount} a ${toAccount}`);
+        const date = sanitizeDate(args.date);
+
+        await createMovementApi({
+          amount,
+          fromAccount,
+          toAccount,
+          description,
+          date,
+        });
+        confirmNote = `Listo, he registrado la transferencia de $${amount.toFixed(2)} de ${fromAccount} hacia ${toAccount}.`;
+      } else if (name === "create_account") {
+        const nameAcc = String(args.name || "Nueva Cuenta");
+        const accountType = ALLOWED_ACCOUNT_TYPES.has(String(args.type).toLowerCase())
+          ? (String(args.type).toLowerCase() as any)
+          : "bank";
+        const balance = parseInitialBalance(args.initial_balance);
+
+        await createAccountApi({
+          name: nameAcc,
+          type: accountType,
+          balance,
+          currency: "USD",
+        });
+        confirmNote = `Listo, he creado la cuenta "${nameAcc}" con un saldo inicial de $${balance.toFixed(2)}.`;
+      } else if (name === "create_budget") {
+        const category = String(args.category || "General");
+        const limit = parseStrictAmount(args.limit_amount);
+
+        await createBudgetApi({
+          category,
+          allocated: limit,
+          color: "bg-zinc-900",
+        });
+        confirmNote = `Listo, he creado el presupuesto para "${category}" con un límite mensual de $${limit.toFixed(2)}.`;
+      } else if (name === "create_debt") {
+        const creditor = String(args.creditor || "Acreedor");
+        const total = parseStrictAmount(args.total_amount);
+        const dueDate = args.due_date ? sanitizeDate(args.due_date) : "Fin de mes";
+
+        await createDebtApi({
+          creditor,
+          type: "Préstamo Personal",
+          totalAmount: total,
+          remainingAmount: total,
+          monthlyPayment: 0,
+          interestRate: 0,
+          dueDate,
+        });
+        confirmNote = `Listo, he registrado la deuda con ${creditor} por un monto de $${total.toFixed(2)}.`;
+      } else if (name === "pay_debt") {
+        const debtRef = String(args.debt_id_or_name || "");
+        if (!debtRef || debtRef.trim().length === 0) {
+          throw new Error("Debe indicarse el nombre o identificador de la deuda a abonar.");
+        }
+        const amount = parseStrictAmount(args.amount);
+        const fromAccount = String(args.from_account || "Cuenta Principal");
+
+        const debtsList = await fetchDebtsApi();
+        const search = debtRef.toLowerCase().trim();
+        const found = debtsList.find(
+          (d) =>
+            d.id === debtRef ||
+            d.creditor.toLowerCase().trim() === search ||
+            (search.length >= 3 && d.creditor.toLowerCase().includes(search))
+        );
+        if (!found) {
+          throw new Error(`No se encontró ninguna deuda activa correspondiente a "${debtRef}".`);
+        }
+        const targetDebtId = found.id;
+
+        await payDebtApi(targetDebtId, {
+          amount,
+          account_name: fromAccount,
+          date: sanitizeDate(args.date),
+          description: `Abono a deuda ${found.creditor || debtRef}`,
+        });
+        confirmNote = `Listo, he registrado el abono de $${amount.toFixed(2)} a la deuda desde ${fromAccount}.`;
+      } else {
+        throw new Error(`Acción desconocida: ${name}`);
+      }
+
+      // Sincronización en tiempo real
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("fydry_refresh_data"));
+        window.dispatchEvent(new Event("fydry_storage_updated"));
+      }
+
+      if (messageId) {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === messageId && m.pendingAction
+              ? { ...m, pendingAction: { ...m.pendingAction, status: "completed" } }
+              : m
+          )
+        );
+      }
+
+      if (confirmNote) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `assistant-confirm-${Date.now()}`,
+            role: "assistant",
+            content: confirmNote,
+            timestamp: new Date(),
+          },
+        ]);
+      }
+    } catch (err) {
+      console.error("[AiAssistantChat] Error al ejecutar la acción:", err);
+      if (messageId) {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === messageId && m.pendingAction
+              ? { ...m, pendingAction: { ...m.pendingAction, status: "failed" } }
+              : m
+          )
+        );
+      }
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `error-${Date.now()}`,
+          role: "assistant",
+          content:
+            "No se puede procesar su solicitud en este momento por favor intente luego",
+          timestamp: new Date(),
+        },
+      ]);
+    }
+  };
+
+  const handleCancelAction = (messageId: string) => {
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === messageId && m.pendingAction
+          ? { ...m, pendingAction: { ...m.pendingAction, status: "cancelled" } }
+          : m
+      )
+    );
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: `assistant-cancel-${Date.now()}`,
+        role: "assistant",
+        content: "Entendido, no realizaré ningún cambio. Si necesitas algo más, dime.",
+        timestamp: new Date(),
+      },
+    ]);
+  };
+
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     const trimmed = inputMessage.trim();
@@ -199,7 +669,7 @@ export default function AiAssistantChat() {
 
       const data = await response.json();
 
-      if (!response.ok || data?.error || !data?.message) {
+      if (!response.ok || data?.error || (!data?.message && !data?.tool_call)) {
         setIsLoading(false);
         const fallbackMsg: ChatMessage = {
           id: `error-${Date.now()}`,
@@ -213,59 +683,110 @@ export default function AiAssistantChat() {
       }
 
       const fullAssistantText = data.message || "";
+      const toolCall = data.tool_call;
       const chunks = splitAssistantResponse(fullAssistantText);
 
       setIsLoading(false);
 
-      if (chunks.length === 1) {
+      const isValidToolCall = Boolean(
+        toolCall &&
+          typeof toolCall.name === "string" &&
+          ALLOWED_TOOLS.has(toolCall.name)
+      );
+
+      // Si no hay tool call o la herramienta no está permitida, mostrar como mensaje conversacional normal
+      if (!isValidToolCall) {
+        if (chunks.length <= 1) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `assistant-${Date.now()}`,
+              role: "assistant",
+              content: chunks[0] || "",
+              timestamp: new Date(),
+            },
+          ]);
+        } else {
+          // Despliegue progresivo
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `assistant-${Date.now()}-0`,
+              role: "assistant",
+              content: chunks[0],
+              timestamp: new Date(),
+            },
+          ]);
+
+          let accumulatedDelay = 0;
+          for (let i = 1; i < chunks.length; i++) {
+            const chunk = chunks[i];
+            const isLast = i === chunks.length - 1;
+
+            accumulatedDelay += 500;
+            const tid1 = window.setTimeout(() => {
+              setIsTyping(true);
+            }, accumulatedDelay - 350);
+            abortTimeoutsRef.current.push(tid1);
+
+            const tid2 = window.setTimeout(() => {
+              setMessages((prev) => [
+                ...prev,
+                {
+                  id: `assistant-${Date.now()}-${i}`,
+                  role: "assistant",
+                  content: chunk,
+                  timestamp: new Date(),
+                },
+              ]);
+              if (isLast) {
+                setIsTyping(false);
+              }
+            }, accumulatedDelay);
+            abortTimeoutsRef.current.push(tid2);
+          }
+        }
+        return;
+      }
+
+      // Hay una herramienta para ejecutar
+      const pendingAction: PendingAction = {
+        id: `act-${Date.now()}`,
+        name: toolCall.name,
+        arguments: toolCall.arguments || {},
+        status: requireConfirmation ? "pending" : "executing",
+      };
+
+      if (requireConfirmation) {
+        // Flujo con confirmación del usuario
+        const msgContent =
+          fullAssistantText.trim() || "He preparado los datos de la operación para tu confirmación:";
+
         setMessages((prev) => [
           ...prev,
           {
-            id: `assistant-${Date.now()}`,
+            id: `assistant-action-${Date.now()}`,
             role: "assistant",
-            content: chunks[0],
+            content: msgContent,
             timestamp: new Date(),
+            pendingAction,
           },
         ]);
       } else {
-        // Despliegue progresivo con pausas naturales
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: `assistant-${Date.now()}-0`,
-            role: "assistant",
-            content: chunks[0],
-            timestamp: new Date(),
-          },
-        ]);
-
-        let accumulatedDelay = 0;
-        for (let i = 1; i < chunks.length; i++) {
-          const chunk = chunks[i];
-          const isLast = i === chunks.length - 1;
-
-          accumulatedDelay += 500;
-          const tid1 = window.setTimeout(() => {
-            setIsTyping(true);
-          }, accumulatedDelay - 350);
-          abortTimeoutsRef.current.push(tid1);
-
-          const tid2 = window.setTimeout(() => {
-            setMessages((prev) => [
-              ...prev,
-              {
-                id: `assistant-${Date.now()}-${i}`,
-                role: "assistant",
-                content: chunk,
-                timestamp: new Date(),
-              },
-            ]);
-            if (isLast) {
-              setIsTyping(false);
-            }
-          }, accumulatedDelay);
-          abortTimeoutsRef.current.push(tid2);
+        // Flujo automático sin confirmación intermedia
+        if (fullAssistantText.trim()) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `assistant-text-${Date.now()}`,
+              role: "assistant",
+              content: fullAssistantText,
+              timestamp: new Date(),
+            },
+          ]);
         }
+        // Ejecución inmediata
+        await executeAction(pendingAction);
       }
     } catch (error) {
       console.error("[AiAssistantChat] Error al comunicarse con la IA:", error);
@@ -348,7 +869,7 @@ export default function AiAssistantChat() {
                       animate={{ opacity: 1, scale: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.95, y: -4 }}
                       transition={{ duration: 0.12 }}
-                      className="absolute left-0 mt-1.5 w-44 bg-white rounded-xl shadow-lg border border-zinc-100 py-1 z-50 text-xs"
+                      className="absolute left-0 mt-1.5 w-48 bg-white rounded-xl shadow-lg border border-zinc-100 py-1 z-50 text-xs"
                     >
                       <button
                         type="button"
@@ -369,6 +890,18 @@ export default function AiAssistantChat() {
                             <span>Agrandar chat</span>
                           </>
                         )}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsSettingsOpen(true);
+                          setMenuOpen(false);
+                        }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 text-zinc-700 hover:bg-zinc-50 hover:text-zinc-950 transition-colors cursor-pointer text-left"
+                      >
+                        <Settings className="w-3.5 h-3.5 text-zinc-500" />
+                        <span>Configuración</span>
                       </button>
 
                       <div className="h-px bg-zinc-100 my-1" />
@@ -410,6 +943,7 @@ export default function AiAssistantChat() {
                 onClick={() => {
                   setIsOpen(false);
                   setMenuOpen(false);
+                  setIsSettingsOpen(false);
                 }}
                 className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-900 hover:bg-zinc-200/60 transition-colors cursor-pointer"
                 title="Cerrar chat"
@@ -418,6 +952,85 @@ export default function AiAssistantChat() {
                 <X className="w-4 h-4" />
               </button>
             </div>
+
+            {/* Modal de Configuración Accesible */}
+            <AnimatePresence>
+              {isSettingsOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute inset-0 z-30 bg-white/95 backdrop-blur-md flex flex-col p-5"
+                >
+                  <div className="flex items-center justify-between pb-3 border-b border-zinc-100">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-zinc-100 flex items-center justify-center text-zinc-900">
+                        <Settings className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h3 className="text-xs font-semibold text-zinc-900 tracking-tight">
+                          Configuración del Asistente
+                        </h3>
+                        <p className="text-[10px] text-zinc-500 font-medium">
+                          Preferencias de ejecución y seguridad
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsSettingsOpen(false)}
+                      className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 transition-colors cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <div className="flex-1 py-4 space-y-4 overflow-y-auto">
+                    <div className="p-3.5 bg-zinc-50/90 rounded-2xl border border-zinc-100 flex items-start justify-between gap-4">
+                      <div className="space-y-1">
+                        <label
+                          htmlFor="confirm-actions-toggle"
+                          className="text-xs font-semibold text-zinc-900 block cursor-pointer"
+                        >
+                          Pedir confirmación antes de registrar acciones
+                        </label>
+                        <p className="text-[11px] text-zinc-500 leading-relaxed">
+                          Al estar activo, el asistente mostrará una tarjeta de confirmación antes de registrar gastos, ingresos, transferencias, presupuestos o deudas. Si lo desactivas, se registrarán de inmediato al tener todos los datos.
+                        </p>
+                      </div>
+
+                      <button
+                        id="confirm-actions-toggle"
+                        type="button"
+                        role="switch"
+                        aria-checked={requireConfirmation}
+                        onClick={() => handleToggleConfirmation(!requireConfirmation)}
+                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
+                          requireConfirmation ? "bg-zinc-950" : "bg-zinc-300"
+                        }`}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                            requireConfirmation ? "translate-x-5" : "translate-x-0"
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="pt-3 border-t border-zinc-100 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => setIsSettingsOpen(false)}
+                      className="px-4 py-2 bg-zinc-950 hover:bg-zinc-800 text-white rounded-xl text-xs font-medium transition-colors cursor-pointer"
+                    >
+                      Guardar y volver
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* Cuerpo de Mensajes */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3 scroll-smooth bg-linear-to-b from-zinc-50/40 to-white">
@@ -439,6 +1052,15 @@ export default function AiAssistantChat() {
                       }`}
                     >
                       {msg.content}
+
+                      {/* Tarjeta interactiva de acción si existe */}
+                      {msg.pendingAction && (
+                        <ActionCard
+                          action={msg.pendingAction}
+                          onConfirm={() => executeAction(msg.pendingAction!, msg.id)}
+                          onCancel={() => handleCancelAction(msg.id)}
+                        />
+                      )}
                     </div>
                   </div>
                 );
@@ -477,15 +1099,13 @@ export default function AiAssistantChat() {
                 type="text"
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
-                placeholder="Pregunta sobre finanzas o FyDry..."
+                placeholder="Pregunta o pide una acción en FyDry..."
                 disabled={isLoading || isTyping}
                 className="flex-1 bg-zinc-50 hover:bg-zinc-100/70 focus:bg-white text-xs sm:text-[13px] text-zinc-900 placeholder:text-zinc-400 border border-zinc-200 rounded-xl px-3 py-2 outline-none focus:border-zinc-950 focus:ring-1 focus:ring-zinc-950 transition-all disabled:opacity-60"
               />
               <button
                 type="submit"
-                disabled={
-                  !inputMessage.trim() || isLoading || isTyping
-                }
+                disabled={!inputMessage.trim() || isLoading || isTyping}
                 title="Enviar mensaje"
                 aria-label="Enviar mensaje"
                 className="p-2 rounded-xl bg-zinc-950 text-white hover:bg-zinc-800 active:scale-95 transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
