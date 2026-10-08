@@ -47,15 +47,36 @@ export const metadata: Metadata = {
   publisher: "FyDry Inc.",
   icons: {
     icon: [
-      { url: "/logo_negro.png", media: "(prefers-color-scheme: light)" },
-      { url: "/logo_blanco.png", media: "(prefers-color-scheme: dark)" },
-      { url: "/favicon.ico", sizes: "any" },
-      { url: "/icon.png", type: "image/png", sizes: "512x512" },
+      {
+        url: "/logo_negro.png",
+        media: "(prefers-color-scheme: light)",
+        type: "image/png",
+      },
+      {
+        url: "/logo_blanco.png",
+        media: "(prefers-color-scheme: dark)",
+        type: "image/png",
+      },
+    ],
+    shortcut: [
+      {
+        url: "/logo_negro.png",
+        media: "(prefers-color-scheme: light)",
+        type: "image/png",
+      },
+      {
+        url: "/logo_blanco.png",
+        media: "(prefers-color-scheme: dark)",
+        type: "image/png",
+      },
     ],
     apple: [
-      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+      {
+        url: "/logo_negro.png",
+        sizes: "180x180",
+        type: "image/png",
+      },
     ],
-    shortcut: [{ url: "/favicon.ico" }],
   },
   openGraph: {
     title: "FyDry — Ordena tus gastos, tranquiliza tu mente",
@@ -117,11 +138,32 @@ export default function RootLayout({
   return (
     <html lang="es" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <head>
-        <link rel="icon" href="/logo_negro.png" media="(prefers-color-scheme: light)" />
-        <link rel="icon" href="/logo_blanco.png" media="(prefers-color-scheme: dark)" />
-        <link rel="icon" href="/favicon.ico" sizes="any" />
-        <link rel="icon" href="/icon.png" type="image/png" />
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link id="dynamic-favicon" rel="icon" href="/logo_negro.png" type="image/png" media="(prefers-color-scheme: light)" />
+        <link rel="icon" href="/logo_blanco.png" type="image/png" media="(prefers-color-scheme: dark)" />
+        <link rel="apple-touch-icon" href="/logo_negro.png" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  var mql = window.matchMedia('(prefers-color-scheme: dark)');
+                  function updateFavicon(isDark) {
+                    var link = document.getElementById('dynamic-favicon') || document.querySelector("link[rel*='icon']");
+                    if (link) {
+                      link.href = isDark ? '/logo_blanco.png' : '/logo_negro.png';
+                    }
+                  }
+                  updateFavicon(mql.matches);
+                  if (mql.addEventListener) {
+                    mql.addEventListener('change', function(e) { updateFavicon(e.matches); });
+                  } else if (mql.addListener) {
+                    mql.addListener(function(e) { updateFavicon(e.matches); });
+                  }
+                } catch(e) {}
+              })();
+            `,
+          }}
+        />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

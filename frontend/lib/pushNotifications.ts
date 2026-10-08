@@ -103,8 +103,8 @@ export function triggerSystemNotification(title: string, body: string, tag: stri
       navigator.serviceWorker.ready.then((registration) => {
         registration.showNotification(title, {
           body,
-          icon: "/favicon.ico",
-          badge: "/favicon.ico",
+          icon: "/logo_negro.png",
+          badge: "/logo_negro.png",
           tag: notifTag,
           vibrate: [200, 100, 200],
         } as NotificationOptions);
@@ -115,7 +115,7 @@ export function triggerSystemNotification(title: string, body: string, tag: stri
     // Fallback: Web Notification estándar para PC
     new Notification(title, {
       body,
-      icon: "/favicon.ico",
+      icon: "/logo_negro.png",
       tag: notifTag,
     });
     return true;

@@ -1302,3 +1302,28 @@ Se integró el cómputo automático de los movimientos/traspasos entre cuentas c
 - **Validaciones:**
   - `security-agent`: **LUZ VERDE** (Activos estaticos locales seguros, sin inyecciones en metadata).
   - `qa-agent`: **LUZ VERDE** (`npx tsc --noEmit` exit code 0, `npm run build` Turbopack exit code 0).
+
+
+## [2026-10-08] - Configuracion Definitiva de Favicon Dinamico por Tema en la Pestana del Navegador
+
+### Modulo: Frontend (Metadata & Browser Favicon)
+- **Archivos afectados:**
+  - `frontend/app/layout.tsx`
+  - `frontend/app/favicon.ico` (Eliminado para evitar sobreescritura estatica)
+  - `frontend/app/icon.png` (Eliminado para evitar sobreescritura estatica)
+  - `frontend/app/apple-icon.png` (Eliminado)
+  - `frontend/lib/pushNotifications.ts`
+  - `frontend/public/sw.js`
+  - `frontend/public/favicon.ico`
+  - `frontend/public/apple-touch-icon.png`
+- **Cambios realizados:**
+  - **Eliminacion de colisiones de Next.js App Router:**
+    - Se retiraron los archivos estaticos en `frontend/app/` (`favicon.ico`, `icon.png`, `apple-icon.png`) que obligaban a Next.js a inyectar enlaces rigidos anulando la seleccion por esquema de color.
+  - **Metadata y Head Dinamico en `layout.tsx`:**
+    - `metadata.icons` configurado con media queries nativas: `/logo_negro.png` en `(prefers-color-scheme: light)` y `/logo_blanco.png` en `(prefers-color-scheme: dark)`.
+    - En `<head>`, script inline ultra-ligero que escucha `matchMedia('(prefers-color-scheme: dark)')` para conmutar el icono de la pestana al instante tanto en la carga inicial como si el usuario alterna el tema del sistema en caliente sin recargar.
+  - **Iconos de Notificaciones y Fallback:**
+    - Service Worker y `pushNotifications.ts` sincronizados para usar `/logo_negro.png`.
+- **Validaciones:**
+  - `security-agent`: **LUZ VERDE** (Script inline seguro con IIFE estatica, sin inyecciones dinamicas ni fuga de datos).
+  - `qa-agent`: **LUZ VERDE** (`npx tsc --noEmit` exit code 0, `npm run build` Turbopack exit code 0).

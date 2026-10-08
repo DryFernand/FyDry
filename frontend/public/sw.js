@@ -14,8 +14,8 @@ self.addEventListener("push", (event) => {
   let data = {
     title: "FyDry — Alerta Financiera",
     body: "Tienes un nuevo movimiento o alerta pendiente de revisar.",
-    icon: "/favicon.ico",
-    badge: "/favicon.ico",
+    icon: "/logo_negro.png",
+    badge: "/logo_negro.png",
   };
 
   if (event.data) {
@@ -30,8 +30,8 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,
-      icon: data.icon || "/favicon.ico",
-      badge: data.badge || "/favicon.ico",
+      icon: data.icon || "/logo_negro.png",
+      badge: data.badge || "/logo_negro.png",
       vibrate: [200, 100, 200],
       tag: data.tag || `fydry-alert-${Date.now()}`,
       data: { url: "/" },
