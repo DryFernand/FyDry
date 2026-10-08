@@ -1,22 +1,25 @@
 # Registro de Cambios y Documentación del Proyecto (Documentatio.md)
 
-## [2026-10-08] - Selector Desplegable de Categorías en Pantalla de Gastos
+## [2026-10-08] - Unificación y Simplificación de Filtros en Pantalla de Gastos
 
 ### Resumen
-Se implementó un selector desplegable simétrico para filtrar categorías en `ExpensesView.tsx`, complementando armónicamente el selector de cuentas bancarias y sincronizándose de forma bidireccional con las píldoras de filtrado rápido.
+Se unificó la barra de controles de `ExpensesView.tsx` retirando el carrusel de píldoras horizontales redundantes, consolidando el filtrado en una sola fila limpia y responsive compuesta por el buscador de texto, el selector de cuentas debitadas y el nuevo selector desplegable de categorías.
 
 ### Cambios Realizados:
-- **Selector Desplegable de Categorías**:
-  - Incorporado en la barra superior de filtros con icono `Tag`, alineado y con estilos idénticos al selector de cuentas (`Wallet`).
-  - Opciones completas que abarcan *"Todas las Categorías"* y el catálogo íntegro de 25 categorías del sistema más cualquier categoría activa.
-- **Sincronización Bidireccional Limpia**:
-  - Sincronización en tiempo real entre el `<select>` y las píldoras de filtrado rápido (`activeExpenseCategories`): seleccionar en uno actualiza e ilumina reactivamente el otro.
-  - Saneamiento y normalización automática al alternar el idioma de la aplicación (`Todos` <-> `All`).
+- **Barra de Controles Limpia y en Fila Única**:
+  - Remoción completa del bloque inferior de píldoras horizontales y de su etiqueta `Filter`.
+  - Disposición armónica en `flex-col sm:flex-row items-stretch sm:items-center gap-2.5`:
+    1. Buscador de texto (`relative flex-1 min-w-[160px]`).
+    2. Selector de cuenta debitada (`relative shrink-0 sm:w-48`) con icono `Wallet`.
+    3. Selector de categoría (`relative shrink-0 sm:w-56`) con icono `Tag`.
+- **Higiene de Estado y Resiliencia**:
+  - Eliminación de memoizados redundantes (`activeExpenseCategories`).
+  - Validación directa de `selectedCategory` contra el catálogo completo `allCategoryOptions`, con saneamiento automático y soporte bilingüe (`Todos` <-> `All`).
 - **Filtrado Compuesto Robusto**:
-  - Evaluación lógica coordinada en `filteredExpenses` (`matchesCat && matchesAccount && matchesSearch`) sin anulación de filtros previos.
+  - Conjunción lógica limpia en `filteredExpenses` (`matchesCat && matchesAccount && matchesSearch`) respetando el alcance por ciclo histórico o global (`scope`).
 - **Auditoría de Calidad y Ciclo de Vida**:
-  - Veredicto de Seguridad: LUZ VERDE (inmune a Prototype Pollution, React auto-escaping y cero fugas).
-  - Veredicto de QA: LUZ VERDE (`npx tsc --noEmit` código 0 y build Next.js Turbopack en 1.3s).
+  - Veredicto de Seguridad: LUZ VERDE (cero riesgo XSS, escapado nativo y sin variables huérfanas).
+  - Veredicto de QA: LUZ VERDE (`npx tsc --noEmit` código 0 y build Next.js Turbopack completado con éxito).
 
 ---
 
