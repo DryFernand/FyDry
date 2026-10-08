@@ -1,5 +1,26 @@
 # Registro de Cambios y Documentación del Proyecto (Documentatio.md)
 
+## [2026-10-08] - Rediseño de Pantalla de Movimientos y Modal Rápido (Fase 2: Filtros por Tipo de Traspaso y Previsualización Contable de Saldos)
+
+### Resumen
+Se implementó la Fase 2 en `MovementsView.tsx` y en el modal global `QuickTransactionModal.tsx`, introduciendo filtros rápidos para aislar traspasos hacia fondos de ahorro frente a movimientos entre cuentas corrientes/efectivo, y un simulador interactivo de previsualización contable que proyecta los saldos resultantes en origen y destino antes de confirmar la transacción.
+
+### Cambios Realizados:
+- **Filtros Rápidos por Naturaleza de Traspaso en `MovementsView.tsx`**:
+  - Pestañas interactivas situadas junto al buscador: *Todos ({total})*, *Hacia Ahorro ({savings})* con icono `PiggyBank`, y *Entre Cuentas ({standard})*.
+  - Detección reactiva de traspasos cuyo destino sea una cuenta de tipo `'savings'`.
+  - Estados vacíos contextuales personalizados con gráficos acordes al filtro activo.
+- **Previsualización Contable de Saldos Resultantes**:
+  - En el modal de traspasos de `MovementsView.tsx`: cálculo en vivo del saldo resultante estimado en la cuenta emisora (`fromBalanceAfter`) y en la cuenta receptora (`toBalanceAfter`).
+  - En el modal global `QuickTransactionModal.tsx`: despliegue interactivo en tiempo real al seleccionar la pestaña *Transferir* con monto válido.
+  - Alerta preventiva sutil (`⚠️ Uso de margen de sobregiro ($|monto|)`) si la cuenta de origen entra en el margen de sobregiro permitido.
+- **Auditoría de Calidad**:
+  - Blindaje matemático sin divisiones por cero y preservación estricta de las reglas de sanitización SEC-01 a SEC-04.
+  - Veredicto de Seguridad: LUZ VERDE.
+  - Veredicto de QA: LUZ VERDE (`tsc --noEmit` exit code 0 y build Next.js Turbopack en 3.1s).
+
+---
+
 ## [2026-10-08] - Rediseño de Pantalla de Movimientos y Modal Rápido (Fase 1: Homogeneización Visual, Impuesto en Transferencias y Blindaje)
 
 ### Resumen

@@ -297,6 +297,28 @@ export default function QuickTransactionModal({
     }
   };
 
+  const parsedAmountPreview = parseFloat(amount.replace(",", ".")) || 0;
+  const parsedTaxPreview = parseFloat(taxAmount.replace(",", ".")) || 0;
+  const totalDebitedPreview = parsedAmountPreview + parsedTaxPreview;
+
+  const currentFromAccountName =
+    fromAccount || (accounts.length > 0 ? accounts[0].name : "");
+  const currentToAccountName =
+    toAccount ||
+    (accounts.length > 1
+      ? accounts.find((a) => a.name !== currentFromAccountName)?.name || ""
+      : "");
+
+  const transferFromAcc = accounts.find((a) => a.name === currentFromAccountName);
+  const transferToAcc = accounts.find((a) => a.name === currentToAccountName);
+
+  const transferFromBalanceAfter = transferFromAcc
+    ? transferFromAcc.balance - totalDebitedPreview
+    : 0;
+  const transferToBalanceAfter = transferToAcc
+    ? transferToAcc.balance + parsedAmountPreview
+    : 0;
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -591,6 +613,73 @@ export default function QuickTransactionModal({
                   </div>
                 </div>
               )}
+
+              {/* Mini tarjeta informativa de desglose y saldos estimados */}
+              {type === "transfer" &&
+                transferFromAcc &&
+                transferToAcc &&
+                parsedAmountPreview > 0 && (
+                  <div className="p-3 bg-zinc-50 rounded-2xl border border-zinc-200/70 text-xs space-y-2">
+                    <div className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">
+                      {isEn ? "Balance Preview" : "Desglose y Saldos Estimados"}
+                    </div>
+
+                    {/* Origen */}
+                    <div className="space-y-0.5">
+                      <div className="flex justify-between text-zinc-700">
+                        <span>
+                          {isEn
+                            ? `Debit from ${transferFromAcc.name}:`
+                            : `Sale de ${transferFromAcc.name}:`}
+                        </span>
+                        <span className="font-bold text-rose-600">
+                          -${totalDebitedPreview.toFixed(2)}
+                          {parsedTaxPreview > 0 &&
+                            ` (${isEn ? "incl." : "incl."} $${parsedTaxPreview.toFixed(2)} ${
+                              isEn ? "fee" : "comisión"
+                            })`}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-[11px] text-zinc-500">
+                        <span>{isEn ? "Estimated balance in source:" : "Saldo estimado en origen:"}</span>
+                        <span
+                          className={`font-semibold ${
+                            transferFromBalanceAfter < 0 ? "text-amber-600" : "text-zinc-700"
+                          }`}
+                        >
+                          ${transferFromBalanceAfter.toFixed(2)}
+                        </span>
+                      </div>
+                      {transferFromBalanceAfter < 0 && (
+                        <div className="text-[11px] text-rose-600 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200/60 font-medium mt-1">
+                          {isEn
+                            ? `⚠️ Overdraft margin in use ($${Math.abs(transferFromBalanceAfter).toFixed(2)})`
+                            : `⚠️ Uso de margen de sobregiro ($${Math.abs(transferFromBalanceAfter).toFixed(2)})`}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Destino */}
+                    <div className="space-y-0.5 pt-1.5 border-t border-zinc-200/60">
+                      <div className="flex justify-between text-zinc-700">
+                        <span>
+                          {isEn
+                            ? `Deposit into ${transferToAcc.name}:`
+                            : `Llega a ${transferToAcc.name}:`}
+                        </span>
+                        <span className="font-bold text-emerald-600">
+                          +${parsedAmountPreview.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-[11px] text-zinc-500">
+                        <span>{isEn ? "Estimated balance in destination:" : "Saldo estimado en destino:"}</span>
+                        <span className="font-semibold text-zinc-700">
+                          ${transferToBalanceAfter.toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
               {/* Botones de Acción */}
               <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-zinc-100">

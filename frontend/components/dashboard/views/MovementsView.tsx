@@ -13,6 +13,7 @@ import {
   AlertCircle,
   Receipt,
   Percent,
+  PiggyBank,
 } from "lucide-react";
 import { MovementItem, AccountItem } from "../types";
 import { useLanguage } from "@/context/LanguageContext";
@@ -26,6 +27,8 @@ import {
   markNotificationProcessedApi,
 } from "@/lib/api";
 import { getCycleRange, isTransactionInPeriod, formatCycleLabel } from "@/lib/cycle";
+
+type MovementFilterType = "all" | "savings" | "standard";
 
 interface MovementsViewProps {
   initialDraft?: {
@@ -48,6 +51,7 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
   // Search & Filter
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedAccountFilter, setSelectedAccountFilter] = useState("all");
+  const [movementFilter, setMovementFilter] = useState<MovementFilterType>("all");
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -113,6 +117,11 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
   );
   const totalTransferredThisMonth = currentCycleMovements.reduce((sum, m) => sum + m.amount, 0);
   const totalTaxesThisMonth = currentCycleMovements.reduce((sum, m) => sum + (m.taxAmount || 0), 0);
+
+  const savingsMovementsCount = movements.filter((m) =>
+    accounts.some((a) => a.type === "savings" && (a.name === m.toAccount || a.id === m.toAccountId))
+  ).length;
+  const standardMovementsCount = movements.length - savingsMovementsCount;
 
   const openCreateModal = () => {
     setEditingMovement(null);
@@ -232,8 +241,21 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
     }
   };
 
-  // Filtrado de toda la tabla para búsqueda
+  // Filtrado de toda la tabla para búsqueda y tipo de movimiento
   const filteredMovements = movements.filter((m) => {
+    // Filtro por naturaleza de traspaso (all | savings | standard)
+    if (movementFilter === "savings") {
+      const isSavings = accounts.some(
+        (a) => a.type === "savings" && (a.name === m.toAccount || a.id === m.toAccountId)
+      );
+      if (!isSavings) return false;
+    } else if (movementFilter === "standard") {
+      const isSavings = accounts.some(
+        (a) => a.type === "savings" && (a.name === m.toAccount || a.id === m.toAccountId)
+      );
+      if (isSavings) return false;
+    }
+
     if (
       selectedAccountFilter !== "all" &&
       m.fromAccount.toLowerCase() !== selectedAccountFilter.toLowerCase() &&
@@ -254,6 +276,11 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
   const numAmount = parseFloat(amount.replace(",", ".")) || 0;
   const numTax = parseFloat(taxAmount.replace(",", ".")) || 0;
   const totalDebitedPreview = numAmount + numTax;
+
+  const fromAccObj = accounts.find((a) => a.name === fromAccount);
+  const toAccObj = accounts.find((a) => a.name === toAccount);
+  const fromBalanceAfter = fromAccObj ? fromAccObj.balance - totalDebitedPreview : 0;
+  const toBalanceAfter = toAccObj ? toAccObj.balance + numAmount : 0;
 
   return (
     <div className="space-y-6">
@@ -336,6 +363,44 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
 
       {/* Filter and Search Bar */}
       <div className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs space-y-4">
+        {/* Pastillas / Tabs de Naturaleza de Traspaso */}
+        <div className="flex flex-wrap items-center gap-1.5 pb-1 border-b border-zinc-100">
+          <button
+            type="button"
+            onClick={() => setMovementFilter("all")}
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+              movementFilter === "all"
+                ? "bg-zinc-950 text-white shadow-xs"
+                : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200/70"
+            }`}
+          >
+            Todos ({movements.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setMovementFilter("savings")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+              movementFilter === "savings"
+                ? "bg-emerald-600 text-white shadow-xs"
+                : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200/70"
+            }`}
+          >
+            <PiggyBank className="w-3.5 h-3.5" />
+            <span>Hacia Ahorro ({savingsMovementsCount})</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setMovementFilter("standard")}
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+              movementFilter === "standard"
+                ? "bg-zinc-950 text-white shadow-xs"
+                : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200/70"
+            }`}
+          >
+            Entre Cuentas ({standardMovementsCount})
+          </button>
+        </div>
+
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           {/* Search */}
           <div className="relative flex-1 max-w-md">
@@ -420,14 +485,28 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
           {filteredMovements.length === 0 && (
             <div className="py-12 text-center space-y-2">
               <div className="w-10 h-10 rounded-2xl bg-zinc-100 text-zinc-400 flex items-center justify-center mx-auto">
-                <ArrowLeftRight className="w-5 h-5" />
+                {movementFilter === "savings" ? (
+                  <PiggyBank className="w-5 h-5 text-emerald-600" />
+                ) : (
+                  <ArrowLeftRight className="w-5 h-5" />
+                )}
               </div>
               <div className="text-xs font-semibold text-zinc-700">
-                {movements.length === 0 ? "Sin traspasos registrados" : "No hay movimientos con estos filtros"}
+                {movements.length === 0
+                  ? "Sin traspasos registrados"
+                  : movementFilter === "savings"
+                  ? "No hay traspasos hacia cuentas de ahorro"
+                  : movementFilter === "standard"
+                  ? "No hay traspasos entre cuentas estándar"
+                  : "No hay movimientos con estos filtros"}
               </div>
               <p className="text-[11px] text-zinc-400 max-w-xs mx-auto">
                 {movements.length === 0
                   ? "Realiza transferencias entre tus cuentas bancarias, fondos de ahorro o retiros a efectivo."
+                  : movementFilter === "savings"
+                  ? "Aún no has registrado traspasos con destino a cuentas o fondos de ahorro."
+                  : movementFilter === "standard"
+                  ? "No se encontraron movimientos entre cuentas estándar con los filtros aplicados."
                   : "Prueba seleccionando otra cuenta o limpiando el campo de búsqueda."}
               </p>
             </div>
@@ -536,23 +615,53 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
                 </div>
 
                 {/* Accounting Preview Card */}
-                <div className="p-3 bg-zinc-50 rounded-2xl border border-zinc-200/70 text-xs space-y-1.5">
+                <div className="p-3 bg-zinc-50 rounded-2xl border border-zinc-200/70 text-xs space-y-2">
                   <div className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">
                     Desglose Contable
                   </div>
-                  <div className="flex justify-between text-zinc-700">
-                    <span>Sale de {fromAccount || "Origen"}:</span>
-                    <span className="font-bold text-rose-600">
-                      -${totalDebitedPreview.toFixed(2)}
-                      {numTax > 0 && ` (Incluye $${numTax.toFixed(2)} imp.)`}
-                    </span>
+
+                  {/* Origen */}
+                  <div className="space-y-0.5">
+                    <div className="flex justify-between text-zinc-700">
+                      <span>Sale de {fromAccount || "Origen"}:</span>
+                      <span className="font-bold text-rose-600">
+                        -${totalDebitedPreview.toFixed(2)}
+                        {numTax > 0 && ` (Incluye $${numTax.toFixed(2)} imp.)`}
+                      </span>
+                    </div>
+                    {fromAccObj && (
+                      <div className="flex justify-between text-[11px] text-zinc-500">
+                        <span>Saldo tras traspaso:</span>
+                        <span className={`font-semibold ${fromBalanceAfter < 0 ? "text-amber-600" : "text-zinc-700"}`}>
+                          ${fromBalanceAfter.toFixed(2)}
+                        </span>
+                      </div>
+                    )}
+                    {fromAccObj && fromBalanceAfter < 0 && (
+                      <div className="text-[11px] text-rose-600 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200/60 font-medium mt-1">
+                        ⚠️ Uso de margen de sobregiro (${Math.abs(fromBalanceAfter).toFixed(2)})
+                      </div>
+                    )}
                   </div>
-                  <div className="flex justify-between text-zinc-700">
-                    <span>Llega a {toAccount || "Destino"}:</span>
-                    <span className="font-bold text-emerald-600">+${numAmount.toFixed(2)}</span>
+
+                  {/* Destino */}
+                  <div className="space-y-0.5 pt-1.5 border-t border-zinc-200/60">
+                    <div className="flex justify-between text-zinc-700">
+                      <span>Llega a {toAccount || "Destino"}:</span>
+                      <span className="font-bold text-emerald-600">+${numAmount.toFixed(2)}</span>
+                    </div>
+                    {toAccObj && (
+                      <div className="flex justify-between text-[11px] text-zinc-500">
+                        <span>Saldo tras traspaso:</span>
+                        <span className="font-semibold text-zinc-700">
+                          ${toBalanceAfter.toFixed(2)}
+                        </span>
+                      </div>
+                    )}
                   </div>
+
                   {numTax > 0 && (
-                    <div className="text-[11px] text-zinc-400 pt-1 border-t border-zinc-200/60">
+                    <div className="text-[11px] text-zinc-400 pt-1.5 border-t border-zinc-200/60">
                       ℹ️ Si tienes un presupuesto con límite para &quot;Impuestos&quot;, se registrará el asiento correspondiente automáticamente.
                     </div>
                   )}
