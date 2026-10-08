@@ -11,8 +11,6 @@ import {
   Trash2,
   Send,
   Sparkles,
-  KeyRound,
-  RotateCcw,
 } from "lucide-react";
 
 export interface ChatMessage {
@@ -20,7 +18,6 @@ export interface ChatMessage {
   role: "user" | "assistant" | "system";
   content: string;
   timestamp: Date;
-  isApiKeyWarning?: boolean;
 }
 
 const INITIAL_GREETING =
@@ -81,7 +78,6 @@ export default function AiAssistantChat() {
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
-  const [hasApiKeyError, setHasApiKeyError] = useState(false);
 
   const [messages, setMessages] = useState<ChatMessage[]>(() => [
     {
@@ -152,7 +148,6 @@ export default function AiAssistantChat() {
     clearPendingTimeouts();
     setIsTyping(false);
     setIsLoading(false);
-    setHasApiKeyError(false);
     setMessages([
       {
         id: `initial-greeting-${Date.now()}`,
@@ -180,7 +175,6 @@ export default function AiAssistantChat() {
     setMessages(newHistory);
     setInputMessage("");
     setIsLoading(true);
-    setHasApiKeyError(false);
 
     try {
       const token =
@@ -196,40 +190,22 @@ export default function AiAssistantChat() {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
-          messages: newHistory
-            .filter((m) => !m.isApiKeyWarning)
-            .map((m) => ({
-              role: m.role,
-              content: m.content,
-            })),
+          messages: newHistory.map((m) => ({
+            role: m.role,
+            content: m.content,
+          })),
         }),
       });
 
       const data = await response.json();
 
-      if (data?.error === "NO_API_KEY") {
-        setIsLoading(false);
-        setHasApiKeyError(true);
-        const warningMsg: ChatMessage = {
-          id: `apikey-warning-${Date.now()}`,
-          role: "system",
-          content:
-            "Para conversar con el asistente, agrega tu clave `AI_API_KEY` en el archivo `.env.local`.",
-          timestamp: new Date(),
-          isApiKeyWarning: true,
-        };
-        setMessages((prev) => [...prev, warningMsg]);
-        return;
-      }
-
-      if (!response.ok || data?.error) {
+      if (!response.ok || data?.error || !data?.message) {
         setIsLoading(false);
         const fallbackMsg: ChatMessage = {
           id: `error-${Date.now()}`,
           role: "assistant",
           content:
-            data?.message ||
-            "No logré procesar tu mensaje en este momento. Por favor, intenta de nuevo en unos instantes.",
+            "No se puede procesar su solicitud en este momento por favor intente luego",
           timestamp: new Date(),
         };
         setMessages((prev) => [...prev, fallbackMsg]);
@@ -301,7 +277,7 @@ export default function AiAssistantChat() {
           id: `network-error-${Date.now()}`,
           role: "assistant",
           content:
-            "Parece que hubo una interrupción en la conexión. Puedes volver a escribir tu pregunta cuando gustes.",
+            "No se puede procesar su solicitud en este momento por favor intente luego",
           timestamp: new Date(),
         },
       ]);
@@ -447,36 +423,6 @@ export default function AiAssistantChat() {
             <div className="flex-1 overflow-y-auto p-4 space-y-3 scroll-smooth bg-linear-to-b from-zinc-50/40 to-white">
               {messages.map((msg) => {
                 const isUser = msg.role === "user";
-                const isSystemWarning = msg.isApiKeyWarning;
-
-                if (isSystemWarning) {
-                  return (
-                    <div
-                      key={msg.id}
-                      className="my-3 p-3.5 bg-zinc-50 border border-zinc-200 rounded-2xl text-xs text-zinc-700 space-y-2 shadow-xs"
-                    >
-                      <div className="flex items-center gap-2 text-zinc-900 font-medium">
-                        <KeyRound className="w-4 h-4 text-zinc-600 shrink-0" />
-                        <span>Configuración de clave de IA</span>
-                      </div>
-                      <p className="leading-relaxed text-zinc-600">
-                        Para conversar con el asistente, agrega tu clave{" "}
-                        <code className="px-1.5 py-0.5 rounded-md bg-zinc-200 text-zinc-900 font-mono text-[11px]">
-                          AI_API_KEY
-                        </code>{" "}
-                        en el archivo{" "}
-                        <code className="px-1.5 py-0.5 rounded-md bg-zinc-200 text-zinc-900 font-mono text-[11px]">
-                          .env.local
-                        </code>
-                        .
-                      </p>
-                      <div className="text-[11px] text-zinc-500 bg-white/80 p-2 rounded-xl border border-zinc-150">
-                        Puedes configurar cualquier proveedor compatible con
-                        OpenAI (OpenAI, Groq, OpenRouter o compatible).
-                      </div>
-                    </div>
-                  );
-                }
 
                 return (
                   <div

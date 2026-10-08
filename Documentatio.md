@@ -1389,3 +1389,23 @@ Se integró el cómputo automático de los movimientos/traspasos entre cuentas c
 - **Validaciones:**
   - `security-agent`: **LUZ VERDE** (Endpoint autenticado, claves resguardadas en servidor, ofuscacion de upstream y defensas anti-DoS).
   - `qa-agent`: **LUZ VERDE** (`npx tsc --noEmit` exit code 0, `npm run build` Turbopack exit code 0, 8 requerimientos probados).
+
+
+## [2026-10-08] - Unificacion de Mensajes de Error y Soporte de Clave Gemini en Chat de IA
+
+### Modulo: Frontend & API (AI Chat Error Masking & Gemini Compatibility)
+- **Archivos afectados:**
+  - `frontend/components/ai/AiAssistantChat.tsx`
+  - `frontend/app/api/ai/chat/route.ts`
+  - `frontend/.env.local` (Local, ignorado por git)
+- **Cambios realizados:**
+  - **Eliminacion de tarjeta tecnica:** Se suprimio la tarjeta interna de aviso de configuracion de clave API (`KeyRound`, `isApiKeyWarning`), evitando exponer variables de entorno o detalles de configuracion al usuario.
+  - **Estandarizacion de respuesta ante fallos:** Ante cualquier eventualidad tecnica (ausencia de clave, error de red, falla 502 del proveedor o excepciones de servidor), el asistente emite de forma transparente y unificada el mensaje: `"No se puede procesar su solicitud en este momento por favor intente luego"`.
+  - **Compatibilidad nativa con Google Gemini:**
+    - Autodeteccion inteligente para claves con prefijos `AQ.` y `AIza.`.
+    - Enrutamiento por defecto hacia `https://generativelanguage.googleapis.com/v1beta/openai` con modelo `gemini-2.5-flash`.
+    - Ajuste de `max_tokens` a 2048 para permitir completar respuestas en modelos que utilizan tokens de razonamiento interno.
+    - Configuracion local de la clave en `frontend/.env.local` protegida fuera del repositorio.
+- **Validaciones:**
+  - `security-agent`: **LUZ VERDE** (Cero fuga de metadatos o credenciales, exclusion confirmada de `.env.local` en `.gitignore`, SSRF y DoS mitigados).
+  - `qa-agent`: **LUZ VERDE** (`npx tsc --noEmit` exit code 0, `npm run build` Turbopack exit code 0, flujo de chat verificado).

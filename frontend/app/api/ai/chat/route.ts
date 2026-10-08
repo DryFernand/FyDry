@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
         {
           error: "NO_API_KEY",
           message:
-            "Para conversar con el asistente, agrega tu clave AI_API_KEY en el archivo .env.local.",
+            "No se puede procesar su solicitud en este momento por favor intente luego",
         },
         { status: 200 }
       );
@@ -141,9 +141,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const rawBaseUrl = process.env.AI_BASE_URL || "https://api.openai.com/v1";
+    const isGemini = apiKey.startsWith("AQ.") || apiKey.startsWith("AIza");
+    const defaultBaseUrl = isGemini
+      ? "https://generativelanguage.googleapis.com/v1beta/openai"
+      : "https://api.openai.com/v1";
+    const defaultModel = isGemini ? "gemini-2.5-flash" : "gpt-4o-mini";
+
+    const rawBaseUrl = process.env.AI_BASE_URL || defaultBaseUrl;
     const baseUrl = rawBaseUrl.replace(/\/+$/, "");
-    const model = process.env.AI_MODEL || "gpt-4o-mini";
+    const model = process.env.AI_MODEL || defaultModel;
     const endpoint = baseUrl.endsWith("/chat/completions")
       ? baseUrl
       : `${baseUrl}/chat/completions`;
@@ -158,7 +164,7 @@ export async function POST(req: NextRequest) {
         model,
         messages: [{ role: "system", content: SYSTEM_PROMPT }, ...cleanMessages],
         temperature: 0.6,
-        max_tokens: 800,
+        max_tokens: 2048,
       }),
     });
 
@@ -171,7 +177,7 @@ export async function POST(req: NextRequest) {
         {
           error: "AI_PROVIDER_ERROR",
           message:
-            "El servicio de asistencia no se encuentra disponible temporalmente. Por favor, intenta de nuevo más tarde.",
+            "No se puede procesar su solicitud en este momento por favor intente luego",
         },
         { status: 502 }
       );
@@ -184,7 +190,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           error: "EMPTY_RESPONSE",
-          message: "No se recibió respuesta del asistente.",
+          message:
+            "No se puede procesar su solicitud en este momento por favor intente luego",
         },
         { status: 502 }
       );
@@ -196,7 +203,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         error: "INTERNAL_ERROR",
-        message: "Ocurrió un error inesperado al procesar la solicitud.",
+        message:
+          "No se puede procesar su solicitud en este momento por favor intente luego",
       },
       { status: 500 }
     );
