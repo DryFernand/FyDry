@@ -1,5 +1,31 @@
 # Registro de Cambios y Documentación del Proyecto (Documentatio.md)
 
+## [2026-10-08] - Rediseño de Pantalla de Gastos (Fase 1: Iconografía Semántica, Navegador de Ciclos Históricos y Blindaje de Formularios)
+
+### Resumen
+Se completó la implementación de la Fase 1 en `ExpensesView.tsx` para FyDry Frontend. Se erradicó la iconografía monótona repetitiva reemplazándola por 25 iconos contextuales de `lucide-react` alojados en cápsulas monocromáticas refinadas, se incorporó un navegador de ciclos históricos sincronizado con el día de corte (`budgetResetDay`) con alternancia de alcance (Ciclo vs Todo el Historial), y se blindó el formulario de gastos contra valores inválidos, comas regionales y sobregiros indebidos.
+
+### Cambios Realizados:
+- **Iconografía Semántica por Categoría (`getCategoryIcon`)**:
+  - Mapeo dinámico y reactivo para las 25 categorías del sistema (`Home`, `ShoppingCart`, `Utensils`, `Zap`, `Wifi`, `Fuel`, `HeartPulse`, `ShieldCheck`, `Dumbbell`, etc.) con fallback defensivo a `ArrowDownRight`.
+  - Reemplazo del contenedor de flecha roja por una cápsula monocromática limpia en `bg-zinc-100 text-zinc-700 border border-zinc-200/60`.
+  - Previsualización dinámica del icono en tiempo real dentro de la cabecera y selector del modal de registro y edición.
+- **Navegador de Ciclos y Meses Históricos**:
+  - Controles interactivos `<` y `>` para auditar ciclos mensuales anteriores o futuros, con botón de retorno al ciclo actual (`RotateCcw`).
+  - Sincronización estricta con la fecha de corte presupuestario (`budgetResetDay`) mediante `getCycleRange`.
+  - Selector de alcance: alternancia fluida entre *"Por Ciclo"* e *"Historial Completo"*, recalculando automáticamente métricas, gastos visibles y categorías activas.
+- **Blindaje Defensivo del Formulario y Control de Sobregiro**:
+  - Normalización de comas decimales regionales (`amount.replace(",", ".")`).
+  - Validación aritmética rigurosa contra montos negativos, ceros, `NaN` y valores infinitos.
+  - Validación de fondos disponibles (`balance + overdraftLimit`) contra la cuenta de débito seleccionada, reintegrando el monto original si se edita un gasto existente.
+  - Alerta preventiva clara en banner si el gasto sobrepasa el saldo y cupo de sobregiro autorizado.
+- **Auditoría de Calidad y Ciclo de Vida**:
+  - Preservación íntegra de la sincronización de eventos `fydry_storage_updated` y soporte de borradores automáticos (`initialDraft`) procedentes de notificaciones.
+  - Veredicto de Seguridad: LUZ VERDE (cero vulnerabilidades, sanitización e integridad en inputs).
+  - Veredicto de QA: LUZ VERDE (`npx tsc --noEmit` código 0 y build Next.js Turbopack completado en 3.3s).
+
+---
+
 ## [2026-10-08] - Rediseño de Pantalla de Movimientos y Modal Rápido (Fase 2: Filtros por Tipo de Traspaso y Previsualización Contable de Saldos)
 
 ### Resumen
