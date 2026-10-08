@@ -1,5 +1,25 @@
 # Registro de Cambios y Documentación del Proyecto (Documentatio.md)
 
+## [2026-10-08] - Selector Desplegable de Categorías en Pantalla de Gastos
+
+### Resumen
+Se implementó un selector desplegable simétrico para filtrar categorías en `ExpensesView.tsx`, complementando armónicamente el selector de cuentas bancarias y sincronizándose de forma bidireccional con las píldoras de filtrado rápido.
+
+### Cambios Realizados:
+- **Selector Desplegable de Categorías**:
+  - Incorporado en la barra superior de filtros con icono `Tag`, alineado y con estilos idénticos al selector de cuentas (`Wallet`).
+  - Opciones completas que abarcan *"Todas las Categorías"* y el catálogo íntegro de 25 categorías del sistema más cualquier categoría activa.
+- **Sincronización Bidireccional Limpia**:
+  - Sincronización en tiempo real entre el `<select>` y las píldoras de filtrado rápido (`activeExpenseCategories`): seleccionar en uno actualiza e ilumina reactivamente el otro.
+  - Saneamiento y normalización automática al alternar el idioma de la aplicación (`Todos` <-> `All`).
+- **Filtrado Compuesto Robusto**:
+  - Evaluación lógica coordinada en `filteredExpenses` (`matchesCat && matchesAccount && matchesSearch`) sin anulación de filtros previos.
+- **Auditoría de Calidad y Ciclo de Vida**:
+  - Veredicto de Seguridad: LUZ VERDE (inmune a Prototype Pollution, React auto-escaping y cero fugas).
+  - Veredicto de QA: LUZ VERDE (`npx tsc --noEmit` código 0 y build Next.js Turbopack en 1.3s).
+
+---
+
 ## [2026-10-08] - Rediseño de Pantalla de Gastos (Fase 2: Métricas Analíticas del Ciclo, Filtro Rápido por Cuenta Debitada y Previsualización de Saldo)
 
 ### Resumen

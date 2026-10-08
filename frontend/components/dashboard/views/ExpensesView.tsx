@@ -9,6 +9,7 @@ import {
   X,
   Receipt,
   Filter,
+  Tag,
   Trash2,
   Edit3,
   Home,
@@ -265,18 +266,40 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
     return scope === "cycle" ? cycleExpenses : expenses;
   }, [scope, cycleExpenses, expenses]);
 
-  // Categorías que realmente se han consumido en el conjunto activo
+  // Categorías que realmente se han consumido en el conjunto activo (para píldoras rápidas)
   const activeExpenseCategories = useMemo(() => {
     const consumedCategories = Array.from(new Set(baseExpenses.map((e) => e.category)));
     return [language === "es" ? "Todos" : "All", ...consumedCategories];
   }, [baseExpenses, language]);
 
+  // Catálogo completo de categorías para el selector desplegable
+  const allCategoryOptions = useMemo(() => {
+    const list: string[] = [...EXPENSE_CATEGORIES];
+    baseExpenses.forEach((e) => {
+      if (e.category && !list.includes(e.category)) {
+        list.push(e.category);
+      }
+    });
+    return list;
+  }, [baseExpenses]);
+
   useEffect(() => {
     const isAll = selectedCategory === "Todos" || selectedCategory === "All";
-    if (!isAll && !activeExpenseCategories.includes(selectedCategory)) {
+    const isValid =
+      activeExpenseCategories.includes(selectedCategory) ||
+      allCategoryOptions.includes(selectedCategory);
+    if (!isAll && !isValid) {
       setSelectedCategory(language === "es" ? "Todos" : "All");
     }
-  }, [activeExpenseCategories, selectedCategory, language]);
+  }, [activeExpenseCategories, allCategoryOptions, selectedCategory, language]);
+
+  useEffect(() => {
+    if (selectedCategory === "Todos" && language === "en") {
+      setSelectedCategory("All");
+    } else if (selectedCategory === "All" && language === "es") {
+      setSelectedCategory("Todos");
+    }
+  }, [language, selectedCategory]);
 
   // Lista final filtrada por categoría, cuenta debitada y búsqueda
   const filteredExpenses = useMemo(() => {
@@ -655,10 +678,10 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
 
       {/* Filter and Search Bar */}
       <div className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs space-y-4">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 flex-1 max-w-xl">
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 flex-1 min-w-0">
             {/* Buscador de texto */}
-            <div className="relative flex-1">
+            <div className="relative flex-1 min-w-[160px]">
               <input
                 type="text"
                 value={searchTerm}
@@ -679,7 +702,7 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
                 onChange={(e) => setSelectedAccountFilter(e.target.value)}
                 className="w-full pl-9 pr-7 py-2 rounded-xl border border-zinc-200 bg-zinc-50/50 text-xs font-semibold text-zinc-700 hover:text-zinc-950 focus:outline-none focus:border-zinc-900 focus:bg-white transition-all shadow-2xs cursor-pointer truncate"
               >
-                <option value="all">Todas las Cuentas</option>
+                <option value="all">{language === "es" ? "Todas las Cuentas" : "All Accounts"}</option>
                 {accounts.map((acc) => (
                   <option key={acc.id} value={acc.name}>
                     {acc.name}
@@ -687,28 +710,62 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
                 ))}
               </select>
             </div>
+
+            {/* Selector de filtro por categoría */}
+            <div className="relative shrink-0 sm:w-56">
+              <div className="absolute left-3 top-2.5 pointer-events-none text-zinc-400">
+                <Tag className="w-4 h-4" />
+              </div>
+              <select
+                value={
+                  selectedCategory === "Todos" || selectedCategory === "All"
+                    ? language === "es"
+                      ? "Todos"
+                      : "All"
+                    : selectedCategory
+                }
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="w-full pl-9 pr-7 py-2 rounded-xl border border-zinc-200 bg-zinc-50/50 text-xs font-semibold text-zinc-700 hover:text-zinc-950 focus:outline-none focus:border-zinc-900 focus:bg-white transition-all shadow-2xs cursor-pointer truncate"
+              >
+                <option value={language === "es" ? "Todos" : "All"}>
+                  {language === "es" ? "Todas las Categorías" : "All Categories"}
+                </option>
+                {allCategoryOptions.map((catName) => (
+                  <option key={catName} value={catName}>
+                    {catName}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          {/* Filtro por categorías */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
+          {/* Filtro por categorías (píldoras rápidas) */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 xl:pb-0 scrollbar-none shrink-0">
             <div className="flex items-center gap-1 text-xs text-zinc-400 mr-1 shrink-0">
               <Filter className="w-3.5 h-3.5" />
-              <span>Filtro:</span>
+              <span>{language === "es" ? "Filtro:" : "Filter:"}</span>
             </div>
-            {activeExpenseCategories.map((c) => (
-              <button
-                key={c}
-                type="button"
-                onClick={() => setSelectedCategory(c)}
-                className={`py-1.5 px-3 rounded-xl text-xs font-semibold transition-colors cursor-pointer shrink-0 ${
-                  selectedCategory === c
-                    ? "bg-zinc-950 text-white"
-                    : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
-                }`}
-              >
-                {c}
-              </button>
-            ))}
+            {activeExpenseCategories.map((c) => {
+              const isAllItem = c === "Todos" || c === "All";
+              const isSelected = isAllItem
+                ? selectedCategory === "Todos" || selectedCategory === "All"
+                : selectedCategory.toLowerCase() === c.toLowerCase();
+
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setSelectedCategory(c)}
+                  className={`py-1.5 px-3 rounded-xl text-xs font-semibold transition-colors cursor-pointer shrink-0 ${
+                    isSelected
+                      ? "bg-zinc-950 text-white shadow-2xs"
+                      : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+                  }`}
+                >
+                  {c}
+                </button>
+              );
+            })}
           </div>
         </div>
 
