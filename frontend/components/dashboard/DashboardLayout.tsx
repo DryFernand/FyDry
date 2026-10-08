@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
-import ThemeLogo from "@/components/ThemeLogo";
+import Image from "next/image";
 import {
   Home,
   CreditCard,
@@ -233,12 +233,13 @@ export default function DashboardLayout() {
         <div className="flex flex-col min-h-0 flex-1">
           {/* Brand Header */}
           <div className="flex items-center gap-3 px-2 py-3 mb-3">
-            <div className="relative w-9 h-9 rounded-full overflow-hidden ring-1 ring-zinc-900/10 shadow-xs shrink-0">
-              <ThemeLogo
+            <div className="relative w-9 h-9 shrink-0 flex items-center justify-center">
+              <Image
+                src="/logo_negro.png"
                 alt="FyDry Logo"
                 fill
                 sizes="36px"
-                className="object-cover"
+                className="object-contain"
                 priority
               />
             </div>
@@ -339,12 +340,13 @@ export default function DashboardLayout() {
       {/* Mobile Top Header */}
       <header className="md:hidden bg-white border-b border-zinc-200 p-4 flex items-center justify-between sticky top-0 z-30 print:hidden">
         <div className="flex items-center gap-2.5">
-          <div className="relative w-7 h-7 rounded-full overflow-hidden ring-1 ring-zinc-900/10 shrink-0">
-            <ThemeLogo
+          <div className="relative w-7 h-7 shrink-0 flex items-center justify-center">
+            <Image
+              src="/logo_negro.png"
               alt="FyDry Logo"
               fill
               sizes="28px"
-              className="object-cover"
+              className="object-contain"
             />
           </div>
           <span className="font-bold text-sm text-zinc-950">{t.brand.name}</span>

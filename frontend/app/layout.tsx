@@ -64,7 +64,7 @@ export const metadata: Metadata = {
     siteName: "FyDry",
     images: [
       {
-        url: "/FyDry.jpeg",
+        url: "/logo_negro.png",
         width: 800,
         height: 800,
         alt: "FyDry Logo",
@@ -77,7 +77,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "FyDry — Ordena tus gastos, tranquiliza tu mente",
     description: "Claridad total sobre tus finanzas personales sin complicaciones.",
-    images: ["/FyDry.jpeg"],
+    images: ["/logo_negro.png"],
   },
   robots: {
     index: true,
@@ -105,8 +105,8 @@ export default function RootLayout({
     description: "Plataforma de gestión financiera minimalista y presupuesto inteligente.",
     applicationCategory: "FinanceApplication",
     operatingSystem: "All",
-    image: `${siteUrl}/FyDry.jpeg`,
-    logo: `${siteUrl}/FyDry.jpeg`,
+    image: `${siteUrl}/logo_negro.png`,
+    logo: `${siteUrl}/logo_negro.png`,
     offers: {
       "@type": "Offer",
       price: "0",

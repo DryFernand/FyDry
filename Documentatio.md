@@ -1278,3 +1278,27 @@ Se integró el cómputo automático de los movimientos/traspasos entre cuentas c
 - **Validaciones:**
   - `security-agent`: **LUZ VERDE** (Rutas estaticas seguras, sin vectores XSS ni fugas en el DOM).
   - `qa-agent`: **LUZ VERDE** (`npx tsc --noEmit` exit code 0, `npm run build` Turbopack exit code 0).
+
+
+## [2026-10-08] - Ajuste de Favicon Dinamico y Logo Transparente sin Redondeo
+
+### Modulo: Frontend (Brand & Metadata)
+- **Archivos afectados:**
+  - `frontend/app/layout.tsx`
+  - `frontend/components/Navbar.tsx`
+  - `frontend/components/Footer.tsx`
+  - `frontend/components/auth/AuthCard.tsx`
+  - `frontend/components/dashboard/DashboardLayout.tsx`
+  - `frontend/components/onboarding/OnboardingWizard.tsx`
+- **Cambios realizados:**
+  - **Favicon Dinamico en Metadata / Head:**
+    - Alternancia en pestana del navegador: `/logo_negro.png` en modo claro (`prefers-color-scheme: light`) y `/logo_blanco.png` en modo oscuro (`prefers-color-scheme: dark`).
+    - Configurado en `metadata.icons` y en las etiquetas directas `<link rel="icon">`.
+  - **Logo de la Web Natural sin Recorte:**
+    - En toda la interfaz (Navbar, Footer, AuthCard, Dashboard desktop/mobile y Onboarding) se utiliza consistentemente `/logo_negro.png`.
+    - Eliminadas las clases `rounded-full`, `overflow-hidden` y anillos `ring-1`, aplicando `object-contain` para que el logo sin fondo mantenga su silueta original sin recortes circulares.
+  - **Limpieza:**
+    - Eliminado el archivo `ThemeLogo.tsx` para no dejar codigo huerfano.
+- **Validaciones:**
+  - `security-agent`: **LUZ VERDE** (Activos estaticos locales seguros, sin inyecciones en metadata).
+  - `qa-agent`: **LUZ VERDE** (`npx tsc --noEmit` exit code 0, `npm run build` Turbopack exit code 0).
