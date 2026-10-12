@@ -21,6 +21,8 @@ import {
   CheckCircle2,
   AlertCircle,
   Loader2,
+  RotateCcw,
+  Sparkles,
 } from "lucide-react";
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from "@/lib/categories";
 import {
@@ -35,6 +37,7 @@ import {
   fetchAccountsApi,
 } from "@/lib/api";
 import { AccountItem } from "@/components/dashboard/types";
+import { formatMoney, currencySymbol, todayISO } from "@/lib/money";
 
 export interface PendingAction {
   id: string;
@@ -68,6 +71,8 @@ export interface ChatMessage {
   timestamp: Date;
   pendingAction?: PendingAction;
   missingDetails?: MissingDetailsPayload;
+  /** Texto del usuario a reenviar si la respuesta falló */
+  retryText?: string;
 }
 
 export function stripAsterisks(text?: string | null): string {
@@ -133,7 +138,13 @@ function sanitizeDate(dateStr?: any): string {
   if (typeof dateStr === "string" && /^\d{4}-\d{2}-\d{2}$/.test(dateStr.trim())) {
     return dateStr.trim();
   }
-  return new Date().toISOString().split("T")[0];
+  return todayISO();
+}
+
+/** Moneda de una cuenta por nombre; si no se encuentra, la moneda principal del usuario. */
+function currencyFor(accountName: unknown, accounts: AccountItem[]): string {
+  const found = typeof accountName === "string" ? findMatchingAccount(accountName, accounts) : null;
+  return found?.currency || accounts[0]?.currency || "DOP";
 }
 
 function normalizeText(text: string): string {
@@ -304,6 +315,37 @@ export function findMatchingAccount(
   return null;
 }
 
+const CHAT_STORAGE_KEY = "fydry_ai_chat_v1";
+const MAX_STORED_MESSAGES = 60;
+
+const QUICK_PROMPTS = [
+  "¿Cuánto puedo gastar hoy?",
+  "¿Cómo voy este mes?",
+  "Registra un gasto",
+  "¿Cuánto debo en total?",
+  "Dame un consejo para ahorrar",
+];
+
+/** Restaura el historial guardado; las acciones que quedaron a medias se marcan como canceladas. */
+function loadStoredMessages(): ChatMessage[] | null {
+  try {
+    const raw = localStorage.getItem(CHAT_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as (Omit<ChatMessage, "timestamp"> & { timestamp: string })[];
+    if (!Array.isArray(parsed) || parsed.length === 0) return null;
+    return parsed.map((m) => ({
+      ...m,
+      timestamp: new Date(m.timestamp),
+      pendingAction:
+        m.pendingAction && m.pendingAction.status === "executing"
+          ? { ...m.pendingAction, status: "cancelled" as const }
+          : m.pendingAction,
+    }));
+  } catch {
+    return null;
+  }
+}
+
 const INITIAL_GREETING =
   "Hola. Soy tu asistente de bienestar financiero en FyDry. Estoy aquí para acompañarte a organizar tus gastos, revisar tus presupuestos o resolver inquietudes sobre tus finanzas con calma y claridad.\n\n¿En qué te gustaría que nos enfoquemos hoy?";
 
@@ -357,12 +399,14 @@ function splitAssistantResponse(text: string): string[] {
 
 interface ActionCardProps {
   action: PendingAction;
+  accounts: AccountItem[];
   onConfirm: () => void;
   onCancel: () => void;
 }
 
-function ActionCard({ action, onConfirm, onCancel }: ActionCardProps) {
+function ActionCard({ action, accounts, onConfirm, onCancel }: ActionCardProps) {
   const args = action.arguments || {};
+  const money = (n: number, account?: unknown) => formatMoney(n, currencyFor(account, accounts));
   let title = "Operación Financiera";
   let badge = "Acción";
   let icon = <Bot className="w-4 h-4 text-zinc-900" />;
@@ -374,7 +418,7 @@ function ActionCard({ action, onConfirm, onCancel }: ActionCardProps) {
       badge = "Gasto";
       icon = <ArrowDownRight className="w-4 h-4 text-rose-600" />;
       const amt = Number(args.amount) || 0;
-      details.push({ label: "Monto", value: `$${amt.toFixed(2)}` });
+      details.push({ label: "Monto", value: money(amt, args.account) });
       details.push({ label: "Concepto", value: args.description || "Gasto" });
       details.push({
         label: "Categoría",
@@ -389,7 +433,7 @@ function ActionCard({ action, onConfirm, onCancel }: ActionCardProps) {
       badge = "Ingreso";
       icon = <ArrowUpRight className="w-4 h-4 text-emerald-600" />;
       const amt = Number(args.amount) || 0;
-      details.push({ label: "Monto", value: `$${amt.toFixed(2)}` });
+      details.push({ label: "Monto", value: money(amt, args.account) });
       details.push({ label: "Concepto", value: args.description || "Ingreso" });
       details.push({
         label: "Categoría",
@@ -404,7 +448,7 @@ function ActionCard({ action, onConfirm, onCancel }: ActionCardProps) {
       badge = "Movimiento";
       icon = <ArrowRightLeft className="w-4 h-4 text-blue-600" />;
       const amt = Number(args.amount) || 0;
-      details.push({ label: "Monto", value: `$${amt.toFixed(2)}` });
+      details.push({ label: "Monto", value: money(amt, args.from_account) });
       details.push({ label: "Origen", value: args.from_account || "Cuenta Origen" });
       details.push({ label: "Destino", value: args.to_account || "Cuenta Destino" });
       if (args.description) details.push({ label: "Concepto", value: args.description });
@@ -417,7 +461,7 @@ function ActionCard({ action, onConfirm, onCancel }: ActionCardProps) {
       details.push({ label: "Nombre", value: args.name || "Cuenta" });
       details.push({ label: "Tipo", value: args.type || "bank" });
       const bal = Number(args.initial_balance) || 0;
-      details.push({ label: "Saldo Inicial", value: `$${bal.toFixed(2)}` });
+      details.push({ label: "Saldo Inicial", value: formatMoney(bal, args.currency || accounts[0]?.currency || "DOP") });
       break;
     }
     case "create_budget": {
@@ -429,7 +473,7 @@ function ActionCard({ action, onConfirm, onCancel }: ActionCardProps) {
         value: findClosestCategory(String(args.category || ""), "expense"),
       });
       const lim = Number(args.limit_amount) || 0;
-      details.push({ label: "Límite Mensual", value: `$${lim.toFixed(2)}` });
+      details.push({ label: "Límite Mensual", value: money(lim) });
       break;
     }
     case "create_debt": {
@@ -438,7 +482,7 @@ function ActionCard({ action, onConfirm, onCancel }: ActionCardProps) {
       icon = <CreditCard className="w-4 h-4 text-orange-600" />;
       details.push({ label: "Acreedor", value: args.creditor || "Acreedor" });
       const tot = Number(args.total_amount) || 0;
-      details.push({ label: "Monto Total", value: `$${tot.toFixed(2)}` });
+      details.push({ label: "Monto Total", value: money(tot) });
       if (args.due_date) details.push({ label: "Fecha Límite", value: args.due_date });
       break;
     }
@@ -448,7 +492,7 @@ function ActionCard({ action, onConfirm, onCancel }: ActionCardProps) {
       icon = <Banknote className="w-4 h-4 text-teal-600" />;
       details.push({ label: "Deuda", value: args.debt_id_or_name || "Deuda" });
       const amt = Number(args.amount) || 0;
-      details.push({ label: "Monto Abono", value: `$${amt.toFixed(2)}` });
+      details.push({ label: "Monto Abono", value: money(amt, args.from_account) });
       details.push({ label: "Cuenta Origen", value: args.from_account || "Cuenta" });
       break;
     }
@@ -531,7 +575,7 @@ function ActionCard({ action, onConfirm, onCancel }: ActionCardProps) {
       {action.status === "failed" && (
         <div className="flex items-center gap-1.5 pt-1 border-t border-zinc-100 text-rose-600 text-[11px] font-medium">
           <AlertCircle className="w-3.5 h-3.5 text-rose-500" />
-          <span>No se pudo procesar la solicitud</span>
+          <span>{action.error || "No se pudo procesar la solicitud"}</span>
         </div>
       )}
     </div>
@@ -701,7 +745,7 @@ function MissingDetailsForm({
         const catList = action_type === "income" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
         initial[field.id] = catList[0] || "";
       } else if (field.type === "date" || field.id === "date") {
-        initial[field.id] = new Date().toISOString().split("T")[0];
+        initial[field.id] = todayISO();
       } else {
         initial[field.id] = "";
       }
@@ -828,7 +872,7 @@ function MissingDetailsForm({
                                 isSelected ? "text-zinc-300 font-normal" : "text-zinc-400"
                               }`}
                             >
-                              · ${Number(acc.balance || 0).toFixed(2)}
+                              · {formatMoney(Number(acc.balance || 0), acc.currency)}
                             </span>
                           </button>
                         );
@@ -894,7 +938,7 @@ function MissingDetailsForm({
                 /* 3. Monto Numérico con prefijo $ limpio */
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 font-bold text-xs pointer-events-none">
-                    $
+                    {currencySymbol(currencyFor(formValues.account || formValues.from_account, accountsList))}
                   </span>
                   <input
                     id={`field-${messageId}-${field.id}`}
@@ -906,7 +950,7 @@ function MissingDetailsForm({
                     disabled={isSubmitted}
                     placeholder={cleanPlaceholder || "0.00"}
                     onChange={(e) => handleChange(field.id, e.target.value)}
-                    className="w-full pl-7 pr-3 py-2 rounded-xl border border-zinc-200 bg-white text-zinc-950 font-bold text-sm placeholder:text-zinc-300 focus:outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 transition-colors shadow-2xs disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="w-full pl-11 pr-3 py-2 rounded-xl border border-zinc-200 bg-white text-zinc-950 font-bold text-sm placeholder:text-zinc-300 focus:outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 transition-colors shadow-2xs disabled:opacity-60 disabled:cursor-not-allowed"
                   />
                 </div>
               ) : isDateField ? (
@@ -1053,8 +1097,26 @@ export default function AiAssistantChat() {
     },
   ]);
 
+  // Historial persistente entre recargas (por navegador; se borra al cerrar sesión)
+  const historyLoadedRef = useRef(false);
+  useEffect(() => {
+    const stored = loadStoredMessages();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage solo existe en el cliente
+    if (stored) setMessages(stored);
+    historyLoadedRef.current = true;
+  }, []);
+
+  useEffect(() => {
+    if (!historyLoadedRef.current) return;
+    try {
+      localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(messages.slice(-MAX_STORED_MESSAGES)));
+    } catch {
+      // almacenamiento lleno o bloqueado: el chat sigue funcionando sin historial
+    }
+  }, [messages]);
+
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
-  const inputRef = useRef<HTMLInputElement | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const abortTimeoutsRef = useRef<number[]>([]);
 
@@ -1093,6 +1155,25 @@ export default function AiAssistantChat() {
     scrollToBottom(true);
   }, [messages, isTyping, scrollToBottom]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (isSettingsOpen) setIsSettingsOpen(false);
+      else if (menuOpen) setMenuOpen(false);
+      else setIsOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isOpen, isSettingsOpen, menuOpen]);
+
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+  }, [inputMessage]);
+
   // Cerrar menú al hacer clic fuera
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -1111,6 +1192,11 @@ export default function AiAssistantChat() {
   // Reiniciar conversación al saludo inicial
   const handleClearChat = () => {
     clearPendingTimeouts();
+    try {
+      localStorage.removeItem(CHAT_STORAGE_KEY);
+    } catch {
+      // sin acceso a localStorage
+    }
     setIsTyping(false);
     setIsLoading(false);
     setMessages([
@@ -1165,7 +1251,7 @@ export default function AiAssistantChat() {
           account,
           date,
         });
-        confirmNote = `Listo, he registrado el gasto de $${amount.toFixed(2)} (${description}) en la categoría "${category}" y cuenta ${account}.`;
+        confirmNote = `Listo, registré el gasto de ${formatMoney(amount, currencyFor(account, accountsList))} (${description}) en "${category}" con ${account}.`;
       } else if (name === "create_income") {
         const amount = parseStrictAmount(args.amount);
         const description = String(args.description || "Ingreso general");
@@ -1187,7 +1273,7 @@ export default function AiAssistantChat() {
           account,
           date,
         });
-        confirmNote = `Listo, he registrado el ingreso de $${amount.toFixed(2)} (${description}) en la categoría "${category}" y cuenta ${account}.`;
+        confirmNote = `Listo, registré el ingreso de ${formatMoney(amount, currencyFor(account, accountsList))} (${description}) en "${category}" en ${account}.`;
       } else if (name === "create_transfer") {
         const amount = parseStrictAmount(args.amount);
         let fromAccount = String(args.from_account || "Cuenta Origen");
@@ -1215,7 +1301,7 @@ export default function AiAssistantChat() {
           description,
           date,
         });
-        confirmNote = `Listo, he registrado la transferencia de $${amount.toFixed(2)} de ${fromAccount} hacia ${toAccount}.`;
+        confirmNote = `Listo, registré la transferencia de ${formatMoney(amount, currencyFor(fromAccount, accountsList))} de ${fromAccount} hacia ${toAccount}.`;
       } else if (name === "create_account") {
         const nameAcc = String(args.name || "Nueva Cuenta");
         const accountType = ALLOWED_ACCOUNT_TYPES.has(String(args.type).toLowerCase())
@@ -1223,13 +1309,14 @@ export default function AiAssistantChat() {
           : "bank";
         const balance = parseInitialBalance(args.initial_balance);
 
+        const accCurrency = args.currency === "USD" ? "USD" : args.currency === "DOP" ? "DOP" : accountsList[0]?.currency || "DOP";
         await createAccountApi({
           name: nameAcc,
           type: accountType,
           balance,
-          currency: "USD",
+          currency: accCurrency,
         });
-        confirmNote = `Listo, he creado la cuenta "${nameAcc}" con un saldo inicial de $${balance.toFixed(2)}.`;
+        confirmNote = `Listo, creé la cuenta "${nameAcc}" con un saldo inicial de ${formatMoney(balance, accCurrency)}.`;
       } else if (name === "create_budget") {
         const category = findClosestCategory(String(args.category || ""), "expense");
         const limit = parseStrictAmount(args.limit_amount);
@@ -1239,7 +1326,7 @@ export default function AiAssistantChat() {
           allocated: limit,
           color: "bg-zinc-900",
         });
-        confirmNote = `Listo, he creado el presupuesto para "${category}" con un límite mensual de $${limit.toFixed(2)}.`;
+        confirmNote = `Listo, creé el presupuesto para "${category}" con un límite mensual de ${formatMoney(limit, accountsList[0]?.currency || "DOP")}.`;
       } else if (name === "create_debt") {
         const creditor = String(args.creditor || "Acreedor");
         const total = parseStrictAmount(args.total_amount);
@@ -1254,7 +1341,7 @@ export default function AiAssistantChat() {
           interestRate: 0,
           dueDate,
         });
-        confirmNote = `Listo, he registrado la deuda con ${creditor} por un monto de $${total.toFixed(2)}.`;
+        confirmNote = `Listo, registré la deuda con ${creditor} por ${formatMoney(total, accountsList[0]?.currency || "DOP")}.`;
       } else if (name === "pay_debt") {
         const debtRef = String(args.debt_id_or_name || "");
         if (!debtRef || debtRef.trim().length === 0) {
@@ -1289,7 +1376,7 @@ export default function AiAssistantChat() {
           date: sanitizeDate(args.date),
           description: `Abono a deuda ${found.creditor || debtRef}`,
         });
-        confirmNote = `Listo, he registrado el abono de $${amount.toFixed(2)} a la deuda desde ${fromAccount}.`;
+        confirmNote = `Listo, registré el abono de ${formatMoney(amount, currencyFor(fromAccount, accountsList))} a ${found.creditor} desde ${fromAccount}.`;
       } else {
         throw new Error(`Acción desconocida: ${name}`);
       }
@@ -1324,11 +1411,13 @@ export default function AiAssistantChat() {
       }
     } catch (err) {
       console.error("[AiAssistantChat] Error al ejecutar la acción:", err);
+      // El backend devuelve mensajes claros (fondos insuficientes, cuenta inexistente...): se muestran tal cual
+      const reason = err instanceof Error && err.message ? err.message : "No se pudo guardar. Intenta de nuevo.";
       if (messageId) {
         setMessages((prev) =>
           prev.map((m) =>
             m.id === messageId && m.pendingAction
-              ? { ...m, pendingAction: { ...m.pendingAction, status: "failed" } }
+              ? { ...m, pendingAction: { ...m.pendingAction, status: "failed", error: reason } }
               : m
           )
         );
@@ -1338,8 +1427,7 @@ export default function AiAssistantChat() {
         {
           id: `error-${Date.now()}`,
           role: "assistant",
-          content:
-            "No se puede procesar su solicitud en este momento por favor intente luego",
+          content: `No pude completar la operación: ${reason}`,
           timestamp: new Date(),
         },
       ]);
@@ -1408,6 +1496,11 @@ export default function AiAssistantChat() {
     if (e) e.preventDefault();
     const textToSend = typeof customText === "string" ? customText.trim() : inputMessage.trim();
     if (!textToSend || isLoading || isTyping) return;
+    const failWith = (content: string) =>
+      setMessages((prev) => [
+        ...prev,
+        { id: `error-${Date.now()}`, role: "assistant", content, timestamp: new Date(), retryText: textToSend },
+      ]);
 
     const userMsg: ChatMessage = {
       id: `user-${Date.now()}`,
@@ -1416,7 +1509,8 @@ export default function AiAssistantChat() {
       timestamp: new Date(),
     };
 
-    const newHistory = [...messages, userMsg];
+    // Los mensajes de error no se envían al modelo como contexto
+    const newHistory = [...messages.filter((m) => !m.retryText), userMsg];
     setMessages(newHistory);
     if (!customText) {
       setInputMessage("");
@@ -1441,27 +1535,16 @@ export default function AiAssistantChat() {
             role: m.role,
             content: stripAsterisks(m.content),
           })),
-          userAccounts: accountsList.map((a) => ({
-            id: a.id,
-            name: a.name,
-            type: a.type,
-            balance: a.balance,
-          })),
         }),
       });
 
-      const data = await response.json();
+      const data = await response.json().catch(() => null);
 
       if (!response.ok || data?.error || (!data?.message && !data?.tool_call)) {
         setIsLoading(false);
-        const fallbackMsg: ChatMessage = {
-          id: `error-${Date.now()}`,
-          role: "assistant",
-          content:
-            "No se puede procesar su solicitud en este momento por favor intente luego",
-          timestamp: new Date(),
-        };
-        setMessages((prev) => [...prev, fallbackMsg]);
+        // 401/429/503 traen un mensaje claro desde el servidor
+        const known = [401, 429, 503].includes(response.status) && typeof data?.message === "string";
+        failWith(known ? data.message : "No pude responder en este momento. Toca Reintentar en unos segundos.");
         return;
       }
 
@@ -1575,7 +1658,22 @@ export default function AiAssistantChat() {
         return;
       }
 
-      // Hay una herramienta para ejecutar
+      // Hay una o varias herramientas para ejecutar (una tarjeta por operación)
+      const calls: typeof toolCall[] = (Array.isArray(data.tool_calls) && data.tool_calls.length > 0 ? data.tool_calls : [toolCall])
+        .filter((c: { name?: unknown }) => typeof c?.name === "string" && ALLOWED_TOOLS.has(c.name as string) && c.name !== "request_missing_details");
+      for (let i = 0; i < calls.length; i++) {
+        await handleToolCall(calls[i], i === 0 ? fullAssistantText : "");
+      }
+    } catch (error) {
+      console.error("[AiAssistantChat] Error al comunicarse con la IA:", error);
+      setIsLoading(false);
+      setIsTyping(false);
+      failWith("No pude conectar con el asistente. Revisa tu conexión y toca Reintentar.");
+    }
+  };
+
+  const handleToolCall = async (toolCall: { name: string; arguments?: Record<string, unknown> }, fullAssistantText: string) => {
+    {
       const toolArgs = { ...(toolCall.arguments || {}) };
       if (toolCall.name === "create_expense" || toolCall.name === "create_budget") {
         toolArgs.category = findClosestCategory(String(toolArgs.category || ""), "expense");
@@ -1765,7 +1863,7 @@ export default function AiAssistantChat() {
       }
 
       const pendingAction: PendingAction = {
-        id: `act-${Date.now()}`,
+        id: `act-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         name: toolCall.name,
         arguments: toolArgs,
         status: requireConfirmation ? "pending" : "executing",
@@ -1779,7 +1877,7 @@ export default function AiAssistantChat() {
         setMessages((prev) => [
           ...prev,
           {
-            id: `assistant-action-${Date.now()}`,
+            id: `assistant-action-${pendingAction.id}`,
             role: "assistant",
             content: msgContent,
             timestamp: new Date(),
@@ -1802,20 +1900,6 @@ export default function AiAssistantChat() {
         // Ejecución inmediata
         await executeAction(pendingAction);
       }
-    } catch (error) {
-      console.error("[AiAssistantChat] Error al comunicarse con la IA:", error);
-      setIsLoading(false);
-      setIsTyping(false);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `network-error-${Date.now()}`,
-          role: "assistant",
-          content:
-            "No se puede procesar su solicitud en este momento por favor intente luego",
-          timestamp: new Date(),
-        },
-      ]);
     }
   };
 
@@ -1855,10 +1939,12 @@ export default function AiAssistantChat() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ duration: 0.22, ease: "easeOut" }}
-            className={`fixed bottom-20 md:bottom-6 right-5 md:right-6 z-50 bg-white rounded-2xl sm:rounded-3xl border border-zinc-200/90 shadow-2xl shadow-zinc-950/20 flex flex-col overflow-hidden transition-all duration-300 ${
+            role="dialog"
+            aria-label="Asistente FyDry AI"
+            className={`fixed inset-0 sm:inset-auto sm:bottom-6 sm:right-6 z-50 bg-white sm:rounded-3xl sm:border border-zinc-200/90 shadow-2xl shadow-zinc-950/20 flex flex-col overflow-hidden transition-[width,height] duration-300 ${
               isExpanded
-                ? "w-[calc(100vw-2.5rem)] sm:w-[600px] h-[680px] max-h-[calc(100vh-6rem)]"
-                : "w-[calc(100vw-2.5rem)] sm:w-[380px] h-[520px] max-h-[calc(100vh-7rem)]"
+                ? "sm:w-[640px] sm:h-[720px] sm:max-h-[calc(100vh-3rem)]"
+                : "sm:w-[400px] sm:h-[600px] sm:max-h-[calc(100vh-3rem)]"
             }`}
           >
             {/* Header del Chat */}
@@ -2047,7 +2133,11 @@ export default function AiAssistantChat() {
             </AnimatePresence>
 
             {/* Cuerpo de Mensajes */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 scroll-smooth bg-linear-to-b from-zinc-50/40 to-white">
+            <div
+              className="flex-1 overflow-y-auto p-4 space-y-3 scroll-smooth bg-linear-to-b from-zinc-50/40 to-white"
+              aria-live="polite"
+              aria-relevant="additions"
+            >
               {messages.map((msg) => {
                 const isUser = msg.role === "user";
 
@@ -2095,7 +2185,7 @@ export default function AiAssistantChat() {
                                   <Wallet className="w-3.5 h-3.5 text-zinc-400 group-hover:text-emerald-400 shrink-0" />
                                   <span>{stripAsterisks(acc.name)}</span>
                                   <span className="text-[10px] text-zinc-400 group-hover:text-zinc-300">
-                                    · ${Number(acc.balance || 0).toFixed(2)}
+                                    · {formatMoney(Number(acc.balance || 0), acc.currency)}
                                   </span>
                                 </button>
                               ))}
@@ -2113,9 +2203,25 @@ export default function AiAssistantChat() {
                         />
                       )}
 
+                      {msg.retryText && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMessages((prev) => prev.filter((m) => m.id !== msg.id));
+                            handleSendMessage(undefined, msg.retryText);
+                          }}
+                          disabled={isLoading || isTyping}
+                          className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-zinc-200 text-[11px] font-semibold text-zinc-800 hover:bg-zinc-950 hover:text-white transition-colors cursor-pointer disabled:opacity-50"
+                        >
+                          <RotateCcw className="w-3 h-3" aria-hidden="true" />
+                          Reintentar
+                        </button>
+                      )}
+
                       {/* Tarjeta interactiva de acción si existe */}
                       {msg.pendingAction && (
                         <ActionCard
+                          accounts={accountsList}
                           action={msg.pendingAction}
                           onConfirm={() => executeAction(msg.pendingAction!, msg.id)}
                           onCancel={() => handleCancelAction(msg.id)}
@@ -2126,9 +2232,25 @@ export default function AiAssistantChat() {
                 );
               })}
 
+              {messages.length === 1 && !isLoading && (
+                <div className="flex flex-wrap gap-1.5 pt-1" aria-label="Sugerencias">
+                  {QUICK_PROMPTS.map((prompt) => (
+                    <button
+                      key={prompt}
+                      type="button"
+                      onClick={() => handleSendMessage(undefined, prompt)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-zinc-200 text-xs text-zinc-700 hover:border-zinc-950 hover:text-zinc-950 shadow-2xs transition-colors cursor-pointer"
+                    >
+                      <Sparkles className="w-3 h-3 text-emerald-500" aria-hidden="true" />
+                      {prompt}
+                    </button>
+                  ))}
+                </div>
+              )}
+
               {/* Indicador visual de carga y escritura unificado (Tres puntos en movimiento) */}
               {(isLoading || isTyping) && (
-                <div className="flex items-center gap-1.5 py-2 px-3 bg-zinc-100 border border-zinc-200/50 rounded-2xl w-fit rounded-bl-xs">
+                <div role="status" aria-label="El asistente está escribiendo" className="flex items-center gap-1.5 py-2 px-3 bg-zinc-100 border border-zinc-200/50 rounded-2xl w-fit rounded-bl-xs">
                   <span className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
                   <span className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
                   <span className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce"></span>
@@ -2141,23 +2263,31 @@ export default function AiAssistantChat() {
             {/* Input y Enviar */}
             <form
               onSubmit={handleSendMessage}
-              className="p-3 border-t border-zinc-100 bg-white flex items-center gap-2 shrink-0"
+              className="p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t border-zinc-100 bg-white flex items-end gap-2 shrink-0"
             >
-              <input
+              <textarea
                 ref={inputRef}
-                type="text"
+                rows={1}
                 value={inputMessage}
+                maxLength={1500}
+                aria-label="Mensaje para el asistente"
                 onChange={(e) => setInputMessage(e.target.value)}
-                placeholder="Pregunta o pide una acción en FyDry..."
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                    e.preventDefault();
+                    handleSendMessage();
+                  }
+                }}
+                placeholder="Ej. Gasté 1,500 en la cena con la Visa"
                 disabled={isLoading || isTyping}
-                className="flex-1 bg-zinc-50 hover:bg-zinc-100/70 focus:bg-white text-xs sm:text-[13px] text-zinc-900 placeholder:text-zinc-400 border border-zinc-200 rounded-xl px-3 py-2 outline-none focus:border-zinc-950 focus:ring-1 focus:ring-zinc-950 transition-all disabled:opacity-60"
+                className="flex-1 resize-none bg-zinc-50 hover:bg-zinc-100/70 focus:bg-white text-sm sm:text-[13px] leading-5 text-zinc-900 placeholder:text-zinc-400 border border-zinc-200 rounded-xl px-3 py-2 outline-none focus:border-zinc-950 focus:ring-1 focus:ring-zinc-950 transition-all disabled:opacity-60"
               />
               <button
                 type="submit"
                 disabled={!inputMessage.trim() || isLoading || isTyping}
                 title="Enviar mensaje"
                 aria-label="Enviar mensaje"
-                className="p-2 rounded-xl bg-zinc-950 text-white hover:bg-zinc-800 active:scale-95 transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
+                className="p-2.5 rounded-xl bg-zinc-950 text-white hover:bg-zinc-800 active:scale-95 transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
               >
                 <Send className="w-4 h-4" />
               </button>
