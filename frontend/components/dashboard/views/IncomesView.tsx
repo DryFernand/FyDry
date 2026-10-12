@@ -44,6 +44,7 @@ import {
   markNotificationProcessedApi,
 } from "@/lib/api";
 import { getCycleRange, isTransactionInPeriod, formatCycleLabel } from "@/lib/cycle";
+import { parseAmount, todayISO } from "@/lib/money";
 
 export function getIncomeCategoryIcon(category: string) {
   switch (category) {
@@ -111,7 +112,8 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
   const [amount, setAmount] = useState("");
   const [cat, setCat] = useState<string>(INCOME_CATEGORIES[0]);
   const [selectedAccountId, setSelectedAccountId] = useState("");
-  const [incomeDate, setIncomeDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [incomeDate, setIncomeDate] = useState(() => todayISO());
+  const [formError, setFormError] = useState<string | null>(null);
 
   const loadData = async () => {
     const [incData, accData, settingsData] = await Promise.all([
@@ -275,7 +277,8 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
     setAmount("");
     setCat(INCOME_CATEGORIES[0]);
     setSelectedAccountId(accounts.length > 0 ? accounts[0].name : "Efectivo");
-    setIncomeDate(new Date().toISOString().split("T")[0]);
+    setIncomeDate(todayISO());
+    setFormError(null);
     setIsModalOpen(true);
   };
 
@@ -285,7 +288,8 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
     setAmount(inc.amount.toString());
     setCat(inc.category);
     setSelectedAccountId(inc.account);
-    setIncomeDate(inc.date ? inc.date.split("T")[0] : new Date().toISOString().split("T")[0]);
+    setIncomeDate(inc.date ? inc.date.split("T")[0] : todayISO());
+    setFormError(null);
     setIsModalOpen(true);
   };
 
@@ -294,35 +298,41 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
     if (!desc.trim() || !amount) return;
 
     // Normalizar comas decimales
-    const parsedAmount = parseFloat(amount.replace(",", "."));
+    const parsedAmount = parseAmount(amount);
 
     // Blindar contra NaN, Infinity y valores menores o iguales a cero
     if (isNaN(parsedAmount) || !isFinite(parsedAmount) || parsedAmount <= 0) return;
 
     const accountName = selectedAccountId || (accounts.length > 0 ? accounts[0].name : "Efectivo");
+    setFormError(null);
 
-    if (editingIncome) {
-      const updatedItem = {
-        description: desc.trim(),
-        amount: parsedAmount,
-        category: cat,
-        account: accountName,
-        date: incomeDate || editingIncome.date,
-      };
-      setIncomes((prev) =>
-        prev.map((item) => (item.id === editingIncome.id ? { ...item, ...updatedItem } : item))
-      );
-      await updateTransactionApi(editingIncome.id, updatedItem);
-    } else {
-      const created = await createTransactionApi({
-        description: desc.trim(),
-        category: cat,
-        account: accountName,
-        amount: parsedAmount,
-        type: "income",
-        date: initialDraft?.date || incomeDate || new Date().toISOString().split("T")[0],
-      });
-      setIncomes((prev) => [created, ...prev]);
+    try {
+      if (editingIncome) {
+        const updatedItem = {
+          description: desc.trim(),
+          amount: parsedAmount,
+          category: cat,
+          account: accountName,
+          date: incomeDate || editingIncome.date,
+        };
+        await updateTransactionApi(editingIncome.id, updatedItem);
+        setIncomes((prev) =>
+          prev.map((item) => (item.id === editingIncome.id ? { ...item, ...updatedItem } : item))
+        );
+      } else {
+        const created = await createTransactionApi({
+          description: desc.trim(),
+          category: cat,
+          account: accountName,
+          amount: parsedAmount,
+          type: "income",
+          date: initialDraft?.date || incomeDate || todayISO(),
+        });
+        setIncomes((prev) => [created, ...prev]);
+      }
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "No se pudo guardar el ingreso.");
+      return;
     }
 
     if (initialDraft?.notifId) {
@@ -339,8 +349,14 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
 
   const handleDeleteIncome = async (id: string) => {
     if (confirm("¿Deseas eliminar este ingreso?")) {
+      setFormError(null);
+      try {
+        await deleteTransactionApi(id);
+      } catch (err) {
+        setFormError(err instanceof Error ? err.message : "No se pudo eliminar el ingreso.");
+        return;
+      }
       setIncomes((prev) => prev.filter((i) => i.id !== id));
-      await deleteTransactionApi(id);
       if (typeof window !== "undefined") {
         window.dispatchEvent(new Event("fydry_storage_updated"));
       }
@@ -351,7 +367,7 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
 
   // Simulador contable de saldo resultante en el modal
   const selectedAcc = accounts.find((a) => a.name === selectedAccountId || a.id === selectedAccountId) || accounts[0];
-  const numAmountPreview = parseFloat(amount.replace(",", ".")) || 0;
+  const numAmountPreview = parseAmount(amount) || 0;
   const currentBalance = selectedAcc
     ? selectedAcc.balance - (editingIncome && editingIncome.account === selectedAcc.name ? editingIncome.amount : 0)
     : 0;
@@ -711,6 +727,11 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
               </div>
 
               <form onSubmit={handleSaveIncome} className="space-y-4">
+                {formError && (
+                  <div className="p-3 rounded-xl bg-rose-50 border border-rose-200/80 text-rose-700 text-xs font-medium shadow-2xs">
+                    {formError}
+                  </div>
+                )}
                 <div>
                   <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
                     {t.incomes.concept}

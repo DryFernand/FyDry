@@ -32,6 +32,7 @@ import {
   formatCycleLabel,
   getTransactionTimestamp,
 } from "@/lib/cycle";
+import { formatMoney, netWorthByCurrency } from "@/lib/money";
 
 interface DashboardHomeProps {
   onNavigate: (tab: DashboardTab) => void;
@@ -133,7 +134,12 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
     (language as "es" | "en") || "es"
   );
 
-  const totalBalance = accounts.reduce((acc, a) => acc + a.balance, 0);
+  // Patrimonio neto por moneda (tarjetas restan); nunca mezcla DOP con USD
+  const netWorth = netWorthByCurrency(accounts);
+  const mainCurrency = "DOP" in netWorth ? "DOP" : accounts[0]?.currency || "DOP";
+  const balanceCurrencies = [mainCurrency, ...Object.keys(netWorth).filter((c) => c !== mainCurrency)];
+  const otherCurrencies = balanceCurrencies.slice(1);
+  const primaryBalance = netWorth[mainCurrency] || 0;
 
   // Filtrar estrictamente las transacciones del mes / ciclo actual
   const currentCycleTransactions = transactions.filter((t) =>
@@ -192,8 +198,13 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
                 <span>{t.home.totalBalance}</span>
               </div>
               <div className="mt-1 text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white">
-                ${totalBalance.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                {formatMoney(primaryBalance, mainCurrency)}
               </div>
+              {otherCurrencies.map((cur) => (
+                <div key={cur} className="mt-1 text-lg sm:text-xl font-bold tracking-tight text-zinc-300">
+                  {formatMoney(netWorth[cur], cur)}
+                </div>
+              ))}
             </div>
 
             {/* Micro indicadores de contexto */}
@@ -210,7 +221,7 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
                 }
               >
                 {netFlow >= 0 ? "+" : ""}
-                ${netFlow.toLocaleString("en-US", { minimumFractionDigits: 2 })}{" "}
+                {formatMoney(netFlow, mainCurrency)}{" "}
                 {language === "en" ? "net flow" : "flujo neto"}
               </span>
               <span>•</span>
@@ -435,7 +446,7 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
             </div>
           </div>
           <div className="text-2xl sm:text-3xl font-bold tracking-tight text-emerald-600">
-            +${totalIncomes.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+            +{formatMoney(totalIncomes, mainCurrency)}
           </div>
           <div className="text-[11px] text-zinc-400 flex items-center justify-between">
             <span>
@@ -458,7 +469,7 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
             </div>
           </div>
           <div className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-950">
-            ${totalExpenses.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+            {formatMoney(totalExpenses, mainCurrency)}
           </div>
           <div className="text-[11px] text-zinc-400 flex items-center justify-between">
             <span>
@@ -481,7 +492,7 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
             </div>
           </div>
           <div className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-950">
-            ${netSavings.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+            {formatMoney(netSavings, mainCurrency)}
           </div>
           <div className="text-[11px] text-zinc-400 flex items-center justify-between">
             <span>{t.home.savingsRate}:</span>
@@ -504,7 +515,12 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
             </div>
           </div>
           <div className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-950">
-            ${totalBalance.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+            {formatMoney(primaryBalance, mainCurrency)}
+            {otherCurrencies.map((cur) => (
+              <div key={cur} className="text-sm font-semibold text-zinc-500">
+                {formatMoney(netWorth[cur], cur)}
+              </div>
+            ))}
           </div>
           <div className="text-[11px] text-zinc-400 flex items-center justify-between">
             <span>
@@ -659,7 +675,7 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
                   </div>
                   <div className="text-right shrink-0 pl-2">
                     <div className="text-xs font-bold text-zinc-950">
-                      ${acc.balance.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                      {formatMoney(acc.balance, acc.currency)}
                     </div>
                     <div className="text-[9px] text-zinc-400 uppercase tracking-wider font-semibold">
                       {acc.currency || "USD"}

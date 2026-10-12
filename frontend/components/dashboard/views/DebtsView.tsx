@@ -33,6 +33,7 @@ import {
   payDebtApi,
   fetchAccountsApi,
 } from "@/lib/api";
+import { availableFunds, formatMoney, parseAmount, todayISO } from "@/lib/money";
 
 type DebtFilter = "all" | "active" | "liquidated";
 
@@ -80,6 +81,7 @@ export default function DebtsView() {
   const [remaining, setRemaining] = useState("");
   const [monthly, setMonthly] = useState("");
   const [rate, setRate] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
 
   const loadData = async () => {
     const [debtsData, accountsData] = await Promise.all([
@@ -152,6 +154,7 @@ export default function DebtsView() {
     setRemaining("");
     setMonthly("");
     setRate("");
+    setFormError(null);
     setIsModalOpen(true);
   };
 
@@ -163,6 +166,7 @@ export default function DebtsView() {
     setRemaining(d.remainingAmount.toString());
     setMonthly(d.monthlyPayment.toString());
     setRate(d.interestRate.toString());
+    setFormError(null);
     setIsModalOpen(true);
   };
 
@@ -184,38 +188,44 @@ export default function DebtsView() {
     e.preventDefault();
     if (!creditor || !remaining) return;
 
-    const parsedRemaining = Math.max(0, parseFloat(remaining) || 0);
+    const parsedRemaining = Math.max(0, parseAmount(remaining) || 0);
     if (parsedRemaining <= 0) return;
 
-    const rawTotal = parseFloat(total);
+    const rawTotal = parseAmount(total);
     const parsedTotal = !isNaN(rawTotal) && rawTotal > 0 ? Math.max(rawTotal, parsedRemaining) : parsedRemaining;
-    const parsedMonthly = Math.max(0, parseFloat(monthly) || 0);
+    const parsedMonthly = Math.max(0, parseAmount(monthly) || 0);
     const parsedRate = Math.max(0, parseFloat(rate) || 0);
+    setFormError(null);
 
-    if (editingDebt) {
-      const updatedItem = {
-        creditor,
-        type,
-        totalAmount: parsedTotal,
-        remainingAmount: parsedRemaining,
-        monthlyPayment: parsedMonthly,
-        interestRate: parsedRate,
-      };
-      setDebts((prev) =>
-        prev.map((item) => (item.id === editingDebt.id ? { ...item, ...updatedItem } : item))
-      );
-      await updateDebtApi(editingDebt.id, updatedItem);
-    } else {
-      const created = await createDebtApi({
-        creditor,
-        type,
-        totalAmount: parsedTotal,
-        remainingAmount: parsedRemaining,
-        monthlyPayment: parsedMonthly,
-        interestRate: parsedRate,
-        dueDate: "Fin de mes",
-      });
-      setDebts((prev) => [...prev, created]);
+    try {
+      if (editingDebt) {
+        const updatedItem = {
+          creditor,
+          type,
+          totalAmount: parsedTotal,
+          remainingAmount: parsedRemaining,
+          monthlyPayment: parsedMonthly,
+          interestRate: parsedRate,
+        };
+        await updateDebtApi(editingDebt.id, updatedItem);
+        setDebts((prev) =>
+          prev.map((item) => (item.id === editingDebt.id ? { ...item, ...updatedItem } : item))
+        );
+      } else {
+        const created = await createDebtApi({
+          creditor,
+          type,
+          totalAmount: parsedTotal,
+          remainingAmount: parsedRemaining,
+          monthlyPayment: parsedMonthly,
+          interestRate: parsedRate,
+          dueDate: "Fin de mes",
+        });
+        setDebts((prev) => [...prev, created]);
+      }
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "No se pudo guardar la deuda.");
+      return;
     }
 
     if (typeof window !== "undefined") {
@@ -226,8 +236,14 @@ export default function DebtsView() {
   };
   const handleDeleteDebt = async (id: string) => {
     if (confirm("¿Deseas eliminar este registro de deuda?")) {
+      setFormError(null);
+      try {
+        await deleteDebtApi(id);
+      } catch (err) {
+        setFormError(err instanceof Error ? err.message : "No se pudo eliminar la deuda.");
+        return;
+      }
       setDebts((prev) => prev.filter((d) => d.id !== id));
-      await deleteDebtApi(id);
       if (typeof window !== "undefined") {
         window.dispatchEvent(new Event("fydry_storage_updated"));
       }
@@ -241,7 +257,7 @@ export default function DebtsView() {
     if (!payingDebt) return;
     setPayError("");
 
-    const parsedAmount = parseFloat(payAmount);
+    const parsedAmount = parseAmount(payAmount);
     if (!parsedAmount || parsedAmount <= 0) {
       setPayError("Ingresa un monto válido mayor a 0.");
       return;
@@ -255,11 +271,11 @@ export default function DebtsView() {
     }
 
     const selectedAcc = accounts.find((a) => a.name === selectedAccountId || a.id === selectedAccountId);
-    if (selectedAcc && selectedAcc.type === "credit_card") {
-      const availableFunds = selectedAcc.balance + (selectedAcc.overdraftLimit || 0);
-      if (parsedAmount > availableFunds) {
+    if (selectedAcc) {
+      const funds = availableFunds(selectedAcc);
+      if (funds !== Infinity && parsedAmount > funds) {
         setPayError(
-          `Fondos insuficientes: La tarjeta seleccionada solo dispone de $${availableFunds.toFixed(2)} (incluyendo sobregiro).`
+          `Fondos insuficientes: La cuenta seleccionada solo dispone de ${formatMoney(funds, selectedAcc.currency)} (incluyendo sobregiro).`
         );
         return;
       }
@@ -272,7 +288,7 @@ export default function DebtsView() {
         account_id: selectedAcc?.id,
         account_name: selectedAcc?.name || selectedAccountId,
         description: payDesc || `Abono a ${payingDebt.creditor}`,
-        date: new Date().toLocaleDateString("es-ES", { day: "numeric", month: "short" }),
+        date: todayISO(),
       });
 
       if (updatedDebt) {
@@ -876,6 +892,12 @@ export default function DebtsView() {
                     className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 bg-white text-zinc-900 text-xs placeholder:text-zinc-400 focus:outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 transition-colors shadow-2xs"
                   />
                 </div>
+
+                {formError && (
+                  <div className="p-3 bg-rose-50 rounded-2xl border border-rose-100 text-xs text-rose-700">
+                    {formError}
+                  </div>
+                )}
 
                 <div className="flex items-center justify-between gap-2.5 pt-2">
                   {editingDebt ? (

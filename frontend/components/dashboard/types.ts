@@ -6,7 +6,8 @@ export type DashboardTab =
   | "incomes"
   | "budget"
   | "debts"
-  | "reports";
+  | "reports"
+  | "planning";
 
 export interface TransactionItem {
   id: string;
@@ -26,6 +27,8 @@ export interface MovementItem {
   toAccount: string;
   toAccountId?: string;
   amount: number;
+  /** Monto recibido en destino cuando las monedas difieren */
+  toAmount?: number;
   taxAmount?: number;
   taxExpenseId?: string;
   description: string;
@@ -83,6 +86,57 @@ export interface NotificationItem {
   isRead: boolean;
   isProcessed: boolean;
   createdAt?: string;
+}
+
+export type RecurringFrequency = "weekly" | "biweekly" | "monthly" | "yearly";
+
+export interface RecurringItem {
+  id: string;
+  kind: "expense" | "income";
+  description: string;
+  category: string;
+  amount: number;
+  account: string;
+  accountId?: string;
+  frequency: RecurringFrequency;
+  nextDate: string;
+  isActive: boolean;
+}
+
+export interface GoalItem {
+  id: string;
+  name: string;
+  targetAmount: number;
+  savedAmount: number;
+  targetDate?: string;
+  color: string;
+}
+
+export interface InsightsData {
+  currency: string;
+  period_start: string;
+  period_end: string;
+  days_left: number;
+  income_period: number;
+  expenses_period: number;
+  fixed_pending: number;
+  goals_monthly_need: number;
+  available_to_spend: number;
+  daily_allowance: number;
+  peace_score: number;
+  small_expenses: {
+    threshold: number;
+    count: number;
+    total: number;
+    top: { description: string; count: number; total: number }[];
+  };
+  subscriptions: {
+    description: string;
+    amount: number;
+    frequency: string;
+    last_date: string;
+    source: "recurring" | "detected";
+  }[];
 }
 
 export interface EmailIntegrationData {

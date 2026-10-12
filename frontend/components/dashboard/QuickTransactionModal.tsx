@@ -21,6 +21,7 @@ import {
   createTransferApi,
 } from "@/lib/api";
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from "@/lib/categories";
+import { availableFunds, formatMoney, parseAmount, todayISO } from "@/lib/money";
 import { useLanguage } from "@/context/LanguageContext";
 
 export type TransactionType = "expense" | "income" | "transfer";
@@ -46,9 +47,7 @@ export default function QuickTransactionModal({
   const [category, setCategory] = useState<string>(EXPENSE_CATEGORIES[0]);
   const [fromAccount, setFromAccount] = useState<string>("");
   const [toAccount, setToAccount] = useState<string>("");
-  const [date, setDate] = useState<string>(
-    new Date().toISOString().split("T")[0]
-  );
+  const [date, setDate] = useState<string>(todayISO());
 
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
   const [isLoadingAccounts, setIsLoadingAccounts] = useState<boolean>(false);
@@ -129,7 +128,7 @@ export default function QuickTransactionModal({
     setAmount("");
     setTaxAmount("");
     setDescription("");
-    setDate(new Date().toISOString().split("T")[0]);
+    setDate(todayISO());
     setErrorMessage(null);
     setSuccessMessage(null);
     if (type === "expense") {
@@ -149,7 +148,7 @@ export default function QuickTransactionModal({
     e.preventDefault();
     setErrorMessage(null);
 
-    const parsedAmount = parseFloat(amount.replace(",", "."));
+    const parsedAmount = parseAmount(amount);
     if (isNaN(parsedAmount) || !isFinite(parsedAmount) || parsedAmount <= 0) {
       setErrorMessage(
         isEn
@@ -178,7 +177,7 @@ export default function QuickTransactionModal({
       return;
     }
 
-    const parsedTax = taxAmount ? parseFloat(taxAmount.replace(",", ".")) : 0;
+    const parsedTax = taxAmount ? parseAmount(taxAmount) : 0;
     if (isNaN(parsedTax) || !isFinite(parsedTax) || parsedTax < 0) {
       setErrorMessage(
         isEn
@@ -193,12 +192,13 @@ export default function QuickTransactionModal({
 
     const fromAccObj = accounts.find((a) => a.name === currentFromAccount);
     if (fromAccObj) {
-      const availableFunds = fromAccObj.balance + (fromAccObj.overdraftLimit || 0);
-      if (type !== "income" && parsedAmount + parsedTax > availableFunds) {
+      const funds = availableFunds(fromAccObj);
+      if (type !== "income" && funds !== Infinity && parsedAmount + parsedTax > funds) {
+        const cur = fromAccObj.currency;
         setErrorMessage(
           isEn
-            ? `Amount ($${(parsedAmount + parsedTax).toFixed(2)}) exceeds available balance and overdraft ($${availableFunds.toFixed(2)}) of "${fromAccObj.name}".`
-            : `El monto ($${(parsedAmount + parsedTax).toFixed(2)}) supera el disponible más sobregiro ($${availableFunds.toFixed(2)}) de "${fromAccObj.name}".`
+            ? `Amount (${formatMoney(parsedAmount + parsedTax, cur)}) exceeds available balance and overdraft (${formatMoney(funds, cur)}) of "${fromAccObj.name}".`
+            : `El monto (${formatMoney(parsedAmount + parsedTax, cur)}) supera el disponible más sobregiro (${formatMoney(funds, cur)}) de "${fromAccObj.name}".`
         );
         return;
       }
@@ -297,8 +297,8 @@ export default function QuickTransactionModal({
     }
   };
 
-  const parsedAmountPreview = parseFloat(amount.replace(",", ".")) || 0;
-  const parsedTaxPreview = parseFloat(taxAmount.replace(",", ".")) || 0;
+  const parsedAmountPreview = parseAmount(amount) || 0;
+  const parsedTaxPreview = parseAmount(taxAmount) || 0;
   const totalDebitedPreview = parsedAmountPreview + parsedTaxPreview;
 
   const currentFromAccountName =

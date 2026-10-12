@@ -8,6 +8,7 @@ import {
   Layers,
   ChevronLeft,
   ChevronRight,
+  Sheet,
 } from "lucide-react";
 import { AccountItem, TransactionItem, DebtItem } from "../types";
 import { useLanguage } from "@/context/LanguageContext";
@@ -18,6 +19,7 @@ import {
   fetchUserSettingsApi,
 } from "@/lib/api";
 import { getCycleRange, isTransactionInPeriod, formatCycleLabel } from "@/lib/cycle";
+import { isLiability } from "@/lib/money";
 
 export default function ReportsView() {
   const { t, language } = useLanguage();
@@ -95,7 +97,8 @@ export default function ReportsView() {
   const totalExpenses = filteredExpenses.reduce((acc, curr) => acc + curr.amount, 0);
   const netFlow = totalIncomes - totalExpenses;
   const savingsRate = totalIncomes > 0 ? Math.round((Math.max(netFlow, 0) / totalIncomes) * 100) : 0;
-  const totalCustody = accounts.reduce((acc, curr) => acc + curr.balance, 0);
+  // Tarjetas de crédito restan: su saldo es deuda consumida
+  const totalCustody = accounts.reduce((acc, curr) => acc + (isLiability(curr) ? -curr.balance : curr.balance), 0);
 
   // Métricas Patrimoniales y de Solvencia (Fase 2)
   const totalDebts = debts.reduce((acc, curr) => acc + curr.remainingAmount, 0);
@@ -217,6 +220,34 @@ export default function ReportsView() {
   filteredExpenses.forEach((e) => {
     expensesByCategory[e.category] = (expensesByCategory[e.category] || 0) + e.amount;
   });
+
+  // CSV compatible con Excel (BOM UTF-8 para acentos) con las transacciones del alcance seleccionado
+  const handleExportCSV = () => {
+    const cell = (v: string | number) => {
+      const s = String(v ?? "");
+      return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const header = language === "es"
+      ? ["Fecha", "Tipo", "Descripción", "Categoría", "Cuenta", "Monto"]
+      : ["Date", "Type", "Description", "Category", "Account", "Amount"];
+    const rows = [...filteredIncomes, ...filteredExpenses]
+      .sort((a, b) => (b.date || "").localeCompare(a.date || ""))
+      .map((tx) => [
+        tx.date,
+        tx.type === "income" ? (language === "es" ? "Ingreso" : "Income") : (language === "es" ? "Gasto" : "Expense"),
+        tx.description,
+        tx.category,
+        tx.account,
+        (tx.type === "income" ? tx.amount : -tx.amount).toFixed(2),
+      ]);
+    const csv = "﻿" + [header, ...rows].map((r) => r.map(cell).join(",")).join("\r\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `fydry-${reportScope === "current_cycle" ? cycleLabel.replace(/\s+/g, "-") : "historico"}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   const handleExportPDF = () => {
     setIsExporting(true);
@@ -355,6 +386,14 @@ export default function ReportsView() {
           >
             <Printer className="w-4 h-4" />
             <span>{t.reports.exportPdf}</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleExportCSV}
+            className="flex items-center gap-2 py-2 px-4 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-900 text-xs font-semibold shadow-xs transition-all cursor-pointer"
+          >
+            <Sheet className="w-4 h-4" />
+            <span>{language === "es" ? "Exportar CSV / Excel" : "Export CSV / Excel"}</span>
           </button>
         </div>
       </div>

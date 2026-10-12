@@ -56,6 +56,7 @@ import {
   markNotificationProcessedApi,
 } from "@/lib/api";
 import { getCycleRange, isTransactionInPeriod, formatCycleLabel } from "@/lib/cycle";
+import { availableFunds, formatMoney, parseAmount, todayISO } from "@/lib/money";
 
 export function getCategoryIcon(category: string): LucideIcon {
   const norm = (category || "").toLowerCase().trim();
@@ -121,7 +122,7 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
   const [amount, setAmount] = useState("");
   const [cat, setCat] = useState<string>(EXPENSE_CATEGORIES[0]);
   const [selectedAccountId, setSelectedAccountId] = useState("");
-  const [expenseDate, setExpenseDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [expenseDate, setExpenseDate] = useState(() => todayISO());
   const [formError, setFormError] = useState<string | null>(null);
 
   const loadData = async () => {
@@ -322,7 +323,7 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
   }, [accounts, selectedAccountId]);
 
   const numAmountPreview = useMemo(() => {
-    const parsed = parseFloat(amount.replace(",", "."));
+    const parsed = parseAmount(amount);
     return isNaN(parsed) || !isFinite(parsed) || parsed < 0 ? 0 : parsed;
   }, [amount]);
 
@@ -362,7 +363,7 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
     setAmount("");
     setCat(EXPENSE_CATEGORIES[0]);
     setSelectedAccountId(accounts.length > 0 ? accounts[0].name : "Efectivo");
-    setExpenseDate(new Date().toISOString().split("T")[0]);
+    setExpenseDate(todayISO());
     setFormError(null);
     setIsModalOpen(true);
   };
@@ -373,7 +374,7 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
     setAmount(exp.amount.toString());
     setCat(exp.category);
     setSelectedAccountId(exp.account);
-    setExpenseDate(exp.date ? exp.date.split("T")[0] : new Date().toISOString().split("T")[0]);
+    setExpenseDate(exp.date ? exp.date.split("T")[0] : todayISO());
     setFormError(null);
     setIsModalOpen(true);
   };
@@ -393,7 +394,7 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
     }
 
     // Normalizar comas decimales
-    const parsedAmount = parseFloat(amount.replace(",", "."));
+    const parsedAmount = parseAmount(amount);
 
     // Validar que sea un número positivo y finito
     if (isNaN(parsedAmount) || !isFinite(parsedAmount) || parsedAmount <= 0) {
@@ -406,45 +407,52 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
 
     // Validar fondos y margen de sobregiro contra la cuenta seleccionada
     if (selectedAcc) {
-      const availableFunds =
+      const funds =
         editingExpense && editingExpense.account === selectedAcc.name
-          ? selectedAcc.balance + editingExpense.amount + (selectedAcc.overdraftLimit || 0)
-          : selectedAcc.balance + (selectedAcc.overdraftLimit || 0);
+          ? availableFunds(selectedAcc) + editingExpense.amount
+          : availableFunds(selectedAcc);
 
-      if (parsedAmount > availableFunds) {
+      if (funds !== Infinity && parsedAmount > funds) {
         setFormError(
-          `Fondos insuficientes: La cuenta "${selectedAcc.name}" dispone de $${availableFunds.toFixed(
-            2
-          )} (saldo disponible + sobregiro permitido), pero el gasto ingresado es de $${parsedAmount.toFixed(
-            2
+          `Fondos insuficientes: La cuenta "${selectedAcc.name}" dispone de ${formatMoney(
+            funds,
+            selectedAcc.currency
+          )} (saldo disponible + sobregiro permitido), pero el gasto ingresado es de ${formatMoney(
+            parsedAmount,
+            selectedAcc.currency
           )}.`
         );
         return;
       }
     }
 
-    if (editingExpense) {
-      const updatedItem = {
-        description: desc.trim(),
-        amount: parsedAmount,
-        category: cat,
-        account: accountName,
-        date: expenseDate || editingExpense.date,
-      };
-      setExpenses((prev) =>
-        prev.map((item) => (item.id === editingExpense.id ? { ...item, ...updatedItem } : item))
-      );
-      await updateTransactionApi(editingExpense.id, updatedItem);
-    } else {
-      const created = await createTransactionApi({
-        description: desc.trim(),
-        category: cat,
-        account: accountName,
-        amount: parsedAmount,
-        type: "expense",
-        date: initialDraft?.date || expenseDate || new Date().toISOString().split("T")[0],
-      });
-      setExpenses((prev) => [created, ...prev]);
+    try {
+      if (editingExpense) {
+        const updatedItem = {
+          description: desc.trim(),
+          amount: parsedAmount,
+          category: cat,
+          account: accountName,
+          date: expenseDate || editingExpense.date,
+        };
+        await updateTransactionApi(editingExpense.id, updatedItem);
+        setExpenses((prev) =>
+          prev.map((item) => (item.id === editingExpense.id ? { ...item, ...updatedItem } : item))
+        );
+      } else {
+        const created = await createTransactionApi({
+          description: desc.trim(),
+          category: cat,
+          account: accountName,
+          amount: parsedAmount,
+          type: "expense",
+          date: initialDraft?.date || expenseDate || todayISO(),
+        });
+        setExpenses((prev) => [created, ...prev]);
+      }
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "No se pudo guardar el gasto.");
+      return;
     }
 
     if (initialDraft?.notifId) {
@@ -461,8 +469,14 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
 
   const handleDeleteExpense = async (id: string) => {
     if (confirm("¿Deseas eliminar este gasto?")) {
+      setFormError(null);
+      try {
+        await deleteTransactionApi(id);
+      } catch (err) {
+        setFormError(err instanceof Error ? err.message : "No se pudo eliminar el gasto.");
+        return;
+      }
       setExpenses((prev) => prev.filter((e) => e.id !== id));
-      await deleteTransactionApi(id);
       if (typeof window !== "undefined") {
         window.dispatchEvent(new Event("fydry_storage_updated"));
       }

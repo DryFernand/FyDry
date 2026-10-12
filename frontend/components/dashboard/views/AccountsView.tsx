@@ -25,6 +25,7 @@ import {
   updateAccountApi,
   deleteAccountApi,
 } from "@/lib/api";
+import { parseAmount } from "@/lib/money";
 
 type AccountType = "bank" | "credit_card" | "debit_card" | "card" | "wallet" | "cash" | "savings";
 
@@ -46,6 +47,7 @@ export default function AccountsView() {
   const [creditLimit, setCreditLimit] = useState("");
   const [minBalance, setMinBalance] = useState("");
   const [currency, setCurrency] = useState("DOP");
+  const [formError, setFormError] = useState<string | null>(null);
 
   const loadAccounts = async () => {
     const data = await fetchAccountsApi();
@@ -91,6 +93,7 @@ export default function AccountsView() {
     setOverdraftLimit("");
     setCreditLimit("");
     setMinBalance("");
+    setFormError(null);
     setIsModalOpen(true);
   };
 
@@ -107,6 +110,7 @@ export default function AccountsView() {
     setOverdraftLimit(acc.overdraftLimit ? acc.overdraftLimit.toString() : "");
     setCreditLimit(acc.creditLimit ? acc.creditLimit.toString() : "");
     setMinBalance(acc.minBalance ? acc.minBalance.toString() : "");
+    setFormError(null);
     setIsModalOpen(true);
   };
 
@@ -114,12 +118,13 @@ export default function AccountsView() {
     e.preventDefault();
     if (!name) return;
 
-    const parsedBalance = parseFloat(balance) || 0;
+    setFormError(null);
+    const parsedBalance = parseAmount(balance) || 0;
     const parsedCutoff = cutoffDay ? parseFloat(cutoffDay) : undefined;
     const parsedGrace = graceDays ? parseFloat(graceDays) : undefined;
-    const parsedOverdraft = overdraftLimit ? parseFloat(overdraftLimit) : 0;
-    const parsedCreditLimit = creditLimit ? parseFloat(creditLimit) : 0;
-    const parsedMinBalance = minBalance ? parseFloat(minBalance) : 0;
+    const parsedOverdraft = overdraftLimit ? parseAmount(overdraftLimit) || 0 : 0;
+    const parsedCreditLimit = creditLimit ? parseAmount(creditLimit) || 0 : 0;
+    const parsedMinBalance = minBalance ? parseAmount(minBalance) || 0 : 0;
 
     const itemPayload: Partial<AccountItem> = {
       name,
@@ -135,26 +140,31 @@ export default function AccountsView() {
       minBalance: parsedMinBalance,
     };
 
-    if (editingAccount) {
-      setAccounts((prev) =>
-        prev.map((a) => (a.id === editingAccount.id ? { ...a, ...itemPayload } : a))
-      );
-      await updateAccountApi(editingAccount.id, itemPayload);
-    } else {
-      const created = await createAccountApi({
-        name,
-        type,
-        balance: parsedBalance,
-        currency: currency || "DOP",
-        accountNumber: type === "bank" ? accountNum : undefined,
-        cardNumber: (type === "credit_card" || type === "debit_card" || type === "card") ? cardNum : undefined,
-        cutoffDay: type === "credit_card" ? parsedCutoff : undefined,
-        graceDays: type === "credit_card" ? parsedGrace : undefined,
-        overdraftLimit: type === "credit_card" ? parsedOverdraft : undefined,
-        creditLimit: type === "credit_card" ? parsedCreditLimit : undefined,
-        minBalance: parsedMinBalance,
-      });
-      setAccounts((prev) => [created, ...prev]);
+    try {
+      if (editingAccount) {
+        await updateAccountApi(editingAccount.id, itemPayload);
+        setAccounts((prev) =>
+          prev.map((a) => (a.id === editingAccount.id ? { ...a, ...itemPayload } : a))
+        );
+      } else {
+        const created = await createAccountApi({
+          name,
+          type,
+          balance: parsedBalance,
+          currency: currency || "DOP",
+          accountNumber: type === "bank" ? accountNum : undefined,
+          cardNumber: (type === "credit_card" || type === "debit_card" || type === "card") ? cardNum : undefined,
+          cutoffDay: type === "credit_card" ? parsedCutoff : undefined,
+          graceDays: type === "credit_card" ? parsedGrace : undefined,
+          overdraftLimit: type === "credit_card" ? parsedOverdraft : undefined,
+          creditLimit: type === "credit_card" ? parsedCreditLimit : undefined,
+          minBalance: parsedMinBalance,
+        });
+        setAccounts((prev) => [created, ...prev]);
+      }
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "No se pudo guardar la cuenta.");
+      return;
     }
 
     if (typeof window !== "undefined") {
@@ -166,8 +176,14 @@ export default function AccountsView() {
 
   const handleDeleteAccount = async (id: string) => {
     if (confirm("¿Estás seguro de eliminar esta cuenta? Los registros asociados no se perderán.")) {
+      setFormError(null);
+      try {
+        await deleteAccountApi(id);
+      } catch (err) {
+        setFormError(err instanceof Error ? err.message : "No se pudo eliminar la cuenta.");
+        return;
+      }
       setAccounts((prev) => prev.filter((a) => a.id !== id));
-      await deleteAccountApi(id);
       if (typeof window !== "undefined") {
         window.dispatchEvent(new Event("fydry_storage_updated"));
       }
@@ -220,11 +236,12 @@ export default function AccountsView() {
         return "RD$";
       case "EUR":
         return "€";
+      case "USD":
+        return "US$";
       case "MXN":
       case "COP":
       case "ARS":
       case "CLP":
-      case "USD":
       default:
         return "$";
     }
@@ -748,6 +765,12 @@ export default function AccountsView() {
                 {(type === "savings" || type === "cash" || type === "wallet") && (
                   <div className="p-3 bg-zinc-50 rounded-2xl border border-zinc-100 text-xs text-zinc-500">
                     ℹ️ Esta cuenta no requiere ningún número de cuenta ni tarjeta.
+                  </div>
+                )}
+
+                {formError && (
+                  <div className="p-3 bg-rose-50 rounded-2xl border border-rose-100 text-xs text-rose-700">
+                    {formError}
                   </div>
                 )}
 

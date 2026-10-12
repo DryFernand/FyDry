@@ -56,6 +56,7 @@ import {
   fetchAccountsApi,
   fetchMovementsApi,
 } from "@/lib/api";
+import { parseAmount } from "@/lib/money";
 
 const MONTH_NAMES_ES = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -135,6 +136,7 @@ export default function BudgetView() {
 
   const [newCat, setNewCat] = useState<string>(EXPENSE_CATEGORIES[0]);
   const [newAllocated, setNewAllocated] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
 
   const loadData = async () => {
     const [budData, expData, settingsData, accData, movData] = await Promise.all([
@@ -538,6 +540,7 @@ export default function BudgetView() {
     setEditingBudget(null);
     setNewCat(EXPENSE_CATEGORIES[0]);
     setNewAllocated("");
+    setFormError(null);
     setIsModalOpen(true);
   };
 
@@ -546,6 +549,7 @@ export default function BudgetView() {
     setNewCat(b.category);
     // Cargar el límite base mensual al editar
     setNewAllocated((b.baseMonthlyAllocated || b.allocated).toString());
+    setFormError(null);
     setIsModalOpen(true);
   };
 
@@ -553,25 +557,31 @@ export default function BudgetView() {
     e.preventDefault();
     if (!newCat || !newAllocated) return;
 
-    const parsedAllocated = parseFloat(newAllocated) || 0;
+    const parsedAllocated = parseAmount(newAllocated) || 0;
     if (parsedAllocated <= 0) return;
+    setFormError(null);
 
-    if (editingBudget) {
-      const updatedItem = {
-        category: newCat,
-        allocated: parsedAllocated,
-      };
-      setBudgets((prev) =>
-        prev.map((item) => (item.id === editingBudget.id ? { ...item, ...updatedItem } : item))
-      );
-      await updateBudgetApi(editingBudget.id, updatedItem);
-    } else {
-      const created = await createBudgetApi({
-        category: newCat,
-        allocated: parsedAllocated,
-        color: "bg-zinc-900",
-      });
-      setBudgets((prev) => [...prev, created]);
+    try {
+      if (editingBudget) {
+        const updatedItem = {
+          category: newCat,
+          allocated: parsedAllocated,
+        };
+        await updateBudgetApi(editingBudget.id, updatedItem);
+        setBudgets((prev) =>
+          prev.map((item) => (item.id === editingBudget.id ? { ...item, ...updatedItem } : item))
+        );
+      } else {
+        const created = await createBudgetApi({
+          category: newCat,
+          allocated: parsedAllocated,
+          color: "bg-zinc-900",
+        });
+        setBudgets((prev) => [...prev, created]);
+      }
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "No se pudo guardar el presupuesto.");
+      return;
     }
 
     if (typeof window !== "undefined") {
@@ -583,8 +593,14 @@ export default function BudgetView() {
 
   const handleDeleteBudget = async (id: string) => {
     if (confirm("¿Estás seguro de eliminar este límite de presupuesto?")) {
+      setFormError(null);
+      try {
+        await deleteBudgetApi(id);
+      } catch (err) {
+        setFormError(err instanceof Error ? err.message : "No se pudo eliminar el presupuesto.");
+        return;
+      }
       setBudgets((prev) => prev.filter((b) => b.id !== id));
-      await deleteBudgetApi(id);
       if (typeof window !== "undefined") {
         window.dispatchEvent(new Event("fydry_storage_updated"));
       }
@@ -1149,18 +1165,18 @@ export default function BudgetView() {
                   />
 
                   {/* Equivalencias automáticas en tiempo real */}
-                  {parseFloat(newAllocated) > 0 && (
+                  {parseAmount(newAllocated) > 0 && (
                     <div className="mt-2.5 p-2.5 rounded-xl bg-zinc-50 border border-zinc-100 text-[11px] text-zinc-600 space-y-1">
                       <div className="flex justify-between">
                         <span>Quincenal:</span>
                         <span className="font-bold text-zinc-900">
-                          ${(parseFloat(newAllocated) / 2).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                          ${(parseAmount(newAllocated) / 2).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                         </span>
                       </div>
                       <div className="flex justify-between">
                         <span>Semanal:</span>
                         <span className="font-bold text-zinc-900">
-                          ${(parseFloat(newAllocated) / 4).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                          ${(parseAmount(newAllocated) / 4).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                         </span>
                       </div>
                     </div>
@@ -1170,6 +1186,12 @@ export default function BudgetView() {
                     Este monto base se renovará mensualmente y se dividirá en las vistas quincenales y semanales.
                   </span>
                 </div>
+
+                {formError && (
+                  <div className="p-3 bg-rose-50 rounded-2xl border border-rose-100 text-xs text-rose-700">
+                    {formError}
+                  </div>
+                )}
 
                 <div className="flex items-center justify-between gap-2.5 pt-2">
                   {editingBudget ? (

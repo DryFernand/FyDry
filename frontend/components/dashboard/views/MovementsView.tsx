@@ -27,6 +27,7 @@ import {
   markNotificationProcessedApi,
 } from "@/lib/api";
 import { getCycleRange, isTransactionInPeriod, formatCycleLabel } from "@/lib/cycle";
+import { availableFunds, formatMoney, parseAmount, todayISO } from "@/lib/money";
 
 type MovementFilterType = "all" | "savings" | "standard";
 
@@ -62,6 +63,7 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
   const [toAccount, setToAccount] = useState("");
   const [amount, setAmount] = useState("");
   const [taxAmount, setTaxAmount] = useState("");
+  const [toAmount, setToAmount] = useState("");
   const [description, setDescription] = useState("");
   const [formError, setFormError] = useState("");
 
@@ -131,6 +133,7 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
     setEditingMovement(null);
     setAmount("");
     setTaxAmount("");
+    setToAmount("");
     setDescription("");
     setFormError("");
     if (accounts.length >= 2) {
@@ -149,6 +152,7 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
     setToAccount(mov.toAccount);
     setAmount(mov.amount.toString());
     setTaxAmount(mov.taxAmount && mov.taxAmount > 0 ? mov.taxAmount.toString() : "");
+    setToAmount(mov.toAmount != null ? mov.toAmount.toString() : "");
     setDescription(mov.description);
     setFormError("");
     setIsModalOpen(true);
@@ -168,13 +172,13 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
       return;
     }
 
-    const parsedAmount = parseFloat(amount.replace(",", "."));
+    const parsedAmount = parseAmount(amount);
     if (isNaN(parsedAmount) || !isFinite(parsedAmount) || parsedAmount <= 0) {
       setFormError("Ingresa un monto de transferencia válido mayor a 0.");
       return;
     }
 
-    const parsedTax = taxAmount ? parseFloat(taxAmount.replace(",", ".")) : 0.0;
+    const parsedTax = taxAmount ? parseAmount(taxAmount) : 0.0;
     if (isNaN(parsedTax) || !isFinite(parsedTax) || parsedTax < 0) {
       setFormError("El impuesto o comisión no puede ser negativo o inválido.");
       return;
@@ -183,42 +187,57 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
     const fromAccObj = accounts.find((a) => a.name === fromAccount);
     const toAccObj = accounts.find((a) => a.name === toAccount);
 
+    const crossCurrency =
+      !!fromAccObj && !!toAccObj && (fromAccObj.currency || "DOP") !== (toAccObj.currency || "DOP");
+    const parsedToAmount = crossCurrency ? parseAmount(toAmount) : undefined;
+    if (parsedToAmount !== undefined && (isNaN(parsedToAmount) || !isFinite(parsedToAmount) || parsedToAmount <= 0)) {
+      setFormError(`Ingresa el monto recibido en destino (${toAccObj?.currency}) mayor a 0.`);
+      return;
+    }
+
     if (fromAccObj) {
-      const availableFunds = fromAccObj.balance + (fromAccObj.overdraftLimit || 0);
-      if (parsedAmount + parsedTax > availableFunds) {
+      const funds = availableFunds(fromAccObj);
+      if (funds !== Infinity && parsedAmount + parsedTax > funds) {
         setFormError(
-          `Traspaso rechazado: El monto total con impuestos ($${(parsedAmount + parsedTax).toFixed(2)}) supera el saldo disponible más el sobregiro permitido ($${availableFunds.toFixed(2)}) de "${fromAccObj.name}".`
+          `Traspaso rechazado: El monto total con impuestos (${formatMoney(parsedAmount + parsedTax, fromAccObj.currency)}) supera el saldo disponible más el sobregiro permitido (${formatMoney(funds, fromAccObj.currency)}) de "${fromAccObj.name}".`
         );
         return;
       }
     }
 
-    if (editingMovement) {
-      const updated: Partial<MovementItem> = {
-        fromAccount,
-        fromAccountId: fromAccObj?.id,
-        toAccount,
-        toAccountId: toAccObj?.id,
-        amount: parsedAmount,
-        taxAmount: parsedTax,
-        description: description || `Traspaso de ${fromAccount} a ${toAccount}`,
-      };
-      setMovements((prev) =>
-        prev.map((m) => (m.id === editingMovement.id ? { ...m, ...updated } : m))
-      );
-      await updateMovementApi(editingMovement.id, updated);
-    } else {
-      const created = await createMovementApi({
-        fromAccount,
-        fromAccountId: fromAccObj?.id,
-        toAccount,
-        toAccountId: toAccObj?.id,
-        amount: parsedAmount,
-        taxAmount: parsedTax,
-        description: description || `Traspaso de ${fromAccount} a ${toAccount}`,
-        date: initialDraft?.date || new Date().toISOString().split("T")[0],
-      });
-      setMovements((prev) => [created, ...prev]);
+    try {
+      if (editingMovement) {
+        const updated: Partial<MovementItem> = {
+          fromAccount,
+          fromAccountId: fromAccObj?.id,
+          toAccount,
+          toAccountId: toAccObj?.id,
+          amount: parsedAmount,
+          toAmount: parsedToAmount,
+          taxAmount: parsedTax,
+          description: description || `Traspaso de ${fromAccount} a ${toAccount}`,
+        };
+        await updateMovementApi(editingMovement.id, updated);
+        setMovements((prev) =>
+          prev.map((m) => (m.id === editingMovement.id ? { ...m, ...updated } : m))
+        );
+      } else {
+        const created = await createMovementApi({
+          fromAccount,
+          fromAccountId: fromAccObj?.id,
+          toAccount,
+          toAccountId: toAccObj?.id,
+          amount: parsedAmount,
+          toAmount: parsedToAmount,
+          taxAmount: parsedTax,
+          description: description || `Traspaso de ${fromAccount} a ${toAccount}`,
+          date: initialDraft?.date || todayISO(),
+        });
+        setMovements((prev) => [created, ...prev]);
+      }
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "No se pudo guardar el traspaso.");
+      return;
     }
 
     if (initialDraft?.notifId) {
@@ -235,8 +254,14 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
 
   const handleDeleteMovement = async (id: string) => {
     if (confirm("¿Deseas revertir y eliminar este traspaso? Los saldos de ambas cuentas y presupuestos serán restaurados.")) {
+      setFormError("");
+      try {
+        await deleteMovementApi(id);
+      } catch (err) {
+        setFormError(err instanceof Error ? err.message : "No se pudo eliminar el traspaso.");
+        return;
+      }
       setMovements((prev) => prev.filter((m) => m.id !== id));
-      await deleteMovementApi(id);
       if (typeof window !== "undefined") {
         window.dispatchEvent(new Event("fydry_storage_updated"));
       }
@@ -277,14 +302,17 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
     return true;
   });
 
-  const numAmount = parseFloat(amount.replace(",", ".")) || 0;
-  const numTax = parseFloat(taxAmount.replace(",", ".")) || 0;
+  const numAmount = parseAmount(amount) || 0;
+  const numTax = parseAmount(taxAmount) || 0;
   const totalDebitedPreview = numAmount + numTax;
 
   const fromAccObj = accounts.find((a) => a.name === fromAccount);
   const toAccObj = accounts.find((a) => a.name === toAccount);
+  const isCrossCurrency =
+    !!fromAccObj && !!toAccObj && (fromAccObj.currency || "DOP") !== (toAccObj.currency || "DOP");
+  const numReceived = isCrossCurrency ? parseAmount(toAmount) || 0 : numAmount;
   const fromBalanceAfter = fromAccObj ? fromAccObj.balance - totalDebitedPreview : 0;
-  const toBalanceAfter = toAccObj ? toAccObj.balance + numAmount : 0;
+  const toBalanceAfter = toAccObj ? toAccObj.balance + numReceived : 0;
 
   return (
     <div className="space-y-6">
@@ -618,6 +646,23 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
                   </div>
                 </div>
 
+                {isCrossCurrency && (
+                  <div>
+                    <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
+                      Monto recibido en destino ({toAccObj?.currency})
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      required
+                      value={toAmount}
+                      onChange={(e) => setToAmount(e.target.value)}
+                      placeholder="0.00"
+                      className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 bg-white text-zinc-900 text-xs placeholder:text-zinc-400 focus:outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 transition-colors shadow-2xs"
+                    />
+                  </div>
+                )}
+
                 {/* Accounting Preview Card */}
                 <div className="p-3 bg-zinc-50 rounded-2xl border border-zinc-200/70 text-xs space-y-2">
                   <div className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">
@@ -652,7 +697,7 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
                   <div className="space-y-0.5 pt-1.5 border-t border-zinc-200/60">
                     <div className="flex justify-between text-zinc-700">
                       <span>Llega a {toAccount || "Destino"}:</span>
-                      <span className="font-bold text-emerald-600">+${numAmount.toFixed(2)}</span>
+                      <span className="font-bold text-emerald-600">+${numReceived.toFixed(2)}</span>
                     </div>
                     {toAccObj && (
                       <div className="flex justify-between text-[11px] text-zinc-500">

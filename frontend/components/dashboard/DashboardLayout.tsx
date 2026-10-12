@@ -19,6 +19,7 @@ import {
   Loader2,
   ArrowLeftRight,
   Plus,
+  Target,
 } from "lucide-react";
 import { DashboardTab, NotificationItem } from "./types";
 import DashboardHome from "./views/DashboardHome";
@@ -29,10 +30,11 @@ import IncomesView from "./views/IncomesView";
 import BudgetView from "./views/BudgetView";
 import DebtsView from "./views/DebtsView";
 import ReportsView from "./views/ReportsView";
+import PlanningView from "./views/PlanningView";
 import SettingsModal from "./SettingsModal";
 import NotificationBell from "./NotificationBell";
 import QuickTransactionModal from "./QuickTransactionModal";
-import { apiRequest, checkFinancialAlertsApi } from "@/lib/api";
+import { apiRequest, checkFinancialAlertsApi, postDueRecurringApi } from "@/lib/api";
 import { useLanguage } from "@/context/LanguageContext";
 import { dispatchNativeAlerts } from "@/lib/pushNotifications";
 import AiAssistantChat from "@/components/ai/AiAssistantChat";
@@ -70,6 +72,7 @@ export default function DashboardLayout() {
       title: language === "en" ? "MAIN" : "PRINCIPAL",
       items: [
         { id: "home" as DashboardTab, label: t.nav.home, icon: Home },
+        { id: "planning" as DashboardTab, label: t.nav.planning, icon: Target },
       ],
     },
     {
@@ -109,6 +112,15 @@ export default function DashboardLayout() {
     loadGlobalNotifications();
     window.addEventListener("fydry_storage_updated", loadGlobalNotifications);
     return () => window.removeEventListener("fydry_storage_updated", loadGlobalNotifications);
+  }, []);
+
+  // Asienta gastos/ingresos recurrentes vencidos al abrir el dashboard
+  useEffect(() => {
+    postDueRecurringApi()
+      .then((res) => {
+        if (res.posted > 0) window.dispatchEvent(new CustomEvent("fydry_refresh_data"));
+      })
+      .catch((err) => console.warn("No se pudieron asentar recurrentes:", err));
   }, []);
 
   const clearAllSessionStorage = () => {
@@ -174,7 +186,8 @@ export default function DashboardLayout() {
         if (res.ok && res.data?.id) {
           setCurrentUser(res.data);
           localStorage.setItem("fydry_user", JSON.stringify(res.data));
-        } else if (res.status === 401 || res.status === 403 || !res.ok) {
+        } else if (res.status === 401 || res.status === 403) {
+          // Solo sesión inválida cierra sesión; un error 5xx no debe expulsar al usuario
           clearAllSessionStorage();
           router.push("/login");
         }
@@ -483,6 +496,7 @@ export default function DashboardLayout() {
               {activeTab === "budget" && <BudgetView />}
               {activeTab === "debts" && <DebtsView />}
               {activeTab === "reports" && <ReportsView />}
+              {activeTab === "planning" && <PlanningView />}
             </motion.div>
           </AnimatePresence>
         </main>
