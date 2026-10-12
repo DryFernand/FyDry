@@ -1,37 +1,38 @@
-import os
 import logging
 from typing import Generator
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
+from sqlalchemy.pool import NullPool
 from app.core.config import settings
 
 logger = logging.getLogger("fy_dry_db")
 
-# Determine active database URL
-db_url = settings.DATABASE_URL
+SQLITE_DEV_URL = "sqlite:///./fydry.db"
 
-# If DATABASE_URL is still placeholder or host is IPv6 only, fallback to Pooler or SQLite
-if "TU_DATABASE_PASSWORD" in db_url or "TU_PASSWORD" in db_url:
-    print("\n[AVISO DB]: DATABASE_URL tiene placeholder 'TU_DATABASE_PASSWORD'. Usando SQLite local 'sqlite:///./fydry.db' para desarrollo.")
-    db_url = "sqlite:///./fydry.db"
-elif "db.ndatbgiedkbzejavvchu.supabase.co" in db_url and settings.DATABASE_POOLER_URL and "TU_DATABASE_PASSWORD" not in settings.DATABASE_POOLER_URL:
-    db_url = settings.DATABASE_POOLER_URL
 
-connect_args = {}
-if "sqlite" in db_url:
-    connect_args["check_same_thread"] = False
+def _is_placeholder(url: str) -> bool:
+    return "TU_DATABASE_PASSWORD" in url or "TU_PASSWORD" in url or "PROJECT_REF" in url
 
-try:
-    engine = create_engine(
-        db_url,
-        pool_pre_ping=True,
-        pool_recycle=300,
-        connect_args=connect_args,
-    )
-except Exception as e:
-    print(f"[ERROR DB]: Error conectando a PostgreSQL ({e}). Usando SQLite local de respaldo.")
-    db_url = "sqlite:///./fydry.db"
+
+def resolve_database_url() -> str:
+    """Pooler de Supabase (IPv4, apto para serverless) si está configurado; si no, DATABASE_URL."""
+    if settings.DATABASE_POOLER_URL and not _is_placeholder(settings.DATABASE_POOLER_URL):
+        return settings.DATABASE_POOLER_URL
+    if not _is_placeholder(settings.DATABASE_URL):
+        return settings.DATABASE_URL
+    if settings.is_production:
+        raise RuntimeError("DATABASE_URL no está configurada en producción.")
+    logger.warning("DATABASE_URL tiene placeholder. Usando SQLite local '%s' para desarrollo.", SQLITE_DEV_URL)
+    return SQLITE_DEV_URL
+
+
+db_url = resolve_database_url()
+
+if db_url.startswith("sqlite"):
     engine = create_engine(db_url, connect_args={"check_same_thread": False})
+else:
+    # NullPool: en serverless cada instancia es efímera; el pooler de Supabase gestiona las conexiones.
+    engine = create_engine(db_url, poolclass=NullPool, pool_pre_ping=True)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
@@ -48,26 +49,9 @@ def get_db() -> Generator[Session, None, None]:
 
 
 def init_db():
-    """Initializes and auto-creates all database tables and schema updates."""
-    try:
-        from app.models import Base
-        Base.metadata.create_all(bind=engine)
-
-        # Migración ligera automática para columnas añadidas
-        with engine.begin() as conn:
-            if "postgresql" in str(engine.url):
-                conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT FALSE;"))
-                conn.execute(text("ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS budget_reset_day INTEGER DEFAULT 1;"))
-            elif "sqlite" in str(engine.url):
-                try:
-                    conn.execute(text("ALTER TABLE users ADD COLUMN onboarding_completed BOOLEAN DEFAULT 0;"))
-                except Exception:
-                    pass
-                try:
-                    conn.execute(text("ALTER TABLE user_profiles ADD COLUMN budget_reset_day INTEGER DEFAULT 1;"))
-                except Exception:
-                    pass
-
-        print("[OK DB]: Tablas y columnas de base de datos verificadas/creadas correctamente.")
-    except Exception as exc:
-        print(f"[ERROR DB]: Error al inicializar tablas: {exc}")
+    """Solo en desarrollo con SQLite crea las tablas automáticamente.
+    PostgreSQL se gestiona con migraciones: `alembic upgrade head`."""
+    if not db_url.startswith("sqlite"):
+        return
+    from app.models import Base as ModelsBase
+    ModelsBase.metadata.create_all(bind=engine)

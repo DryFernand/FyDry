@@ -8,28 +8,27 @@ from app.api.v1.router import api_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Auto-create tables in database
-    try:
-        init_db()
-    except Exception as e:
-        print(f"Warning: Database initialization exception on startup: {e}")
+    # Startup: crea tablas solo en desarrollo (SQLite); producción usa Alembic
+    init_db()
     yield
     # Shutdown: Cleanup if needed
 
 
+_docs_enabled = not settings.is_production
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    openapi_url=f"{settings.API_V1_STR}/openapi.json",
-    docs_url=f"{settings.API_V1_STR}/docs",
-    redoc_url=f"{settings.API_V1_STR}/redoc",
+    openapi_url=f"{settings.API_V1_STR}/openapi.json" if _docs_enabled else None,
+    docs_url=f"{settings.API_V1_STR}/docs" if _docs_enabled else None,
+    redoc_url=f"{settings.API_V1_STR}/redoc" if _docs_enabled else None,
     lifespan=lifespan,
 )
 
 # Set all CORS enabled origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS if settings.CORS_ORIGINS else ["*"],
-    allow_origin_regex=r"^https://.*\.vercel\.app$",
+    allow_origins=list(dict.fromkeys([*settings.CORS_ORIGINS, settings.FRONTEND_URL])),
+    allow_origin_regex=settings.CORS_ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -1,3 +1,4 @@
+import calendar
 from typing import Generator, Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -35,6 +36,10 @@ def get_current_user(
 
     user = db.query(User).filter(User.id == user_id).first()
     if user is None:
+        raise credentials_exception
+
+    # Token emitido antes del último cambio de contraseña -> revocado
+    if user.password_changed_at and payload.get("iat", 0) < calendar.timegm(user.password_changed_at.utctimetuple()):
         raise credentials_exception
 
     if not user.is_active:

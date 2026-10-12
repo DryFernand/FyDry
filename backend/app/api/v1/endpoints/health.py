@@ -25,9 +25,8 @@ def db_health_check(db: Session = Depends(get_db)) -> Dict[str, Any]:
             "database": "Supabase PostgreSQL",
             "result": result,
         }
-    except Exception as exc:
+    except Exception:
         return {
             "status": "error",
             "database": "Supabase PostgreSQL",
-            "detail": str(exc),
         }

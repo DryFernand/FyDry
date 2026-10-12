@@ -71,6 +71,9 @@ export default function LoginForm({
       } else if (res.status === 423) {
         // Cuenta bloqueada
         onSwitchView("locked");
+      } else if (res.status === 403) {
+        // Correo sin verificar: el backend reenvió el código OTP
+        onSwitchView("verify-otp");
       } else {
         onFailedAttempt();
         setErrorMsg(res.error || "Credenciales incorrectas.");

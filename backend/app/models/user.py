@@ -28,6 +28,8 @@ class User(Base, TimestampMixin):
     # Seguridad contra fuerza bruta
     failed_login_attempts = Column(Integer, default=0, nullable=False)
     locked_until = Column(DateTime, nullable=True)
+    # Tokens emitidos antes de esta fecha quedan invalidados (cambio/restablecimiento de contraseña)
+    password_changed_at = Column(DateTime, nullable=True)
 
     # Relación 1:1 con perfil
     profile = relationship("UserProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")

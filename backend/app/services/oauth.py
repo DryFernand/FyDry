@@ -57,7 +57,7 @@ async def exchange_google_code_or_token(code_or_token: str, redirect_uri: Option
                                     "email": u_data.get("email"),
                                     "full_name": u_data.get("name", "Usuario Google"),
                                     "avatar_url": u_data.get("picture"),
-                                    "email_verified": u_data.get("email_verified", True),
+                                    "email_verified": str(u_data.get("email_verified")).lower() == "true",
                                 }
                     else:
                         print(f"[GOOGLE TOKEN EXCHANGE] Status {res.status_code} for uri {uri}: {res.text}")
@@ -76,12 +76,16 @@ async def verify_google_id_token(id_token: str) -> Optional[Dict[str, Any]]:
             response = await client.get(url, timeout=10.0)
             if response.status_code == 200:
                 data = response.json()
+                # Rechaza tokens emitidos para otras apps de Google
+                if not settings.GOOGLE_CLIENT_ID or data.get("aud") != settings.GOOGLE_CLIENT_ID:
+                    print("[GOOGLE TOKENINFO FAIL]: aud no coincide con GOOGLE_CLIENT_ID")
+                    return None
                 return {
                     "provider_id": data.get("sub"),
                     "email": data.get("email"),
                     "full_name": data.get("name", "Usuario Google"),
                     "avatar_url": data.get("picture"),
-                    "email_verified": data.get("email_verified", True),
+                    "email_verified": str(data.get("email_verified")).lower() == "true",
                 }
             print(f"[GOOGLE TOKENINFO FAIL]: {response.status_code} {response.text}")
             return None
@@ -95,10 +99,9 @@ async def get_github_user_profile(token_or_code: str) -> Optional[Dict[str, Any]
     Exchanges GitHub authorization code for access token and retrieves user profile.
     """
     async with httpx.AsyncClient() as client:
-        access_token = token_or_code
-
-        # If it's an authorization code, exchange it for access token
-        if len(token_or_code) < 50 and settings.GITHUB_CLIENT_ID and settings.GITHUB_CLIENT_SECRET:
+        # Solo se aceptan códigos de autorización de nuestra app; nunca tokens crudos de terceros
+        access_token = None
+        if settings.GITHUB_CLIENT_ID and settings.GITHUB_CLIENT_SECRET:
             token_url = "https://github.com/login/oauth/access_token"
             headers = {"Accept": "application/json"}
             data = {
@@ -110,9 +113,12 @@ async def get_github_user_profile(token_or_code: str) -> Optional[Dict[str, Any]
                 res = await client.post(token_url, headers=headers, json=data, timeout=10.0)
                 if res.status_code == 200:
                     token_data = res.json()
-                    access_token = token_data.get("access_token", token_or_code)
+                    access_token = token_data.get("access_token")
             except Exception as e:
                 print(f"[GITHUB OAUTH ERROR]: {e}")
+
+        if not access_token:
+            return None
 
         # Fetch user profile using access token
         try:
@@ -146,7 +152,7 @@ async def get_github_user_profile(token_or_code: str) -> Optional[Dict[str, Any]
                         (e["email"] for e in emails_data if e.get("primary") and e.get("verified")),
                         None,
                     )
-                    email = primary_email or (emails_data[0]["email"] if emails_data else None)
+                    email = primary_email
 
             if not email:
                 email = f"{user_data.get('login')}@users.noreply.github.com"

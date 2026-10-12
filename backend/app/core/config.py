@@ -2,11 +2,13 @@ from typing import List, Union, Optional
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+DEV_JWT_SECRET = "fydry_dev_only_jwt_secret_no_usar_en_produccion"
+
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "FyDry API"
     ENVIRONMENT: str = "development"
-    DEBUG: bool = True
+    DEBUG: bool = False
     API_V1_STR: str = "/api/v1"
     FRONTEND_URL: str = "http://localhost:3000"
 
@@ -14,7 +16,11 @@ class Settings(BaseSettings):
     CORS_ORIGINS: List[str] = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        "https://fydry-dary.vercel.app",
+        "https://fydry.vercel.app",
     ]
+    # Regex opcional para previews de Vercel del propio proyecto (ej. ^https://fydry-[a-z0-9-]+-dary\.vercel\.app$)
+    CORS_ORIGIN_REGEX: Optional[str] = None
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
@@ -26,12 +32,15 @@ class Settings(BaseSettings):
         raise ValueError(v)
 
     # JWT & Security
-    JWT_SECRET_KEY: str = "fydry_super_secret_jwt_key_cambiar_en_produccion_12345"
+    JWT_SECRET_KEY: str = DEV_JWT_SECRET
     JWT_ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 30  # 30 days session
-    MAX_LOGIN_ATTEMPTS: int = 5
-    LOCKOUT_DURATION_MINUTES: int = 5
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days session
     OTP_EXPIRE_MINUTES: int = 10
+    OTP_MAX_ATTEMPTS: int = 5
+
+    @property
+    def is_production(self) -> bool:
+        return self.ENVIRONMENT.lower() == "production"
 
     # Database Configuration (Supabase PostgreSQL)
     DATABASE_URL: str = "postgresql+psycopg2://postgres:postgres@localhost:5432/postgres"
@@ -67,3 +76,6 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+if settings.is_production and settings.JWT_SECRET_KEY == DEV_JWT_SECRET:
+    raise RuntimeError("JWT_SECRET_KEY debe configurarse en producción.")

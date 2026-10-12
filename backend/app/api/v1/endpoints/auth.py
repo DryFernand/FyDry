@@ -1,6 +1,8 @@
+import secrets
 from datetime import datetime, timedelta
 from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -40,6 +42,94 @@ from app.api.deps import get_current_user
 
 router = APIRouter()
 
+# Hash fijo para igualar el tiempo de respuesta cuando el correo no existe (evita enumeración por timing)
+_DUMMY_PASSWORD_HASH = get_password_hash("fydry-timing-equalizer")
+
+
+def _issue_otp(db: Session, email: str, code_type: str) -> str:
+    """Invalida códigos previos del mismo tipo y crea uno nuevo. Devuelve el código."""
+    db.query(OtpCode).filter(
+        OtpCode.email == email,
+        OtpCode.code_type == code_type,
+        OtpCode.is_used == False,
+    ).update({"is_used": True})
+    code = generate_secure_otp(6)
+    db.add(OtpCode(
+        email=email,
+        code=code,
+        code_type=code_type,
+        expires_at=OtpCode.generate_expiry(settings.OTP_EXPIRE_MINUTES),
+        is_used=False,
+        attempts=0,
+    ))
+    return code
+
+
+def _check_otp(db: Session, email: str, code: str, code_type: str, invalid_msg: str, consume: bool = True) -> OtpCode:
+    """Valida el último OTP activo. Cada fallo cuenta; al llegar a OTP_MAX_ATTEMPTS el código se invalida."""
+    otp_entry = (
+        db.query(OtpCode)
+        .filter(
+            OtpCode.email == email,
+            OtpCode.code_type == code_type,
+            OtpCode.is_used == False,
+        )
+        .order_by(OtpCode.created_at.desc())
+        .first()
+    )
+    if not otp_entry or otp_entry.is_expired or otp_entry.attempts >= settings.OTP_MAX_ATTEMPTS:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=invalid_msg)
+
+    if not secrets.compare_digest(otp_entry.code, code):
+        otp_entry.attempts += 1
+        if otp_entry.attempts >= settings.OTP_MAX_ATTEMPTS:
+            otp_entry.is_used = True
+        db.commit()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=invalid_msg)
+
+    if consume:
+        otp_entry.is_used = True
+    return otp_entry
+
+
+def _link_oauth_user(db: Session, profile: dict, provider: str, default_name: str) -> User:
+    """Crea o vincula un usuario OAuth. Exige correo verificado por el proveedor."""
+    if not profile.get("email_verified"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El correo de tu cuenta no está verificado por el proveedor.",
+        )
+
+    email = profile["email"].lower()
+    user = db.query(User).filter(User.email == email).first()
+
+    if not user:
+        user = User(
+            email=email,
+            full_name=profile.get("full_name") or default_name,
+            avatar_url=profile.get("avatar_url"),
+            auth_provider=provider,
+            provider_id=profile.get("provider_id"),
+            is_active=True,
+            is_verified=True,
+        )
+        db.add(user)
+    else:
+        if not user.is_verified:
+            # Cuenta creada por correo sin verificar: alguien pudo registrarla con una contraseña ajena.
+            # El dueño real demuestra control del correo vía OAuth, así que se descarta esa contraseña.
+            user.hashed_password = None
+            user.auth_provider = provider
+            user.provider_id = profile.get("provider_id")
+            user.password_changed_at = datetime.utcnow()
+        user.is_verified = True
+        if not user.avatar_url and profile.get("avatar_url"):
+            user.avatar_url = profile.get("avatar_url")
+
+    db.commit()
+    db.refresh(user)
+    return user
+
 
 # ============================================================================
 # 1. REGISTRO & VERIFICACIÓN OTP POR CORREO
@@ -50,7 +140,7 @@ router = APIRouter()
     status_code=status.HTTP_201_CREATED,
     summary="Registrar nuevo usuario y enviar código OTP a su correo",
 )
-async def register(
+def register(
     user_in: UserRegister,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
@@ -80,23 +170,7 @@ async def register(
         )
         db.add(user)
 
-    # Invalidate previous registration OTP codes for this email
-    db.query(OtpCode).filter(
-        OtpCode.email == user_in.email.lower(),
-        OtpCode.code_type == "register_verification",
-        OtpCode.is_used == False,
-    ).update({"is_used": True})
-
-    # Generate new 6-digit OTP code
-    otp_code_str = generate_secure_otp(6)
-    otp_entry = OtpCode(
-        email=user_in.email.lower(),
-        code=otp_code_str,
-        code_type="register_verification",
-        expires_at=OtpCode.generate_expiry(settings.OTP_EXPIRE_MINUTES),
-        is_used=False,
-    )
-    db.add(otp_entry)
+    otp_code_str = _issue_otp(db, user_in.email.lower(), "register_verification")
     db.commit()
 
     # Send verification email via Google SMTP in background
@@ -123,27 +197,14 @@ def verify_email_otp(
     payload: VerifyOtpRequest,
     db: Session = Depends(get_db),
 ) -> Any:
-    # Look for valid OTP
-    otp_entry = (
-        db.query(OtpCode)
-        .filter(
-            OtpCode.email == payload.email.lower(),
-            OtpCode.code == payload.code,
-            OtpCode.code_type == payload.code_type,
-            OtpCode.is_used == False,
-        )
-        .order_by(OtpCode.created_at.desc())
-        .first()
+    # Solo códigos de registro pueden activar una cuenta y emitir un JWT
+    _check_otp(
+        db,
+        payload.email.lower(),
+        payload.code,
+        "register_verification",
+        "El código de verificación es inválido o ha expirado.",
     )
-
-    if not otp_entry or otp_entry.is_expired:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="El código de verificación es inválido o ha expirado.",
-        )
-
-    # Mark OTP as used
-    otp_entry.is_used = True
 
     # Activate & verify user
     user = db.query(User).filter(User.email == payload.email.lower()).first()
@@ -174,35 +235,22 @@ def verify_email_otp(
     response_model=AuthActionResponse,
     summary="Reenviar código OTP de 6 dígitos por correo",
 )
-async def resend_otp(
+def resend_otp(
     payload: ResendOtpRequest,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ) -> Any:
-    user = db.query(User).filter(User.email == payload.email.lower()).first()
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Usuario no encontrado.",
-        )
-
-    # Invalidate previous OTPs
-    db.query(OtpCode).filter(
-        OtpCode.email == payload.email.lower(),
-        OtpCode.code_type == payload.code_type,
-        OtpCode.is_used == False,
-    ).update({"is_used": True})
-
-    # Generate new OTP
-    otp_code_str = generate_secure_otp(6)
-    otp_entry = OtpCode(
-        email=payload.email.lower(),
-        code=otp_code_str,
-        code_type=payload.code_type,
-        expires_at=OtpCode.generate_expiry(settings.OTP_EXPIRE_MINUTES),
-        is_used=False,
+    generic_response = AuthActionResponse(
+        status="success",
+        message=f"Si el correo {payload.email} está registrado, recibirás un nuevo código.",
+        require_otp=True,
     )
-    db.add(otp_entry)
+    user = db.query(User).filter(User.email == payload.email.lower()).first()
+    # No revelamos si el correo existe; tampoco reenviamos verificación a cuentas ya verificadas
+    if not user or (payload.code_type == "register_verification" and user.is_verified):
+        return generic_response
+
+    otp_code_str = _issue_otp(db, payload.email.lower(), payload.code_type)
     db.commit()
 
     # Trigger email dispatch
@@ -221,11 +269,7 @@ async def resend_otp(
             user_name=user.full_name,
         )
 
-    return AuthActionResponse(
-        status="success",
-        message=f"Nuevo código de verificación enviado a {user.email}",
-        require_otp=True,
-    )
+    return generic_response
 
 
 # ============================================================================
@@ -236,13 +280,14 @@ async def resend_otp(
     response_model=TokenResponse,
     summary="Iniciar sesión con protección contra fuerza bruta",
 )
-async def login(
+def login(
     credentials: UserLogin,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ) -> Any:
     user = db.query(User).filter(User.email == credentials.email.lower()).first()
     if not user:
+        verify_password(credentials.password, _DUMMY_PASSWORD_HASH)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Credenciales incorrectas.",
@@ -332,10 +377,26 @@ async def login(
     # 3. Successful password match -> Reset security counters
     user.failed_login_attempts = 0
     user.locked_until = None
+
+    # 4. Correo sin verificar: no se emite token; se reenvía el código de verificación
+    if not user.is_verified:
+        otp_code_str = _issue_otp(db, user.email, "register_verification")
+        db.commit()
+        background_tasks.add_task(
+            send_verification_otp_email,
+            to_email=user.email,
+            code=otp_code_str,
+            user_name=user.full_name,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Debes verificar tu correo. Te enviamos un nuevo código de 6 dígitos.",
+        )
+
     db.commit()
     db.refresh(user)
 
-    # 4. Generate access token
+    # 5. Generate access token
     access_token = create_access_token(subject=user.id)
 
     return TokenResponse(
@@ -353,37 +414,22 @@ async def login(
     response_model=AuthActionResponse,
     summary="Solicitar código de restablecimiento de contraseña",
 )
-async def forgot_password(
+def forgot_password(
     payload: ForgotPasswordRequest,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ) -> Any:
+    # Por seguridad no revelamos si el correo existe o no
+    generic_response = AuthActionResponse(
+        status="success",
+        message=f"Si el correo {payload.email} está registrado, recibirás un código de recuperación.",
+        require_otp=True,
+    )
     user = db.query(User).filter(User.email == payload.email.lower()).first()
     if not user:
-        # Por seguridad no revelamos si el correo existe o no
-        return AuthActionResponse(
-            status="success",
-            message=f"Si el correo {payload.email} está registrado, recibirás un código de recuperación.",
-            require_otp=True,
-        )
+        return generic_response
 
-    # Invalidate previous reset OTPs
-    db.query(OtpCode).filter(
-        OtpCode.email == payload.email.lower(),
-        OtpCode.code_type == "password_reset",
-        OtpCode.is_used == False,
-    ).update({"is_used": True})
-
-    # Generate OTP
-    otp_code_str = generate_secure_otp(6)
-    otp_entry = OtpCode(
-        email=payload.email.lower(),
-        code=otp_code_str,
-        code_type="password_reset",
-        expires_at=OtpCode.generate_expiry(settings.OTP_EXPIRE_MINUTES),
-        is_used=False,
-    )
-    db.add(otp_entry)
+    otp_code_str = _issue_otp(db, payload.email.lower(), "password_reset")
     db.commit()
 
     # Send reset email
@@ -394,11 +440,7 @@ async def forgot_password(
         user_name=user.full_name,
     )
 
-    return AuthActionResponse(
-        status="success",
-        message=f"Código de recuperación de contraseña enviado a {payload.email}",
-        require_otp=True,
-    )
+    return generic_response
 
 
 @router.post(
@@ -410,23 +452,14 @@ def verify_reset_otp(
     payload: VerifyOtpRequest,
     db: Session = Depends(get_db),
 ) -> Any:
-    otp_entry = (
-        db.query(OtpCode)
-        .filter(
-            OtpCode.email == payload.email.lower(),
-            OtpCode.code == payload.code,
-            OtpCode.code_type == "password_reset",
-            OtpCode.is_used == False,
-        )
-        .order_by(OtpCode.created_at.desc())
-        .first()
+    _check_otp(
+        db,
+        payload.email.lower(),
+        payload.code,
+        "password_reset",
+        "El código de 6 dígitos es inválido o ha expirado.",
+        consume=False,
     )
-
-    if not otp_entry or otp_entry.is_expired:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="El código de 6 dígitos es inválido o ha expirado.",
-        )
 
     return AuthActionResponse(
         status="success",
@@ -443,23 +476,13 @@ def reset_password(
     payload: ResetPasswordRequest,
     db: Session = Depends(get_db),
 ) -> Any:
-    otp_entry = (
-        db.query(OtpCode)
-        .filter(
-            OtpCode.email == payload.email.lower(),
-            OtpCode.code == payload.code,
-            OtpCode.code_type == "password_reset",
-            OtpCode.is_used == False,
-        )
-        .order_by(OtpCode.created_at.desc())
-        .first()
+    _check_otp(
+        db,
+        payload.email.lower(),
+        payload.code,
+        "password_reset",
+        "El código de recuperación es inválido o ha expirado.",
     )
-
-    if not otp_entry or otp_entry.is_expired:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="El código de recuperación es inválido o ha expirado.",
-        )
 
     user = db.query(User).filter(User.email == payload.email.lower()).first()
     if not user:
@@ -468,11 +491,13 @@ def reset_password(
             detail="Usuario no encontrado.",
         )
 
-    # Update password and unlock account
+    # Update password, unlock account and revoke previously issued tokens.
+    # Recibir el código prueba control del correo, así que la cuenta queda verificada.
     user.hashed_password = get_password_hash(payload.new_password)
     user.failed_login_attempts = 0
     user.locked_until = None
-    otp_entry.is_used = True
+    user.is_verified = True
+    user.password_changed_at = datetime.utcnow()
     db.commit()
 
     return AuthActionResponse(
@@ -500,29 +525,7 @@ async def google_auth(
             detail="No se pudo validar la autenticación con Google. Verifica que el redireccionamiento esté autorizado.",
         )
 
-    email = profile["email"].lower()
-    user = db.query(User).filter(User.email == email).first()
-
-    if not user:
-        # Create user via Google
-        user = User(
-            email=email,
-            full_name=profile.get("full_name", "Usuario Google"),
-            avatar_url=profile.get("avatar_url"),
-            auth_provider="google",
-            provider_id=profile.get("provider_id"),
-            is_active=True,
-            is_verified=True,
-        )
-        db.add(user)
-    else:
-        # Update user profile details
-        user.is_verified = True
-        if not user.avatar_url and profile.get("avatar_url"):
-            user.avatar_url = profile.get("avatar_url")
-
-    db.commit()
-    db.refresh(user)
+    user = await run_in_threadpool(_link_oauth_user, db, profile, "google", "Usuario Google")
 
     access_token = create_access_token(subject=user.id)
     return TokenResponse(
@@ -548,27 +551,7 @@ async def github_auth(
             detail="No se pudo autenticar con GitHub.",
         )
 
-    email = profile["email"].lower()
-    user = db.query(User).filter(User.email == email).first()
-
-    if not user:
-        user = User(
-            email=email,
-            full_name=profile.get("full_name", "Usuario GitHub"),
-            avatar_url=profile.get("avatar_url"),
-            auth_provider="github",
-            provider_id=profile.get("provider_id"),
-            is_active=True,
-            is_verified=True,
-        )
-        db.add(user)
-    else:
-        user.is_verified = True
-        if not user.avatar_url and profile.get("avatar_url"):
-            user.avatar_url = profile.get("avatar_url")
-
-    db.commit()
-    db.refresh(user)
+    user = await run_in_threadpool(_link_oauth_user, db, profile, "github", "Usuario GitHub")
 
     access_token = create_access_token(subject=user.id)
     return TokenResponse(

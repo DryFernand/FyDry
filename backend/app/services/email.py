@@ -1,4 +1,5 @@
 import logging
+from html import escape
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import aiosmtplib
@@ -143,7 +144,7 @@ async def send_verification_otp_email(to_email: str, code: str, user_name: str =
     """Sends 6-digit registration verification code."""
     content = f"""
     <h1>Verifica tu correo electrónico</h1>
-    <p>Hola <strong>{user_name}</strong>,</p>
+    <p>Hola <strong>{escape(user_name)}</strong>,</p>
     <p>Gracias por unirte a FyDry. Para completar la creación de tu cuenta y proteger tus datos, ingresa el siguiente código de 6 dígitos:</p>
     <div class="otp-box">{code}</div>
     <p>Este código vencerá en {settings.OTP_EXPIRE_MINUTES} minutos.</p>
@@ -157,7 +158,7 @@ async def send_login_otp_email(to_email: str, code: str, user_name: str = "Usuar
     """Sends 6-digit 2FA / login verification code."""
     content = f"""
     <h1>Código de acceso seguro</h1>
-    <p>Hola <strong>{user_name}</strong>,</p>
+    <p>Hola <strong>{escape(user_name)}</strong>,</p>
     <p>Se ha solicitado un inicio de sesión en tu cuenta de FyDry. Utiliza el siguiente código para autenticarte:</p>
     <div class="otp-box">{code}</div>
     <p>El código expira en {settings.OTP_EXPIRE_MINUTES} minutos. Nunca compartas este código con nadie.</p>
@@ -171,7 +172,7 @@ async def send_password_reset_email(to_email: str, code: str, user_name: str = "
     """Sends password reset code."""
     content = f"""
     <h1>Restablecimiento de contraseña</h1>
-    <p>Hola <strong>{user_name}</strong>,</p>
+    <p>Hola <strong>{escape(user_name)}</strong>,</p>
     <p>Hemos recibido una solicitud para cambiar la contraseña de tu cuenta de FyDry. Ingresa el siguiente código en la pantalla de recuperación:</p>
     <div class="otp-box">{code}</div>
     <p>Si no fuiste tú quien solicitó este cambio, por favor ignora este mensaje y tu contraseña permanecerá segura.</p>
@@ -185,7 +186,7 @@ async def send_account_locked_alert(to_email: str, user_name: str = "Usuario", m
     """Sends security notification when account is temporarily locked."""
     content = f"""
     <h1 style="color: #d97706;">Aviso de Seguridad: Acceso Congelado</h1>
-    <p>Hola <strong>{user_name}</strong>,</p>
+    <p>Hola <strong>{escape(user_name)}</strong>,</p>
     <p>Hemos detectado múltiples intentos fallidos de inicio de sesión en tu cuenta. Por protección, el acceso ha sido bloqueado temporalmente durante <strong>{minutes} minutos</strong>.</p>
     <p>Si olvidaste tu contraseña, puedes restablecerla directamente desde la opción <em>¿Olvidaste tu contraseña?</em> en nuestra plataforma.</p>
     """

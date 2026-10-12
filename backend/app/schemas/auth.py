@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Literal, Optional
 from pydantic import BaseModel, EmailStr, Field
 from app.schemas import CoreSchema
 
@@ -37,7 +37,7 @@ class VerifyOtpRequest(BaseModel):
 
 class ResendOtpRequest(BaseModel):
     email: EmailStr
-    code_type: str = "register_verification"
+    code_type: Literal["register_verification", "password_reset"] = "register_verification"
 
 
 # --- Password Recovery ---

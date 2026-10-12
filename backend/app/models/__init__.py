@@ -3,7 +3,16 @@ from app.models.base import TimestampMixin
 from app.models.user import User
 from app.models.user_profile import UserProfile
 from app.models.otp import OtpCode
-from app.models.financial import Account, Expense, Income, Movement, Budget, Debt
+from app.models.financial import (
+    Account,
+    Expense,
+    Income,
+    Movement,
+    Budget,
+    Debt,
+    EmailIntegration,
+    PendingNotification,
+)
 
 __all__ = [
     "Base",
@@ -17,4 +26,6 @@ __all__ = [
     "Movement",
     "Budget",
     "Debt",
+    "EmailIntegration",
+    "PendingNotification",
 ]
