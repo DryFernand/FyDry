@@ -75,6 +75,24 @@ export function stripAsterisks(text?: string | null): string {
   return String(text).replace(/\*+/g, "").trim();
 }
 
+export function sanitizeAssistantText(text?: string | null): string {
+  if (!text) return "";
+  let clean = stripAsterisks(text);
+  // Eliminar residuos como (Por ejemplo: "Cena...", ...)
+  clean = clean.replace(/\(\s*Por ejemplo\s*:[^)]*\)/gi, "");
+  clean = clean.replace(/\(\s*ejemplo\s*:[^)]*\)/gi, "");
+  // Eliminar listados de cuentas disponibles en texto plano
+  clean = clean.replace(/(?:Tus\s+)?cuentas\s+disponibles\s+son\s*:[^\n.]*(?:\.|\n|$)/gi, "");
+  clean = clean.replace(/Cuentas\s+disponibles\s*:[^\n.]*(?:\.|\n|$)/gi, "");
+  clean = clean.replace(/Cuentas\s+registradas\s*:[^\n.]*(?:\.|\n|$)/gi, "");
+  // Eliminar "Por ejemplo: ..." sin paréntesis
+  clean = clean.replace(/Por\s+ejemplo\s*:[^\n.]*(?:\.|\n|$)/gi, "");
+  // Limpieza de residuos de puntuación y espacios
+  clean = clean.replace(/\s+/g, " ").replace(/\(\s*\)/g, "").trim();
+  clean = clean.replace(/^[,\s.:;-]+/, "").replace(/[,\s.:;-]+$/, "").trim();
+  return clean;
+}
+
 const ALLOWED_TOOLS = new Set([
   "create_expense",
   "create_income",
@@ -1447,7 +1465,7 @@ export default function AiAssistantChat() {
         return;
       }
 
-      const fullAssistantText = stripAsterisks(data.message || "");
+      const fullAssistantText = sanitizeAssistantText(data.message || "");
       const toolCall = data.tool_call;
       const chunks = splitAssistantResponse(fullAssistantText);
 
