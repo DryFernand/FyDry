@@ -9,6 +9,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Sheet,
+  Filter,
+  TrendingUp,
+  Receipt,
 } from "lucide-react";
 import { AccountItem, TransactionItem, DebtItem } from "../types";
 import { useLanguage } from "@/context/LanguageContext";
@@ -19,7 +22,18 @@ import {
   fetchUserSettingsApi,
 } from "@/lib/api";
 import { getCycleRange, isTransactionInPeriod, formatCycleLabel } from "@/lib/cycle";
-import { isLiability } from "@/lib/money";
+import { isLiability, formatMoney, netWorthByCurrency } from "@/lib/money";
+import { TrendChart, CategoryBars, DeltaBadge, type TrendPoint } from "../reports/ReportCharts";
+
+const ACCOUNT_TYPE_LABELS: Record<string, { es: string; en: string }> = {
+  bank: { es: "Banco", en: "Bank" },
+  credit_card: { es: "Tarjeta de crédito", en: "Credit card" },
+  debit_card: { es: "Tarjeta de débito", en: "Debit card" },
+  card: { es: "Tarjeta", en: "Card" },
+  wallet: { es: "Billetera", en: "Wallet" },
+  cash: { es: "Efectivo", en: "Cash" },
+  savings: { es: "Ahorros", en: "Savings" },
+};
 
 export default function ReportsView() {
   const { t, language } = useLanguage();
@@ -31,6 +45,8 @@ export default function ReportsView() {
   const [budgetResetDay, setBudgetResetDay] = useState<number>(1);
   const [reportScope, setReportScope] = useState<"current_cycle" | "all_time">("current_cycle");
   const [selectedDate, setSelectedDate] = useState(() => new Date());
+  const [accountFilter, setAccountFilter] = useState<string>("all");
+  const [holderName, setHolderName] = useState("");
 
   const handlePrevMonth = () => {
     setSelectedDate((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
@@ -43,6 +59,16 @@ export default function ReportsView() {
   const handleCurrentMonth = () => {
     setSelectedDate(new Date());
   };
+
+  useEffect(() => {
+    try {
+      const user = JSON.parse(localStorage.getItem("fydry_user") || "null");
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage solo existe en el cliente
+      if (user?.full_name) setHolderName(user.full_name);
+    } catch {
+      // usuario no disponible: se omite el nombre
+    }
+  }, []);
 
   const loadData = async () => {
     const [accData, expData, incData, debData, settingsData] = await Promise.all([
@@ -84,26 +110,61 @@ export default function ReportsView() {
     selectedDate.getFullYear() === new Date().getFullYear() &&
     selectedDate.getMonth() === new Date().getMonth();
 
+  // Moneda principal: la de la mayoría de las cuentas (los montos de transacciones no traen moneda)
+  const currencyCounts = accounts.reduce<Record<string, number>>((acc, a) => {
+    acc[a.currency || "DOP"] = (acc[a.currency || "DOP"] || 0) + 1;
+    return acc;
+  }, {});
+  const mainCurrency = Object.entries(currencyCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "DOP";
+  const money = (n: number) => formatMoney(n, mainCurrency);
+  const lang = ((language as "es" | "en") || "es");
+
+  // Filtro por cuenta
+  const byAccount = (t: TransactionItem) => accountFilter === "all" || t.account === accountFilter;
+  const accountIncomes = incomes.filter(byAccount);
+  const accountExpenses = expenses.filter(byAccount);
+  const sumIn = (list: TransactionItem[], start: Date, end: Date) =>
+    list.filter((t) => isTransactionInPeriod(t, start, end)).reduce((acc, t) => acc + t.amount, 0);
+
   // Filtrar transacciones según el alcance seleccionado
   const filteredIncomes = reportScope === "current_cycle"
-    ? incomes.filter((inc) => isTransactionInPeriod(inc, cycleRange.startDate, cycleRange.endDate))
-    : incomes;
+    ? accountIncomes.filter((inc) => isTransactionInPeriod(inc, cycleRange.startDate, cycleRange.endDate))
+    : accountIncomes;
 
   const filteredExpenses = reportScope === "current_cycle"
-    ? expenses.filter((exp) => isTransactionInPeriod(exp, cycleRange.startDate, cycleRange.endDate))
-    : expenses;
+    ? accountExpenses.filter((exp) => isTransactionInPeriod(exp, cycleRange.startDate, cycleRange.endDate))
+    : accountExpenses;
+
+  // Periodo anterior (para comparar) y tendencia de los últimos 6 periodos
+  const cycleAt = (monthsBack: number) =>
+    getCycleRange(new Date(selectedDate.getFullYear(), selectedDate.getMonth() - monthsBack, budgetResetDay), budgetResetDay);
+  const prevRange = cycleAt(1);
+  const prevIncomes = sumIn(accountIncomes, prevRange.startDate, prevRange.endDate);
+  const prevExpenses = sumIn(accountExpenses, prevRange.startDate, prevRange.endDate);
+  const monthShort = lang === "es"
+    ? ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
+    : ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const trend: TrendPoint[] = [5, 4, 3, 2, 1, 0].map((back) => {
+    const r = cycleAt(back);
+    return {
+      label: `${monthShort[r.startDate.getMonth()]} ${String(r.startDate.getFullYear()).slice(2)}`,
+      income: sumIn(accountIncomes, r.startDate, r.endDate),
+      expense: sumIn(accountExpenses, r.startDate, r.endDate),
+    };
+  });
+  const topExpenses = [...filteredExpenses].sort((a, b) => b.amount - a.amount).slice(0, 5);
+  const accountNames = Array.from(new Set([...accounts.map((a) => a.name), ...incomes.map((t) => t.account), ...expenses.map((t) => t.account)])).filter(Boolean);
+  const netWorthCurrencies = netWorthByCurrency(accounts);
 
   const totalIncomes = filteredIncomes.reduce((acc, curr) => acc + curr.amount, 0);
   const totalExpenses = filteredExpenses.reduce((acc, curr) => acc + curr.amount, 0);
   const netFlow = totalIncomes - totalExpenses;
   const savingsRate = totalIncomes > 0 ? Math.round((Math.max(netFlow, 0) / totalIncomes) * 100) : 0;
-  // Tarjetas de crédito restan: su saldo es deuda consumida
-  const totalCustody = accounts.reduce((acc, curr) => acc + (isLiability(curr) ? -curr.balance : curr.balance), 0);
 
   // Métricas Patrimoniales y de Solvencia (Fase 2)
   const totalDebts = debts.reduce((acc, curr) => acc + curr.remainingAmount, 0);
   const totalMonthlyDebtPayment = debts.reduce((acc, curr) => acc + curr.monthlyPayment, 0);
-  const netWorth = totalCustody - totalDebts;
+  const netWorth = (netWorthCurrencies[mainCurrency] || 0) - totalDebts;
   const dtiRatio = totalIncomes > 0 ? Math.round((totalMonthlyDebtPayment / totalIncomes) * 100) : 0;
 
   // Score de Salud Financiera FyDry (0 a 100)
@@ -149,7 +210,7 @@ export default function ReportsView() {
   // Recomendaciones analíticas personalizadas
   const cashFlowRecommendation = (() => {
     const isEs = language === "es";
-    const formattedNetFlow = `$${Math.abs(netFlow).toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
+    const formattedNetFlow = money(Math.abs(netFlow));
     const marginPct = totalIncomes > 0 ? Math.round((Math.abs(netFlow) / totalIncomes) * 100) : 0;
 
     if (netFlow > 0) {
@@ -159,8 +220,8 @@ export default function ReportsView() {
     }
     if (netFlow === 0) {
       return isEs
-        ? `Flujo de caja en punto de equilibrio ($0.00). Los ingresos cubren exactamente las salidas; se recomienda priorizar márgenes de holgura operativa para evitar déficits ante contingencias.`
-        : `Operating cash flow is at break-even ($0.00). Incomes precisely balance expenses; generating operating buffer margin is advised to prevent potential deficits.`;
+        ? `Flujo de caja en punto de equilibrio (${money(0)}). Los ingresos cubren exactamente las salidas; se recomienda priorizar márgenes de holgura operativa para evitar déficits ante contingencias.`
+        : `Operating cash flow is at break-even (${money(0)}). Incomes precisely balance expenses; generating operating buffer margin is advised to prevent potential deficits.`;
     }
     return isEs
       ? `Déficit operativo mensual de -${formattedNetFlow} (${marginPct}% por encima del ingreso). Las salidas superan la capacidad de generación del ciclo; audita las categorías con mayor desvío para restaurar el equilibrio de caja.`
@@ -191,9 +252,9 @@ export default function ReportsView() {
 
   const debtRecommendation = (() => {
     const isEs = language === "es";
-    const formattedDebts = `$${totalDebts.toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
-    const formattedNetWorth = `$${netWorth.toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
-    const formattedPayment = `$${totalMonthlyDebtPayment.toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
+    const formattedDebts = money(totalDebts);
+    const formattedNetWorth = money(netWorth);
+    const formattedPayment = money(totalMonthlyDebtPayment);
 
     if (debts.length === 0) {
       return isEs
@@ -244,7 +305,7 @@ export default function ReportsView() {
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
     const link = document.createElement("a");
     link.href = url;
-    link.download = `fydry-${reportScope === "current_cycle" ? cycleLabel.replace(/\s+/g, "-") : "historico"}.csv`;
+    link.download = `fydry-${reportScope === "current_cycle" ? cycleLabel.replace(/\s+/g, "-") : "historico"}${accountFilter !== "all" ? `-${accountFilter.replace(/\s+/g, "-")}` : ""}.csv`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -378,6 +439,21 @@ export default function ReportsView() {
             </button>
           </div>
 
+          <label className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-zinc-200 bg-white text-xs text-zinc-700 shadow-2xs">
+            <Filter className="w-3.5 h-3.5 text-zinc-500" aria-hidden="true" />
+            <span className="sr-only">{lang === "es" ? "Filtrar por cuenta" : "Filter by account"}</span>
+            <select
+              value={accountFilter}
+              onChange={(e) => setAccountFilter(e.target.value)}
+              className="bg-transparent font-semibold text-zinc-900 focus:outline-none cursor-pointer max-w-[160px]"
+            >
+              <option value="all">{lang === "es" ? "Todas las cuentas" : "All accounts"}</option>
+              {accountNames.map((name) => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+          </label>
+
           <button
             type="button"
             onClick={handleExportPDF}
@@ -408,11 +484,13 @@ export default function ReportsView() {
                 FD
               </div>
               <span className="font-extrabold text-xl tracking-tight text-zinc-950">
-                FyDry Financial
+                {lang === "es" ? "Reporte financiero" : "Financial report"}
               </span>
             </div>
-            <p className="text-xs text-zinc-500 font-mono">
-              Consolidated Audit & Intelligence Statement
+            <p className="text-xs text-zinc-500">
+              {accountFilter === "all"
+                ? (lang === "es" ? "Todas las cuentas" : "All accounts")
+                : `${lang === "es" ? "Cuenta" : "Account"}: ${accountFilter}`}
             </p>
           </div>
 
@@ -427,7 +505,7 @@ export default function ReportsView() {
             </div>
             <div>
               <span className="font-semibold text-zinc-900">{t.reports.accountHolder}</span>{" "}
-              Usuario FyDry
+              {holderName || (lang === "es" ? "Usuario FyDry" : "FyDry user")}
             </div>
           </div>
         </div>
@@ -445,21 +523,23 @@ export default function ReportsView() {
             <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200/80 space-y-1">
               <span className="text-[11px] font-semibold text-zinc-500">{t.reports.totalIncomes}</span>
               <div className="text-lg font-bold text-zinc-950">
-                ${totalIncomes.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                {money(totalIncomes)}
               </div>
               <div className="text-[10px] text-zinc-500 font-medium">
-                {language === "es" ? `${filteredIncomes.length} fuentes registradas` : `${filteredIncomes.length} recorded sources`}
+                {language === "es" ? `${filteredIncomes.length} ${filteredIncomes.length === 1 ? "ingreso registrado" : "ingresos registrados"}` : `${filteredIncomes.length} recorded income${filteredIncomes.length === 1 ? "" : "s"}`}
               </div>
+              {reportScope === "current_cycle" && <DeltaBadge current={totalIncomes} previous={prevIncomes} goodWhenUp language={lang} />}
             </div>
 
             <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200/80 space-y-1">
               <span className="text-[11px] font-semibold text-zinc-500">{t.reports.totalExpenses}</span>
               <div className="text-lg font-bold text-zinc-950">
-                ${totalExpenses.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                {money(totalExpenses)}
               </div>
               <div className="text-[10px] text-zinc-500">
                 {totalIncomes > 0 ? Math.round((totalExpenses / totalIncomes) * 100) : 0}% {language === "es" ? "del ingreso" : "of income"}
               </div>
+              {reportScope === "current_cycle" && <DeltaBadge current={totalExpenses} previous={prevExpenses} goodWhenUp={false} language={lang} />}
             </div>
 
             <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200/80 space-y-1">
@@ -469,7 +549,7 @@ export default function ReportsView() {
                   netFlow < 0 ? "text-rose-600" : "text-zinc-950"
                 }`}
               >
-                ${netFlow.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                {money(netFlow)}
               </div>
               <div className="text-[10px] text-zinc-500 font-semibold">
                 {netFlow >= 0
@@ -491,10 +571,10 @@ export default function ReportsView() {
                 {language === "es" ? "Patrimonio Neto" : "Net Worth"}
               </span>
               <div className="text-lg font-bold text-zinc-950">
-                ${netWorth.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                {money(netWorth)}
               </div>
               <div className="text-[10px] text-zinc-500 font-medium">
-                {language === "es" ? "Activos Líquidos - Deudas" : "Liquid Assets - Debts"}
+                {language === "es" ? `Cuentas en ${mainCurrency} - deudas` : `${mainCurrency} accounts - debts`}
               </div>
             </div>
 
@@ -510,6 +590,22 @@ export default function ReportsView() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Tendencia de los últimos 6 periodos */}
+        <div className="report-section avoid-break space-y-3">
+          <div className="border-b border-zinc-100 pb-2 flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-zinc-500" aria-hidden="true" />
+            <div>
+              <h2 className="text-sm font-bold text-zinc-950 uppercase tracking-wide">
+                {lang === "es" ? "Tendencia de ingresos y gastos" : "Income & expense trend"}
+              </h2>
+              <p className="text-xs text-zinc-500">
+                {lang === "es" ? "Últimos 6 periodos hasta el seleccionado. Toca una barra para ver el detalle." : "Last 6 periods up to the selected one. Tap a bar for details."}
+              </p>
+            </div>
+          </div>
+          <TrendChart data={trend} currency={mainCurrency} language={lang} />
         </div>
 
         {/* SECTION 2: Posición de Liquidez y Custodia Bancaria */}
@@ -535,14 +631,14 @@ export default function ReportsView() {
                 {accounts.map((acc) => (
                   <tr key={acc.id}>
                     <td className="py-2.5 px-3 font-bold text-zinc-900">{acc.name}</td>
-                    <td className="py-2.5 px-3 text-zinc-600 uppercase text-[10px] font-semibold">
-                      {acc.type}
+                    <td className="py-2.5 px-3 text-zinc-600 text-[11px] font-medium">
+                      {ACCOUNT_TYPE_LABELS[acc.type]?.[lang] || acc.type}
                     </td>
                     <td className="py-2.5 px-3 text-zinc-500 font-mono text-[11px]">
                       {acc.accountNumber || "—"}
                     </td>
                     <td className="py-2.5 px-3 text-right font-bold text-zinc-900">
-                      ${acc.balance.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                      {isLiability(acc) ? "−" : ""}{formatMoney(acc.balance, acc.currency)}
                     </td>
                   </tr>
                 ))}
@@ -559,8 +655,11 @@ export default function ReportsView() {
                   <td colSpan={3} className="py-2.5 px-3 text-zinc-950 uppercase">
                     {t.reports.totalCustody}
                   </td>
-                  <td className="py-2.5 px-3 text-right text-sm text-zinc-950">
-                    ${totalCustody.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                  <td className="py-2.5 px-3 text-right text-sm text-zinc-950 space-y-0.5">
+                    {Object.entries(netWorthCurrencies).map(([cur, total]) => (
+                      <div key={cur}>{formatMoney(total, cur)}</div>
+                    ))}
+                    {accounts.length === 0 && formatMoney(0, mainCurrency)}
                   </td>
                 </tr>
               </tfoot>
@@ -577,45 +676,41 @@ export default function ReportsView() {
             <p className="text-xs text-zinc-500">{t.reports.section3Desc}</p>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs text-left border-collapse">
-              <thead>
-                <tr className="border-b border-zinc-200 bg-zinc-50 text-zinc-700">
-                  <th className="py-2.5 px-3 font-semibold">{t.reports.categoryCol}</th>
-                  <th className="py-2.5 px-3 font-semibold text-right">{t.reports.spentCol}</th>
-                  <th className="py-2.5 px-3 font-semibold text-right">{t.reports.percentCol}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-100">
-                {Object.entries(expensesByCategory).map(([category, amount]) => {
-                  const percent = totalExpenses > 0 ? Math.round((amount / totalExpenses) * 100) : 0;
-                  return (
-                    <tr key={category}>
-                      <td className="py-2.5 px-3 font-bold text-zinc-900">{category}</td>
-                      <td className="py-2.5 px-3 text-right font-semibold text-zinc-900">
-                        ${amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-                      </td>
-                      <td className="py-2.5 px-3 text-right font-medium text-zinc-500 whitespace-nowrap">
-                        <span>{percent}%</span>
-                        <div className="w-16 h-1.5 bg-zinc-100 rounded-full overflow-hidden inline-block ml-2 align-middle">
-                          <div
-                            className="bg-zinc-950 h-full rounded-full"
-                            style={{ width: `${percent}%` }}
-                          />
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-                {Object.keys(expensesByCategory).length === 0 && (
-                  <tr>
-                    <td colSpan={3} className="py-6 text-center text-zinc-400 text-xs">
-                      Sin gastos categorizados en este período contable.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 print:grid-cols-1">
+            <div className="lg:col-span-3">
+              <CategoryBars
+                items={Object.entries(expensesByCategory)
+                  .map(([category, amount]) => ({ category, amount }))
+                  .sort((a, b) => b.amount - a.amount)}
+                total={totalExpenses}
+                currency={mainCurrency}
+                emptyText={lang === "es" ? "Sin gastos en este periodo." : "No expenses in this period."}
+              />
+            </div>
+            <div className="lg:col-span-2 space-y-2">
+              <h3 className="text-xs font-bold text-zinc-900 flex items-center gap-1.5">
+                <Receipt className="w-3.5 h-3.5 text-zinc-500" aria-hidden="true" />
+                {lang === "es" ? "Gastos más grandes" : "Largest expenses"}
+              </h3>
+              {topExpenses.length === 0 ? (
+                <p className="text-xs text-zinc-400">{lang === "es" ? "Nada que mostrar todavía." : "Nothing to show yet."}</p>
+              ) : (
+                <ol className="divide-y divide-zinc-100 rounded-2xl border border-zinc-200/80">
+                  {topExpenses.map((e, i) => (
+                    <li key={e.id} className="flex items-center justify-between gap-3 px-3 py-2 text-xs">
+                      <span className="flex items-center gap-2 min-w-0">
+                        <span className="w-5 h-5 rounded-full bg-zinc-100 text-[10px] font-bold text-zinc-600 flex items-center justify-center shrink-0">{i + 1}</span>
+                        <span className="min-w-0">
+                          <span className="block font-semibold text-zinc-900 truncate">{e.description}</span>
+                          <span className="block text-[10px] text-zinc-400 truncate">{e.date} · {e.category}</span>
+                        </span>
+                      </span>
+                      <span className="font-bold text-zinc-900 tabular-nums whitespace-nowrap">{money(e.amount)}</span>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </div>
           </div>
         </div>
 
@@ -647,13 +742,13 @@ export default function ReportsView() {
                     <tr key={d.id}>
                       <td className="py-2.5 px-3 font-bold text-zinc-900">{d.creditor}</td>
                       <td className="py-2.5 px-3 text-right font-medium text-zinc-600">
-                        ${d.totalAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                        {money(d.totalAmount)}
                       </td>
                       <td className="py-2.5 px-3 text-right font-bold text-zinc-950">
-                        ${d.remainingAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                        {money(d.remainingAmount)}
                       </td>
                       <td className="py-2.5 px-3 text-right font-semibold text-zinc-800">
-                        ${d.monthlyPayment}/mes
+                        {money(d.monthlyPayment)}{lang === "es" ? "/mes" : "/mo"}
                       </td>
                       <td className="py-2.5 px-3 text-right font-bold text-zinc-950">{percent}%</td>
                     </tr>
@@ -690,7 +785,7 @@ export default function ReportsView() {
                   {language === "es" ? "Diagnóstico Algorítmico FyDry" : "FyDry Algorithmic Diagnostic"}
                 </div>
                 <div className="text-sm sm:text-base font-bold text-white tracking-tight">
-                  {language === "es" ? "Índice de Salud Financiera" : "Financial Health Score"}: {healthScore} / 100 · {healthLabel}
+                  {language === "es" ? "Salud de este periodo" : "Health of this period"}: {healthScore} / 100 · {healthLabel}
                 </div>
               </div>
             </div>
@@ -751,7 +846,7 @@ export default function ReportsView() {
         {/* Formal Footer Watermark */}
         <div className="report-section avoid-break pt-6 border-t border-zinc-200 flex flex-col sm:flex-row items-center justify-between text-[11px] text-zinc-400 gap-2">
           <span>{t.reports.footerWatermark}</span>
-          <span>FyDry Financial Intelligence • Security Grade A+</span>
+          <span>{lang === "es" ? "Generado con FyDry" : "Generated with FyDry"}</span>
         </div>
       </div>
     </div>
