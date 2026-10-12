@@ -5,7 +5,7 @@ export const translations = {
     brand: {
       name: "FyDry",
       tagline: "Control Financiero",
-      securityTag: "Encriptación Bancaria SSL",
+      securityTag: "Conexión cifrada (HTTPS)",
     },
     nav: {
       home: "Inicio",
@@ -50,7 +50,7 @@ export const translations = {
       emptyDesc: "Registra tus primeros gastos o ingresos para comenzar a visualizar tu flujo financiero.",
     },
     home: {
-      mentalPeace: "Paz Mental Financiera: 98%",
+      mentalPeace: "Paz Mental",
       title: "Resumen General",
       subtitle: "Tus finanzas están bajo control. Tus gastos fijos del mes están cubiertos.",
       addExpense: "Registrar Gasto",
@@ -303,7 +303,7 @@ export const translations = {
     brand: {
       name: "FyDry",
       tagline: "Financial Control",
-      securityTag: "SSL Bank Grade Encryption",
+      securityTag: "Encrypted connection (HTTPS)",
     },
     nav: {
       home: "Dashboard",
@@ -348,7 +348,7 @@ export const translations = {
       emptyDesc: "Start adding your income or expenses to track your consolidated cash flow.",
     },
     home: {
-      mentalPeace: "Financial Peace Score: 98%",
+      mentalPeace: "Peace of Mind",
       title: "Overview",
       subtitle: "Your finances are under control. Your monthly fixed expenses are covered.",
       addExpense: "Add Expense",

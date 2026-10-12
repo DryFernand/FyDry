@@ -20,7 +20,7 @@ export default function CTASection() {
           <div className="relative z-10 max-w-2xl mx-auto text-center flex flex-col items-center">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-300 text-xs font-medium mb-6">
               <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Únete a más de 12,000 usuarios libres de estrés financiero</span>
+              <span>Gratis, en pesos y dólares</span>
             </div>
 
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-white leading-tight">
@@ -29,33 +29,29 @@ export default function CTASection() {
             </h2>
 
             <p className="mt-4 text-base text-zinc-400 max-w-lg">
-              Empieza en menos de 1 minuto sin necesidad de tarjeta de crédito. Descubre la paz de tener el control total de tu dinero.
+              Crea tu cuenta sin tarjeta de crédito y descubre cuánto puedes gastar hoy sin perder de vista tus metas.
             </p>
 
             {/* Email Capture or CTA Action */}
-            <div className="mt-8 flex flex-col sm:flex-row items-center gap-3 w-full max-w-md">
-              <input
-                type="email"
-                placeholder="tu@correo.com"
-                className="w-full px-4 py-3 rounded-xl bg-zinc-900/90 border border-zinc-800 text-white text-sm placeholder:text-zinc-500 focus:outline-none focus:border-zinc-500 transition-colors"
-              />
-              <motion.button
+            <div className="mt-8 flex justify-center w-full">
+              <motion.a
+                href="/register"
                 whileHover={{ scale: 1.03 }}
                 whileTap={{ scale: 0.97 }}
-                className="w-full sm:w-auto shrink-0 inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-white hover:bg-zinc-100 text-zinc-950 font-semibold text-sm transition-all shadow-md"
+                className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-white hover:bg-zinc-100 text-zinc-950 font-semibold text-sm transition-all shadow-md"
               >
                 <span>Empezar Gratis</span>
                 <ArrowRight className="w-4 h-4" />
-              </motion.button>
+              </motion.a>
             </div>
 
             <div className="mt-6 flex items-center justify-center gap-6 text-xs text-zinc-400">
               <span className="flex items-center gap-1.5">
                 <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                Prueba gratuita de 14 días
+                Sin tarjeta de crédito
               </span>
               <span>•</span>
-              <span>Sin permanencia</span>
+              <span>Exporta tus datos cuando quieras</span>
             </div>
           </div>
         </motion.div>

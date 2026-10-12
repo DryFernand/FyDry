@@ -207,7 +207,7 @@ export default function AuthCard({ initialView = "login" }: AuthCardProps) {
       >
         <span className="flex items-center gap-1">
           <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-          <span>Encriptación Bancaria SSL</span>
+          <span>Conexión cifrada (HTTPS)</span>
         </span>
         <span>•</span>
         <span>FyDry 1.0</span>

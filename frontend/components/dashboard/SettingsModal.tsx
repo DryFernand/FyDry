@@ -195,7 +195,7 @@ export default function SettingsModal({
     const sync = await connectEmailSyncApi(syncGmailEmail);
     setEmailSyncData(sync);
     setIsConnectingEmail(false);
-    setScanFeedback("Cuenta de Google vinculada correctamente para escaneo de transacciones.");
+    setScanFeedback("Correo registrado. Te avisaremos cuando la lectura automática esté disponible.");
     setTimeout(() => setScanFeedback(""), 4000);
   };
 
@@ -633,10 +633,10 @@ export default function SettingsModal({
               <div className="space-y-4">
                 <div>
                   <h3 className="text-sm font-bold text-zinc-950">
-                    Automatización de Correos Bancarios (Google Gmail)
+                    Automatización de Correos Bancarios (Google Gmail) · Próximamente
                   </h3>
                   <p className="text-xs text-zinc-500 mt-1">
-                    Detecta automáticamente notificaciones bancarias de compras, nóminas y traspasos para crear borradores instantáneos.
+                    Pronto FyDry podrá leer las notificaciones de tu banco para crear borradores de gastos e ingresos. Puedes dejar tu correo registrado; todavía no se lee ningún correo.
                   </p>
                 </div>
 

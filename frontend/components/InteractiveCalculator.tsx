@@ -5,12 +5,12 @@ import { motion } from "motion/react";
 import { Calculator, Sparkles, TrendingUp, HeartHandshake, ShieldAlert } from "lucide-react";
 
 export default function InteractiveCalculator() {
-  const [ingreso, setIngreso] = useState<number>(3000);
-  const [gastos, setGastos] = useState<number>(2400);
+  const [ingreso, setIngreso] = useState<number>(60000);
+  const [gastos, setGastos] = useState<number>(48000);
 
-  // Estimación de ahorro con FyDry (fugas detectadas + mejor presupuestación promedio ~18%)
+  // Estimación ilustrativa: supone recortar el 10% de los gastos al detectar fugas (no es un promedio de usuarios)
   const ahorroActual = Math.max(0, ingreso - gastos);
-  const ahorroEstimadoConFyDry = Math.round(ahorroActual + gastos * 0.15);
+  const ahorroEstimadoConFyDry = Math.round(ahorroActual + gastos * 0.1);
   const ahorroAnualExtra = (ahorroEstimadoConFyDry - ahorroActual) * 12;
   const tasaAhorro = Math.min(100, Math.round((ahorroEstimadoConFyDry / ingreso) * 100)) || 0;
 
@@ -66,14 +66,14 @@ export default function InteractiveCalculator() {
                   Tus Ingresos Mensuales
                 </label>
                 <span className="text-base font-bold text-zinc-900 bg-zinc-100 px-3 py-1 rounded-md">
-                  ${ingreso.toLocaleString()} USD
+                  RD$ {ingreso.toLocaleString("en-US")}
                 </span>
               </div>
               <input
                 type="range"
-                min="1000"
-                max="15000"
-                step="200"
+                min="15000"
+                max="300000"
+                step="5000"
                 value={ingreso}
                 onChange={(e) => {
                   const val = Number(e.target.value);
@@ -83,9 +83,9 @@ export default function InteractiveCalculator() {
                 className="w-full h-2 bg-zinc-200 rounded-lg appearance-none cursor-pointer accent-zinc-900"
               />
               <div className="flex justify-between text-[11px] text-zinc-400 mt-1">
-                <span>$1,000</span>
-                <span>$8,000</span>
-                <span>$15,000+</span>
+                <span>RD$ 15,000</span>
+                <span>RD$ 150,000</span>
+                <span>RD$ 300,000+</span>
               </div>
             </div>
 
@@ -96,22 +96,22 @@ export default function InteractiveCalculator() {
                   Tus Gastos Mensuales Estimados
                 </label>
                 <span className="text-base font-bold text-zinc-900 bg-zinc-100 px-3 py-1 rounded-md">
-                  ${gastos.toLocaleString()} USD
+                  RD$ {gastos.toLocaleString("en-US")}
                 </span>
               </div>
               <input
                 type="range"
-                min="500"
+                min="5000"
                 max={ingreso}
-                step="100"
+                step="1000"
                 value={gastos}
                 onChange={(e) => setGastos(Number(e.target.value))}
                 className="w-full h-2 bg-zinc-200 rounded-lg appearance-none cursor-pointer accent-zinc-900"
               />
               <div className="flex justify-between text-[11px] text-zinc-400 mt-1">
-                <span>$500</span>
-                <span>${(ingreso / 2).toLocaleString()}</span>
-                <span>${ingreso.toLocaleString()}</span>
+                <span>RD$ 5,000</span>
+                <span>RD$ {(ingreso / 2).toLocaleString("en-US")}</span>
+                <span>RD$ {ingreso.toLocaleString("en-US")}</span>
               </div>
             </div>
 
@@ -119,7 +119,7 @@ export default function InteractiveCalculator() {
             <div className="p-3.5 rounded-xl bg-zinc-50 border border-zinc-200/80 flex items-start gap-3">
               <Sparkles className="w-4 h-4 text-zinc-900 shrink-0 mt-0.5" />
               <p className="text-xs text-zinc-600 leading-relaxed">
-                Al tener claridad de tus gastos fijos y variables, los usuarios de FyDry reducen en promedio un <strong>15% de gastos innecesarios</strong> en sus primeros 60 días.
+                Estimación ilustrativa: supone que, al ver tus gastos hormiga y cargos mensuales, recortas un <strong>10% de tus gastos</strong>. Tu resultado real dependerá de tus hábitos.
               </p>
             </div>
           </div>
@@ -131,7 +131,7 @@ export default function InteractiveCalculator() {
                 Proyección con FyDry
               </div>
               <div className="text-3xl sm:text-4xl font-bold tracking-tight text-white mt-2">
-                +${ahorroAnualExtra.toLocaleString()}
+                +RD$ {ahorroAnualExtra.toLocaleString("en-US")}
                 <span className="text-sm font-normal text-zinc-400 ml-1.5">/ año</span>
               </div>
               <p className="text-xs text-zinc-400 mt-1">
@@ -142,7 +142,7 @@ export default function InteractiveCalculator() {
             <div className="mt-6 pt-5 border-t border-zinc-800 space-y-3.5">
               <div className="flex justify-between items-center text-xs">
                 <span className="text-zinc-400">Ahorro mensual proyectado:</span>
-                <span className="font-semibold text-emerald-400">${ahorroEstimadoConFyDry.toLocaleString()} / mes</span>
+                <span className="font-semibold text-emerald-400">RD$ {ahorroEstimadoConFyDry.toLocaleString("en-US")} / mes</span>
               </div>
               <div className="flex justify-between items-center text-xs">
                 <span className="text-zinc-400">Tasa de ahorro total:</span>
@@ -158,7 +158,7 @@ export default function InteractiveCalculator() {
             </div>
 
             <a
-              href="#empezar"
+              href="/register"
               className="mt-6 w-full text-center py-2.5 px-4 rounded-lg bg-white text-zinc-950 font-medium text-xs hover:bg-zinc-100 transition-colors shadow-xs"
             >
               Comenzar a optimizar ahora

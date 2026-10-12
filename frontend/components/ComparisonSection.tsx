@@ -7,27 +7,27 @@ const comparisons = [
   {
     feature: "Facilidad de registro",
     traditional: "Introducción manual en hojas de cálculo lentas o apps complejas",
-    fydry: "Entrada ultra-rápida en lenguaje natural o 1 solo toque",
+    fydry: "Formulario rápido o pídeselo al asistente IA; los fijos se registran solos",
   },
   {
     feature: "Carga mental y estrés",
     traditional: "Decenas de gráficos saturados, balances confusos y culpa",
-    fydry: "Modo Paz Mental: 1 métrica clave clara y disponible diario",
+    fydry: "Plan y Metas: cuánto puedes gastar hoy y un puntaje de 0 a 100",
   },
   {
     feature: "Detección de gastos hormiga",
     traditional: "Debes revisar manualmente cada extracto bancario a fin de mes",
-    fydry: "Alertas automáticas de micropagos y suscripciones olvidadas",
+    fydry: "Detecta gastos pequeños repetidos y cargos que se cobran cada mes",
   },
   {
     feature: "Curva de aprendizaje",
     traditional: "Días para configurar plantillas, fórmulas y pestañas de Excel",
-    fydry: "Listo para usar en 30 segundos, sin configuración previa",
+    fydry: "Onboarding guiado y categorías listas para usar",
   },
   {
     feature: "Privacidad y Control",
     traditional: "Apps tradicionales que venden datos a intermediarios de crédito",
-    fydry: "100% privado, cifrado de extremo a extremo, exportable en 1 clic",
+    fydry: "No vendemos tus datos, conexión cifrada y exportación CSV en 1 clic",
   },
 ];
 

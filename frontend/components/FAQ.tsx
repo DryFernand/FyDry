@@ -8,27 +8,37 @@ const faqs = [
   {
     question: "¿Qué diferencia a FyDry de otras aplicaciones de finanzas?",
     answer:
-      "La mayoría de apps financieras son complejas, están repletas de publicidad o te abruman con decenas de gráficos innecesarios. FyDry fue creada bajo una filosofía minimalista: darte una visión clara de tus finanzas en menos de 30 segundos al día, con un enfoque en la tranquilidad mental y la reducción de fricción.",
+      "La mayoría de apps financieras son complejas, están repletas de publicidad o te abruman con decenas de gráficos innecesarios. FyDry fue creada bajo una filosofía minimalista: darte una visión clara de tus finanzas en pesos y dólares, decirte cuánto puedes gastar hoy y avisarte antes de que una tarjeta o un presupuesto se salga de control.",
   },
   {
     question: "¿Están seguros mis datos financieros?",
     answer:
-      "Absolutamente. Toda la información está protegida con cifrado de grado bancario AES-256 bits y TLS en tránsito. No vendemos tus datos a intermediarios publicitarios ni a entidades de crédito.",
+      "Tus datos viajan cifrados (HTTPS/TLS), tu contraseña se guarda con hash bcrypt y cada consulta está aislada a tu usuario. No pedimos claves de tu banco y no vendemos tus datos a terceros.",
   },
   {
-    question: "¿Cómo funciona la auto-categorización con inteligencia artificial?",
+    question: "¿Cómo funciona el asistente con inteligencia artificial?",
     answer:
-      "Solo necesitas escribir o dictar lo que gastaste (ejemplo: 'Cafetería centro 4.50'). Nuestra IA identifica el contexto, clasifica el gasto en la categoría correcta y actualiza tu balance disponible instantáneamente.",
+      "Escríbele en el chat lo que hiciste (ejemplo: 'Cena con amigos 1,500 con la Visa'). El asistente identifica monto, cuenta y categoría, te pide lo que falte y prepara el registro para que lo confirmes antes de guardarlo.",
   },
   {
     question: "¿Puedo exportar mi información si decido cambiar de herramienta?",
     answer:
-      "Sí, tus datos te pertenecen. Puedes exportar todo tu historial en formato CSV, Excel o PDF estructurado en cualquier momento con un solo clic.",
+      "Sí, tus datos te pertenecen. Desde Reportes puedes exportar tus transacciones a CSV (se abre en Excel) o imprimir el reporte en PDF.",
   },
   {
     question: "¿Qué es el 'Modo Paz Mental'?",
     answer:
-      "Es una vista simplificada que calcula automáticamente tu presupuesto disponible diario para gastos no esenciales. En lugar de preocuparte por fórmulas complejas, sabes exactamente cuánto puedes disfrutar hoy sin afectar tus metas del mes.",
+      "Es la vista Plan y Metas: toma el dinero de tus cuentas (sin tarjetas ni ahorros), le resta los gastos fijos que faltan este periodo y el aporte a tus metas, y lo divide entre los días que quedan. Así sabes cuánto puedes gastar hoy. Además te da un puntaje de 0 a 100.",
+  },
+  {
+    question: "¿Cuánto cuesta?",
+    answer:
+      "Todo lo que FyDry hace hoy es gratis y sin tarjeta. Habrá un plan Pro con funciones extra (como leer los correos de tu banco), pero lo que hoy es gratis seguirá siéndolo.",
+  },
+  {
+    question: "¿Se conecta automáticamente con mi banco?",
+    answer:
+      "Todavía no. Registras tus movimientos en segundos con el formulario rápido o pidiéndoselo al asistente, y tus gastos fijos se registran solos con los recurrentes. La lectura automática de correos bancarios está en camino.",
   },
 ];
 

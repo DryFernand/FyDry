@@ -1,32 +1,32 @@
 "use client";
 
 import { motion } from "motion/react";
-import { Sparkles, Clock, Smile, Lock } from "lucide-react";
+import { Coins, Bot, BellRing, FileDown } from "lucide-react";
 
 const stats = [
   {
-    icon: Smile,
-    value: "99.2%",
-    label: "Menos estrés financiero",
-    subtext: "Claridad total de finanzas en 1 solo vistazo",
+    icon: Coins,
+    value: "RD$ · US$",
+    label: "Pesos y dólares",
+    subtext: "Cada cuenta en su moneda, sin mezclar totales",
   },
   {
-    icon: Clock,
-    value: "< 30s",
-    label: "Tiempo diario invertido",
-    subtext: "Registro veloz y categorización con IA",
+    icon: Bot,
+    value: "IA",
+    label: "Asistente conversacional",
+    subtext: "Pídele que registre un gasto y confírmalo",
   },
   {
-    icon: Sparkles,
-    value: "+24%",
-    label: "Ahorro promedio mensual",
-    subtext: "Detección de fugas y gastos hormiga",
+    icon: BellRing,
+    value: "5",
+    label: "Tipos de alertas",
+    subtext: "Corte, pago, sobregiro, saldo mínimo y presupuesto",
   },
   {
-    icon: Lock,
-    value: "256-bit",
-    label: "Cifrado de grado bancario",
-    subtext: "Tus datos nunca se venden ni se comparten",
+    icon: FileDown,
+    value: "CSV · PDF",
+    label: "Tus datos son tuyos",
+    subtext: "Exporta tu historial cuando quieras",
   },
 ];
 

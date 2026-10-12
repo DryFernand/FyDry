@@ -57,9 +57,9 @@ export default function Hero() {
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
           </div>
           <div className="text-xs text-zinc-500 flex items-center gap-1.5 mt-0.5">
-            <span className="font-bold text-zinc-900">-$24.50</span>
-            <span className="text-[10px] bg-emerald-50 text-emerald-700 font-medium px-1.5 py-0.2 rounded">
-              Evitado
+            <span className="font-bold text-zinc-900">RD$ 900</span>
+            <span className="text-[10px] bg-amber-50 text-amber-700 font-medium px-1.5 py-0.2 rounded">
+              café ×6 este mes
             </span>
           </div>
         </div>
@@ -90,9 +90,9 @@ export default function Hero() {
         <div>
           <div className="text-[11px] font-semibold text-zinc-900 flex items-center gap-1">
             <span>Paz Mental</span>
-            <span className="text-[10px] text-emerald-600 font-bold">98.4%</span>
+            <span className="text-[10px] text-emerald-600 font-bold">82/100</span>
           </div>
-          <div className="text-[11px] text-zinc-500">Cero estrés financiero</div>
+          <div className="text-[11px] text-zinc-500">Tu puntaje de este mes</div>
         </div>
       </motion.div>
 
@@ -115,7 +115,7 @@ export default function Hero() {
         className="hidden xl:flex items-center gap-2.5 absolute bottom-44 right-10 z-20 py-2.5 px-4 rounded-xl bg-zinc-900 text-white shadow-xl text-xs"
       >
         <Sparkles className="w-4 h-4 text-emerald-400 animate-spin" style={{ animationDuration: "8s" }} />
-        <span>Categorizado con IA en 0.2s</span>
+        <span>Asistente IA: &quot;Cena 1,500 con la Visa&quot;</span>
       </motion.div>
 
       {/* Floating Card 4: Ahorro Promedio Mensual (Mid-Left Floating Badge) */}
@@ -137,7 +137,7 @@ export default function Hero() {
         className="hidden xl:flex items-center gap-2.5 absolute bottom-36 left-12 z-20 py-2.5 px-4 rounded-xl bg-white border border-zinc-200 shadow-lg text-xs font-semibold text-zinc-800"
       >
         <TrendingUp className="w-4 h-4 text-emerald-600" />
-        <span>+$380 Ahorro promedio/mes</span>
+        <span>Disponible hoy: RD$ 1,250</span>
       </motion.div>
 
       <div className="relative max-w-6xl mx-auto px-4 sm:px-6">
@@ -163,7 +163,7 @@ export default function Hero() {
             transition={{ duration: 0.6, delay: 0.15 }}
             className="mt-6 text-lg sm:text-xl text-zinc-600 max-w-2xl font-normal leading-relaxed"
           >
-            Una experiencia minimalista e intuitiva para registrar, categorizar y optimizar tus finanzas personales sin estrés ni hojas de cálculo complicadas.
+            Registra gastos e ingresos en pesos y dólares, controla tarjetas, deudas y presupuestos, y descubre cuánto puedes gastar hoy sin hojas de cálculo complicadas.
           </motion.p>
 
           {/* CTA Buttons */}
@@ -201,15 +201,15 @@ export default function Hero() {
           >
             <div className="flex items-center gap-1.5">
               <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-              <span>Sin tarjeta de crédito</span>
+              <span>Gratis, sin tarjeta</span>
             </div>
             <div className="flex items-center gap-1.5">
               <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-              <span>Cifrado de grado bancario</span>
+              <span>Pesos (RD$) y dólares (US$)</span>
             </div>
             <div className="flex items-center gap-1.5">
               <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-              <span>Exportación instantánea</span>
+              <span>Exporta a CSV y PDF</span>
             </div>
           </motion.div>
         </div>
@@ -260,7 +260,7 @@ export default function Hero() {
                     : "text-zinc-600 hover:bg-zinc-100"
                 }`}
               >
-                Paz Mental 98%
+                Paz Mental
               </button>
             </div>
           </div>
@@ -278,10 +278,10 @@ export default function Hero() {
                   <span>Balance Disponible</span>
                   <Wallet className="w-4 h-4 text-zinc-400" />
                 </div>
-                <div className="text-3xl font-bold text-zinc-900 tracking-tight">$3,450.00</div>
+                <div className="text-3xl font-bold text-zinc-900 tracking-tight">RD$ 48,500</div>
                 <div className="mt-2 inline-flex items-center gap-1 text-xs text-emerald-600 font-medium">
                   <TrendingUp className="w-3.5 h-3.5" />
-                  <span>+18.4% ahorro este mes</span>
+                  <span>Disponible hoy: RD$ 1,250</span>
                 </div>
               </div>
 
@@ -313,28 +313,28 @@ export default function Hero() {
                       <span className="w-2.5 h-2.5 rounded-full bg-zinc-900" />
                       Vivienda & Servicios
                     </span>
-                    <span className="font-semibold text-zinc-900">$1,200.00</span>
+                    <span className="font-semibold text-zinc-900">RD$ 18,000</span>
                   </div>
                   <div className="flex items-center justify-between text-xs">
                     <span className="flex items-center gap-2 text-zinc-700">
                       <span className="w-2.5 h-2.5 rounded-full bg-zinc-500" />
                       Alimentación & Super
                     </span>
-                    <span className="font-semibold text-zinc-900">$480.00</span>
+                    <span className="font-semibold text-zinc-900">RD$ 9,600</span>
                   </div>
                   <div className="flex items-center justify-between text-xs">
                     <span className="flex items-center gap-2 text-zinc-700">
                       <span className="w-2.5 h-2.5 rounded-full bg-zinc-300" />
                       Ocio & Suscripciones
                     </span>
-                    <span className="font-semibold text-zinc-900">$190.00</span>
+                    <span className="font-semibold text-zinc-900">RD$ 2,350</span>
                   </div>
                 </div>
               </div>
 
               <div className="mt-4 pt-3 border-t border-zinc-200/60 flex items-center justify-between text-xs text-zinc-500">
                 <span>Gastos Hormiga Detectados</span>
-                <span className="text-amber-600 font-medium">$42.50 / semana</span>
+                <span className="text-amber-600 font-medium">RD$ 2,100 / mes</span>
               </div>
             </motion.div>
 
@@ -357,21 +357,21 @@ export default function Hero() {
                       <div className="text-xs font-medium text-zinc-800">Supermercado Local</div>
                       <div className="text-[10px] text-zinc-400">Hoy, 10:45 AM</div>
                     </div>
-                    <span className="text-xs font-semibold text-zinc-900">-$64.20</span>
+                    <span className="text-xs font-semibold text-zinc-900">-RD$ 3,240</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <div>
                       <div className="text-xs font-medium text-zinc-800">Ingreso Freelance / Proyecto</div>
                       <div className="text-[10px] text-zinc-400">Ayer, 4:12 PM</div>
                     </div>
-                    <span className="text-xs font-semibold text-emerald-600">+$1,400.00</span>
+                    <span className="text-xs font-semibold text-emerald-600">+RD$ 25,000</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <div>
-                      <div className="text-xs font-medium text-zinc-800">Suscripción Música</div>
+                      <div className="text-xs font-medium text-zinc-800">Netflix (recurrente)</div>
                       <div className="text-[10px] text-zinc-400">24 Ago, 8:00 AM</div>
                     </div>
-                    <span className="text-xs font-semibold text-zinc-900">-$9.99</span>
+                    <span className="text-xs font-semibold text-zinc-900">-RD$ 650</span>
                   </div>
                 </div>
               </div>
@@ -379,9 +379,9 @@ export default function Hero() {
               <div className="mt-4 pt-3 border-t border-zinc-200/60 flex items-center justify-between text-xs text-zinc-600">
                 <span className="flex items-center gap-1">
                   <Zap className="w-3.5 h-3.5 text-zinc-900" />
-                  Auto-categorizado
+                  Con asistente IA
                 </span>
-                <span className="text-xs font-medium text-zinc-900">100% al día</span>
+                <span className="text-xs font-medium text-zinc-900">Al día</span>
               </div>
             </motion.div>
           </div>

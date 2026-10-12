@@ -1,6 +1,6 @@
 # 🌿 FyDry — Ordena tus gastos, tranquiliza tu mente
 
-> Plataforma financiera personal y empresarial minimalista diseñada con estética Geist, seguridad bancaria, protección contra fuerza bruta escalonada, autenticación Google/GitHub OAuth, sistema de Onboarding, auditoría patrimonial y exportación ejecutiva a PDF.
+> Plataforma de finanzas personales minimalista (RD$ y US$) con estética Geist, protección contra fuerza bruta escalonada, autenticación Google/GitHub OAuth, sistema de Onboarding, plan "disponible hoy", gastos hormiga, recurrentes, metas de ahorro, asistente IA y exportación CSV/PDF.
 
 ---
 
@@ -25,7 +25,7 @@
    - **Inicio**: Balance neto, flujo mensual, Paz Mental (98%) y movimientos recientes.
    - **Cuentas**: Liquidez en bancos, tarjetas, billeteras y efectivo.
    - **Gastos**: Desglose de gastos fijos necesarios vs variables y filtros por categoría.
-   - **Ingresos**: Nóminas, clientes freelance y recurrencias.
+   - **Ingresos**: Nóminas, clientes freelance y recurrentes automáticos.
    - **Presupuesto**: Límites mensuales con alertas preventivas al 85%+.
    - **Deudas**: Monitoreo de pasivos, amortización y cuotas mensuales.
    - **Reporte**: Informe financiero estructurado para exportación limpia a PDF.

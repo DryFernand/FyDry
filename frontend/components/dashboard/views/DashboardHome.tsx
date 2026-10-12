@@ -18,13 +18,14 @@ import {
   CreditCard,
   Banknote,
 } from "lucide-react";
-import { DashboardTab, TransactionItem, AccountItem, BudgetItem } from "../types";
+import { DashboardTab, TransactionItem, AccountItem, BudgetItem, InsightsData } from "../types";
 import { useLanguage } from "@/context/LanguageContext";
 import {
   fetchAccountsApi,
   fetchTransactionsApi,
   fetchUserSettingsApi,
   fetchBudgetsApi,
+  fetchInsightsApi,
 } from "@/lib/api";
 import {
   getCycleRange,
@@ -99,14 +100,17 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
   const [budgets, setBudgets] = useState<BudgetItem[]>([]);
   const [budgetResetDay, setBudgetResetDay] = useState<number>(1);
+  const [insights, setInsights] = useState<InsightsData | null>(null);
 
   const loadData = async () => {
-    const [accData, txData, settingsData, budgetsData] = await Promise.all([
+    const [accData, txData, settingsData, budgetsData, insightsData] = await Promise.all([
       fetchAccountsApi(),
       fetchTransactionsApi(),
       fetchUserSettingsApi(),
       fetchBudgetsApi(),
+      fetchInsightsApi(),
     ]);
+    setInsights(insightsData);
     setAccounts(accData);
     setTransactions(txData);
     setBudgets(budgetsData);
@@ -158,11 +162,16 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
   const expenseRatio = totalIncomes > 0 ? Math.round((totalExpenses / totalIncomes) * 100) : 0;
 
   const totalBudgetAllocated = budgets.reduce((acc, b) => acc + (b.allocated || 0), 0);
+  // Solo cuentan los gastos de categorías con presupuesto
+  const budgetedCategories = new Set(budgets.map((b) => b.category.trim().toLowerCase()));
+  const budgetedSpent = expenseTransactions
+    .filter((t) => budgetedCategories.has(t.category.trim().toLowerCase()))
+    .reduce((acc, curr) => acc + curr.amount, 0);
   const budgetConsumedPercent =
     totalBudgetAllocated > 0
-      ? Math.round((totalExpenses / totalBudgetAllocated) * 100)
+      ? Math.round((budgetedSpent / totalBudgetAllocated) * 100)
       : 0;
-  const budgetRemaining = Math.max(0, totalBudgetAllocated - totalExpenses);
+  const budgetRemaining = Math.max(0, totalBudgetAllocated - budgetedSpent);
 
   return (
     <div className="space-y-6">
@@ -183,8 +192,20 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-semibold backdrop-blur-md">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                <span>{t.home.mentalPeace}</span>
+                <span>
+                  {t.home.mentalPeace}
+                  {insights ? `: ${insights.peace_score}/100` : ""}
+                </span>
               </span>
+              {insights && (
+                <button
+                  type="button"
+                  onClick={() => onNavigate("planning")}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-zinc-100 text-xs font-semibold border border-white/10 backdrop-blur-md cursor-pointer hover:bg-white/20"
+                >
+                  {language === "en" ? "Available today" : "Disponible hoy"}: {formatMoney(insights.daily_allowance, insights.currency)}
+                </button>
+              )}
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-zinc-300 text-xs font-medium border border-white/10 backdrop-blur-md">
                 <Calendar className="w-3.5 h-3.5 text-zinc-400" />
                 <span>{cycleLabel}</span>
@@ -404,10 +425,10 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
                 </div>
                 <div className="text-[10px] text-zinc-400 flex items-center justify-between">
                   <span>
-                    ${totalExpenses.toLocaleString("en-US", { maximumFractionDigits: 0 })} / ${totalBudgetAllocated.toLocaleString("en-US", { maximumFractionDigits: 0 })}
+                    {formatMoney(budgetedSpent, mainCurrency)} / {formatMoney(totalBudgetAllocated, mainCurrency)}
                   </span>
                   <span className="font-medium text-zinc-500">
-                    ${budgetRemaining.toLocaleString("en-US", { maximumFractionDigits: 0 })}{" "}
+                    {formatMoney(budgetRemaining, mainCurrency)}{" "}
                     {language === "en" ? "left" : "disponible"}
                   </span>
                 </div>
@@ -597,7 +618,7 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
                       item.type === "income" ? "text-emerald-600" : "text-zinc-950"
                     }`}
                   >
-                    {item.type === "income" ? "+" : "-"}${item.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                    {item.type === "income" ? "+" : "-"}{formatMoney(item.amount, accounts.find((a) => a.name === item.account)?.currency || mainCurrency)}
                   </div>
                   <div className="text-[10px] font-medium text-zinc-400 mt-0.5">
                     {formatMovementDate(item.date, item.createdAt, (language as "es" | "en") || "es")}

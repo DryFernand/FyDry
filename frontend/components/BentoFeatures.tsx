@@ -18,57 +18,57 @@ const features = [
   {
     title: "Detección de Fugas y Gastos Hormiga",
     description:
-      "Identifica micropagos inadvertidos, cafés diarios o suscripciones inactivas que drenan tu dinero cada mes sin que te des cuenta.",
+      "Agrupa tus gastos pequeños de los últimos 30 días y detecta cargos que se repiten cada mes con el mismo monto, para que decidas qué cortar.",
     icon: TrendingDown,
     tag: "Ahorro Inteligente",
     colSpan: "md:col-span-2",
     preview: (
       <div className="mt-4 p-3 rounded-lg bg-zinc-50 border border-zinc-200/80 text-xs">
         <div className="flex items-center justify-between text-zinc-600 mb-2">
-          <span className="font-medium text-zinc-900">3 Suscripciones duplicadas detectadas</span>
-          <span className="text-amber-600 font-semibold">-$28.99/mes</span>
+          <span className="font-medium text-zinc-900">3 cargos mensuales detectados</span>
+          <span className="text-amber-600 font-semibold">-RD$ 1,650/mes</span>
         </div>
         <div className="flex gap-2">
-          <span className="px-2 py-1 bg-white rounded border border-zinc-200 text-[10px] text-zinc-700">Streaming A</span>
-          <span className="px-2 py-1 bg-white rounded border border-zinc-200 text-[10px] text-zinc-700">Gym App</span>
-          <span className="px-2 py-1 bg-white rounded border border-zinc-200 text-[10px] text-zinc-700">Cloud Storage</span>
+          <span className="px-2 py-1 bg-white rounded border border-zinc-200 text-[10px] text-zinc-700">Netflix</span>
+          <span className="px-2 py-1 bg-white rounded border border-zinc-200 text-[10px] text-zinc-700">Gimnasio</span>
+          <span className="px-2 py-1 bg-white rounded border border-zinc-200 text-[10px] text-zinc-700">iCloud</span>
         </div>
       </div>
     ),
   },
   {
-    title: "Auto-Categorización con IA",
+    title: "Asistente con IA",
     description:
-      "Escribe 'Cena con amigos 25' y FyDry interpretará el monto, fecha y categoría automáticamente en milisegundos.",
+      "Escribe 'Cena con amigos 1,500 con la Visa' y el asistente prepara el gasto con monto, cuenta y categoría para que lo confirmes.",
     icon: BrainCircuit,
     tag: "Automatización",
     colSpan: "md:col-span-1",
     preview: (
       <div className="mt-4 p-3 rounded-lg bg-zinc-900 text-white text-xs font-mono">
         <div className="text-zinc-400">&gt; Entrada rápida:</div>
-        <div className="text-emerald-400 mt-1">&quot;Uber al aeropuerto $35&quot;</div>
-        <div className="text-zinc-300 text-[10px] mt-2">✓ Guardado en Transporte</div>
+        <div className="text-emerald-400 mt-1">&quot;Uber al aeropuerto 850&quot;</div>
+        <div className="text-zinc-300 text-[10px] mt-2">✓ Listo para confirmar: Transporte</div>
       </div>
     ),
   },
   {
     title: "Diseño Libre de Estrés (Modo Paz Mental)",
     description:
-      "Eliminamos el exceso de gráficos confusos. Solo ves lo que importa: cuánto puedes gastar hoy sin comprometer tu futuro.",
+      "Tu saldo disponible menos los gastos fijos pendientes y el aporte a tus metas, repartido entre los días que quedan: cuánto puedes gastar hoy.",
     icon: Sparkles,
     tag: "Minimalismo",
     colSpan: "md:col-span-1",
     preview: (
       <div className="mt-4 p-3 rounded-lg bg-emerald-50 border border-emerald-200/60 text-center">
-        <div className="text-[11px] text-emerald-800 font-medium">Disponible para ocio hoy</div>
-        <div className="text-xl font-bold text-emerald-950 mt-0.5">$84.50</div>
+        <div className="text-[11px] text-emerald-800 font-medium">Disponible hoy</div>
+        <div className="text-xl font-bold text-emerald-950 mt-0.5">RD$ 1,250</div>
       </div>
     ),
   },
   {
     title: "Presupuestos Flexibles y Metas Claras",
     description:
-      "Crea presupuestos que se adapten a tu estilo de vida real, no a fórmulas rígidas que te hagan sentir culpable.",
+      "Presupuestos mensuales por categoría con el día de reinicio que prefieras, alertas al 80% y metas de ahorro con fecha objetivo.",
     icon: SlidersHorizontal,
     tag: "Flexibilidad",
     colSpan: "md:col-span-2",
@@ -83,7 +83,7 @@ const features = [
         </div>
         <div className="p-2.5 rounded bg-zinc-50 border border-zinc-200">
           <div className="text-[10px] text-zinc-500">Presupuesto Supermercado</div>
-          <div className="text-xs font-bold text-zinc-900 mt-1">$450 / $600</div>
+          <div className="text-xs font-bold text-zinc-900 mt-1">RD$ 9,000 / 12,000</div>
           <div className="w-full bg-zinc-200 rounded-full h-1.5 mt-2">
             <div className="bg-emerald-500 h-1.5 rounded-full w-[60%]" />
           </div>
