@@ -1,5 +1,27 @@
 # Registro de Cambios y Documentación del Proyecto (Documentatio.md)
 
+## [2026-10-12] - Chat de IA: Interfaz Dinámica con Botones, Pills de Cuentas con Saldo y Chips de Sugerencias
+
+### Resumen
+Se transformó por completo la experiencia de captura de datos en el Asistente de IA de FyDry. En lugar de emitir listas de cuentas o ejemplos de conceptos en texto plano con asteriscos, ahora el asistente despliega un formulario interactivo enriquecido (alineado con la estética de QuickTransactionModal) con botones/pills interactivos para cada cuenta bancaria real con su saldo, chips de sugerencias rápidas de conceptos (ej. "Cena con amigos", "Transporte", "Supermercado") y selectores con pills de categorías oficiales. Se blindó la erradicación total de asteriscos (*, **) tanto en servidor como en cliente.
+
+### Cambios Realizados:
+- **Botones y Pills de Cuentas Reales con Saldo**:
+  - Sustitución de listas de cuentas en texto plano por botones interactivos individuales ([Nombre · $Saldo]) basados en las cuentas reales del usuario (accountsList).
+  - Selección instantánea al pulsar la píldora tanto dentro del formulario MissingDetailsForm como en las respuestas rápidas del chat.
+- **Chips de Sugerencias Rápidas de Conceptos**:
+  - Inclusión de chips dinámicos clickeables para conceptos frecuentes según el tipo de operación ("Cena con amigos", "Transporte / Taxi", "Supermercado", "Servicios", "Sueldo", "Freelance", etc.).
+  - Autocompletado directo en el input de texto al hacer clic sobre cualquier chip.
+- **Formulario Interactivo Enriquecido (MissingDetailsForm)**:
+  - Estructuración similar al modal de transacciones de FyDry: campo de monto numérico con prefijo $, selector de categorías oficiales con pills de acceso rápido y botón contextual de confirmación y envío con feedback inmediato.
+- **Erradicación Absoluta de Asteriscos**:
+  - Instrucción categórica en el System Prompt prohibiendo asteriscos y listas de texto plano.
+  - Sanitización en el servidor (route.ts) y en el cliente con stripAsterisks (/*+/g), garantizando que no se filtre ningún asterisco en mensajes, etiquetas o sugerencias.
+- **Auditoría de Calidad**:
+  - Veredicto de Seguridad: LUZ VERDE (cero riesgo XSS, validación de aislamiento de cuentas y defensa en profundidad en executeAction).
+  - Veredicto de QA: LUZ VERDE (npx tsc --noEmit código 0 y build con Turbopack exitoso en 1.2s).
+
+---
 ## [2026-10-12] - Chat de Asistencia de IA: Preguntas Interactivas con Inputs y Erradicación Total de Asteriscos
 
 ### Resumen

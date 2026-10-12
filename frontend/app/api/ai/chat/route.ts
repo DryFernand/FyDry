@@ -16,12 +16,15 @@ Pautas de tono y estilo (Lenguaje Humano y Calmado):
 - Habla con calma, cercanía y calidez natural, como un mentor financiero prudente conversando con un amigo de confianza.
 - PROHIBIDO estrictamente usar muletillas y clichés corporativos de IA como: "es fundamental", "en conclusión", "un papel crucial", "como modelo de lenguaje", "es importante destacar", "en resumen", "sin duda alguna", "recuerda que".
 - PROHIBIDO terminantemente usar asteriscos (*) o doble asterisco (**) en cualquier parte de tus respuestas. No uses negrita de markdown con asteriscos ni viñetas con asteriscos bajo ninguna circunstancia. Tu texto debe ser siempre limpio, natural y libre de asteriscos.
+- PROHIBICIÓN ABSOLUTA de listar opciones, cuentas o ejemplos en texto plano (como 'Tus cuentas disponibles son: A, B, C' o '(Por ejemplo: Cena con amigos, Transporte)'). Todo ejemplo, opción o selección de cuenta debe proporcionarse a través de la herramienta request_missing_details para que el sistema los renderice como botones interactivos y pills clickeables.
 - Sé directo, práctico y conciso. Ve al grano sin rodeos ni preámbulos vacíos.
 - Usa oraciones claras con ritmo humano y pausado.
 
 Directivas Estrictas de Registro y Ejecución de Acciones:
 - Dispones de herramientas para interactuar con FyDry: create_expense, create_income, create_transfer, create_account, create_budget, create_debt, pay_debt y request_missing_details.
-- Cuando el usuario te solicite registrar o crear un gasto, ingreso, transferencia, presupuesto, cuenta o deuda, pero falten datos esenciales (como monto, categoría, cuenta o concepto): NUNCA formules una lista de texto plano con asteriscos. En su lugar, DEBES invocar la herramienta request_missing_details indicando el action_type, un message amable y el listado de fields con las preguntas específicas y sus campos para que el usuario ingrese cada dato solicitado. Si el usuario ya te dio algunos datos (por ejemplo, el monto), pide únicamente los campos faltantes.
+- OBLIGATORIO: Cuando el usuario te solicite registrar o crear un gasto, ingreso, transferencia, presupuesto, cuenta o deuda, pero falten datos esenciales (como monto, categoría, cuenta o concepto), o cuando mencione un método no registrado o requiera seleccionar cuenta/categoría: DEBES invocar obligatoriamente la herramienta request_missing_details. NUNCA formules preguntas con listas de texto plano, viñetas ni asteriscos. NUNCA escribas opciones o ejemplos entre paréntesis en el texto plano.
+- En request_missing_details debes especificar action_type, message breve y sereno sin asteriscos, y fields con id, label, placeholder, type ('text', 'number', 'category_select', 'account_select', 'date') y suggestions (un array de opciones rápidas recomendadas para que la interfaz las dibuje como botones dinámicos clickeables).
+- Si el usuario ya te dio algunos datos (por ejemplo, el monto o el concepto), pide únicamente los campos faltantes.
 - Al invocar una herramienta, si lo deseas puedes incluir un mensaje muy breve y sereno indicando lo que has preparado para el usuario (siempre libre de asteriscos).
 - Al invocar herramientas como create_expense, create_income o create_budget, NUNCA inventes categorías nuevas. Debes seleccionar estrictamente la categoría oficial que mejor se adapte a la descripción del usuario (por ejemplo, si el usuario dice 'comida' o 'almuerzo' usa 'Restaurantes & Bares' o 'Supermercado & Alimentación'; si dice 'uber' usa 'Transporte Público & Taxi'; si dice 'sueldo' usa 'Salario / Nómina Principal'). Si ninguna coincide de forma exacta, asóciala a la más afín de la lista oficial, o a 'Otros Gastos' / 'Otros Ingresos'.
 
@@ -250,7 +253,7 @@ const TOOLS = [
     type: "function",
     function: {
       name: "request_missing_details",
-      description: "Úsala obligatoriamente cuando el usuario te pida registrar o realizar una acción (gasto, ingreso, transferencia, cuenta, presupuesto, deuda o pago) pero falten datos requeridos. Presenta las preguntas claras con sus campos para que el usuario pueda completarlos mediante inputs interactivos en pantalla.",
+      description: "Úsala obligatoriamente cuando el usuario te pida registrar o realizar una acción (gasto, ingreso, transferencia, cuenta, presupuesto, deuda o pago) pero falten datos requeridos, o cuando deba seleccionar una cuenta o categoría. Presenta campos interactivos, pills de cuentas y sugerencias clickeables en pantalla. NUNCA uses asteriscos ni listados en texto plano.",
       parameters: {
         type: "object",
         properties: {
@@ -261,21 +264,31 @@ const TOOLS = [
           },
           message: {
             type: "string",
-            description: "Mensaje cordial y sereno explicando qué se va a registrar (sin ningún asterisco).",
+            description: "Mensaje cordial y sereno explicando qué se va a registrar (estrictamente libre de asteriscos y sin listas en texto plano).",
           },
           fields: {
             type: "array",
             items: {
               type: "object",
               properties: {
-                id: { type: "string", description: "Identificador del campo (ej. description, category, account, amount, creditor, limit_amount)." },
+                id: { type: "string", description: "Identificador del campo (ej. description, category, account, from_account, to_account, amount, creditor, limit_amount)." },
                 label: { type: "string", description: "Pregunta o etiqueta del dato solicitado (sin asteriscos)." },
-                placeholder: { type: "string", description: "Texto de ejemplo para el input." },
+                placeholder: { type: "string", description: "Texto de ejemplo para el input (sin asteriscos)." },
                 type: { type: "string", enum: ["text", "number", "category_select", "account_select", "date"] },
+                suggestions: {
+                  type: "array",
+                  items: { type: "string" },
+                  description: "Lista de sugerencias rápidas clickeables (ej. conceptos recomendados como 'Cena con amigos', 'Transporte al trabajo', 'Supermercado' para que la interfaz los dibuje como botones dinámicos). NUNCA los escribas en el mensaje de texto.",
+                },
               },
               required: ["id", "label"],
             },
             description: "Lista de campos/preguntas requeridas con sus datos solicitados.",
+          },
+          suggestions: {
+            type: "array",
+            items: { type: "string" },
+            description: "Sugerencias generales u opciones rápidas para la acción (opcional).",
           },
         },
         required: ["action_type", "message", "fields"],
@@ -385,13 +398,13 @@ ${accountsListStr}
 REGLAS ESTRICTAS PARA CUENTAS Y MÉTODOS DE PAGO:
 1. Al registrar un gasto, ingreso o transferencia, debes consultar estas cuentas disponibles para asociar la operación a la cuenta que el usuario utilizó.
 2. Si el usuario menciona una cuenta o método de pago que NO está registrado en su lista de cuentas (por ejemplo, 'pagué con tarjeta Visa Oro', 'con PayPal', 'tarjeta de crédito' y no existe en su lista):
-   DEBES detectarlo de inmediato y señalárselo amablemente al usuario antes de ejecutar nada:
-   'Veo que mencionas pagar con [Método], pero no lo tienes registrado entre tus cuentas de FyDry. Tus cuentas disponibles son: [Cuenta A, Cuenta B...]. ¿Deseas asociar el movimiento a alguna de estas o prefieres que primero registremos [Método] como una nueva cuenta?'
-   NUNCA inventes cuentas ni registres operaciones en cuentas inexistentes.
-3. Si el usuario pide registrar una acción pero no indica la cuenta u otro dato esencial, usa la herramienta request_missing_details incluyendo el campo con type 'account_select' para que elija su cuenta cómodamente en pantalla sin asteriscos.`;
+   - PROHIBIDO enumerar las cuentas disponibles en texto plano. NUNCA digas 'Tus cuentas disponibles son: ...'.
+   - PROHIBIDO terminantemente usar asteriscos (* o **).
+   - DEBES invocar OBLIGATORIAMENTE la herramienta request_missing_details incluyendo un campo con id 'account' y type 'account_select' para que el usuario seleccione su cuenta directamente mediante los botones interactivos y pills que la pantalla renderiza.
+3. Si el usuario pide registrar una acción pero no indica la cuenta u otro dato esencial, usa siempre la herramienta request_missing_details con el campo type 'account_select' para que elija su cuenta cómodamente en pantalla sin texto plano ni asteriscos.`;
     } else {
       accountsPromptSection = `CUENTAS DISPONIBLES DEL USUARIO:
-El usuario no tiene cuentas registradas aún. Si pide registrar un gasto o ingreso, indícale amablemente que primero debe crear una cuenta (o ofrécele registrar una cuenta primero).`;
+El usuario no tiene cuentas registradas aún. Si pide registrar un gasto o ingreso, indícale amablemente y sin asteriscos que primero debe crear una cuenta (o invoca request_missing_details con action_type 'account').`;
     }
 
     const fullSystemPrompt = `${SYSTEM_PROMPT}\n\n${accountsPromptSection}`;
@@ -518,6 +531,28 @@ El usuario no tiene cuentas registradas aún. Si pide registrar un gasto o ingre
       }
 
       if (firstCall.function?.name && ALLOWED_TOOLS.has(firstCall.function.name)) {
+        // Saneamiento defensivo de argumentos del tool call
+        if (parsedArgs && typeof parsedArgs === "object") {
+          if (typeof parsedArgs.message === "string") {
+            parsedArgs.message = parsedArgs.message.replace(/\*+/g, "").trim();
+          }
+          if (Array.isArray(parsedArgs.fields)) {
+            parsedArgs.fields = parsedArgs.fields.map((f: any) => ({
+              ...f,
+              label: typeof f.label === "string" ? f.label.replace(/\*+/g, "").trim() : f.label,
+              placeholder: typeof f.placeholder === "string" ? f.placeholder.replace(/\*+/g, "").trim() : f.placeholder,
+              suggestions: Array.isArray(f.suggestions)
+                ? f.suggestions.map((s: any) => String(s).replace(/\*+/g, "").trim())
+                : f.suggestions,
+            }));
+          }
+          if (Array.isArray(parsedArgs.suggestions)) {
+            parsedArgs.suggestions = parsedArgs.suggestions.map((s: any) =>
+              String(s).replace(/\*+/g, "").trim()
+            );
+          }
+        }
+
         assistantToolCall = {
           name: firstCall.function.name,
           arguments: parsedArgs,
@@ -525,7 +560,8 @@ El usuario no tiene cuentas registradas aún. Si pide registrar un gasto o ingre
       }
     }
 
-    const message = choiceMessage?.content?.trim() || "";
+    const rawMessage = choiceMessage?.content?.trim() || "";
+    const message = rawMessage.replace(/\*+/g, "").trim();
 
     if (!message && !assistantToolCall) {
       return NextResponse.json(

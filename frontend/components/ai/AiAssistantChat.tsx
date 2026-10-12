@@ -50,12 +50,14 @@ export interface MissingDetailField {
   placeholder?: string;
   type?: "text" | "number" | "category_select" | "account_select" | "date" | string;
   value?: string;
+  suggestions?: string[];
 }
 
 export interface MissingDetailsPayload {
   action_type: string;
   message: string;
   fields: MissingDetailField[];
+  suggestions?: string[];
   isSubmitted?: boolean;
 }
 
@@ -70,7 +72,7 @@ export interface ChatMessage {
 
 export function stripAsterisks(text?: string | null): string {
   if (!text) return "";
-  return String(text).replace(/\*/g, "");
+  return String(text).replace(/\*+/g, "").trim();
 }
 
 const ALLOWED_TOOLS = new Set([
@@ -518,6 +520,131 @@ function ActionCard({ action, onConfirm, onCancel }: ActionCardProps) {
   );
 }
 
+const DEFAULT_CONCEPT_SUGGESTIONS: Record<string, string[]> = {
+  expense: [
+    "Cena con amigos",
+    "Transporte / Taxi",
+    "Supermercado",
+    "Servicios del hogar",
+    "Gasolina",
+    "Farmacia & Salud",
+  ],
+  income: [
+    "Sueldo quincenal",
+    "Servicios Freelance",
+    "Venta de producto",
+    "Bono laboral",
+    "Rendimientos bancarios",
+  ],
+  transfer: ["Ahorro mensual", "Pago de tarjeta de crédito", "Fondo de emergencia"],
+  budget: ["Alimentación & Supermercado", "Transporte & Gasolina", "Entretenimiento", "Servicios"],
+  debt: ["Tarjeta de Crédito", "Préstamo Personal", "Préstamo Bancario"],
+  pay_debt: ["Abono mensual a capital", "Pago mínimo", "Liquidación total"],
+  account: ["Cuenta Corriente", "Billetera Efectivo", "Cuenta de Ahorros"],
+};
+
+const POPULAR_EXPENSE_CATEGORIES = [
+  "Supermercado & Alimentación",
+  "Restaurantes & Bares",
+  "Transporte Público & Taxi",
+  "Servicios Públicos (Luz/Agua/Gas)",
+];
+
+const POPULAR_INCOME_CATEGORIES = [
+  "Salario / Nómina Principal",
+  "Servicios Freelance",
+  "Negocio Propio / Ventas",
+];
+
+function getActionIcon(actionType: string) {
+  switch (actionType) {
+    case "expense":
+      return <ArrowDownRight className="w-3.5 h-3.5 text-rose-500" />;
+    case "income":
+      return <ArrowUpRight className="w-3.5 h-3.5 text-emerald-500" />;
+    case "transfer":
+      return <ArrowRightLeft className="w-3.5 h-3.5 text-blue-500" />;
+    case "account":
+      return <Wallet className="w-3.5 h-3.5 text-purple-500" />;
+    case "budget":
+      return <PieChart className="w-3.5 h-3.5 text-amber-500" />;
+    case "debt":
+      return <CreditCard className="w-3.5 h-3.5 text-orange-500" />;
+    case "pay_debt":
+      return <Banknote className="w-3.5 h-3.5 text-teal-500" />;
+    default:
+      return <Bot className="w-3.5 h-3.5 text-zinc-900" />;
+  }
+}
+
+function getActionTitle(actionType: string) {
+  switch (actionType) {
+    case "expense":
+      return "Registrar Gasto";
+    case "income":
+      return "Registrar Ingreso";
+    case "transfer":
+      return "Transferir Fondos";
+    case "account":
+      return "Crear Nueva Cuenta";
+    case "budget":
+      return "Nuevo Presupuesto";
+    case "debt":
+      return "Registrar Deuda";
+    case "pay_debt":
+      return "Abono a Deuda";
+    default:
+      return "Completar Operación";
+  }
+}
+
+function getSubmitButtonLabel(actionType: string) {
+  switch (actionType) {
+    case "expense":
+      return "Registrar Gasto";
+    case "income":
+      return "Registrar Ingreso";
+    case "transfer":
+      return "Registrar Transferencia";
+    case "account":
+      return "Crear Cuenta";
+    case "budget":
+      return "Crear Presupuesto";
+    case "debt":
+      return "Registrar Deuda";
+    case "pay_debt":
+      return "Confirmar Abono";
+    default:
+      return "Confirmar Datos";
+  }
+}
+
+export function shouldShowAccountPills(text: string): boolean {
+  if (!text) return false;
+  const lower = stripAsterisks(text).toLowerCase();
+  return (
+    lower.includes("cuentas disponibles") ||
+    lower.includes("cuenta registrada") ||
+    lower.includes("cuentas registrada") ||
+    lower.includes("asociar el movimiento") ||
+    lower.includes("asociar la transferencia") ||
+    lower.includes("asociar el pago") ||
+    lower.includes("deseas asociar") ||
+    lower.includes("qué cuenta") ||
+    lower.includes("que cuenta") ||
+    lower.includes("con cuál cuenta") ||
+    lower.includes("con cual cuenta") ||
+    lower.includes("cuál de tus cuentas") ||
+    lower.includes("cual de tus cuentas") ||
+    lower.includes("mencionas pagar") ||
+    lower.includes("mencionas recibir") ||
+    lower.includes("cuenta de origen") ||
+    lower.includes("cuenta de destino") ||
+    lower.includes("selecciona una cuenta") ||
+    lower.includes("elige una cuenta")
+  );
+}
+
 interface MissingDetailsFormProps {
   messageId: string;
   missingDetails: MissingDetailsPayload;
@@ -543,12 +670,19 @@ function MissingDetailsForm({
     fields.forEach((field) => {
       if (field.value) {
         initial[field.id] = field.value;
-      } else if (field.type === "account_select" && accountsList.length > 0) {
+      } else if (
+        (field.type === "account_select" ||
+          field.id === "account" ||
+          field.id === "from_account") &&
+        accountsList.length > 0
+      ) {
         initial[field.id] = accountsList[0].name;
-      } else if (field.type === "category_select") {
+      } else if (field.id === "to_account" && accountsList.length > 1) {
+        initial[field.id] = accountsList[1].name;
+      } else if (field.type === "category_select" || field.id === "category") {
         const catList = action_type === "income" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
         initial[field.id] = catList[0] || "";
-      } else if (field.type === "date") {
+      } else if (field.type === "date" || field.id === "date") {
         initial[field.id] = new Date().toISOString().split("T")[0];
       } else {
         initial[field.id] = "";
@@ -571,6 +705,7 @@ function MissingDetailsForm({
 
   const isCategoryExpense = action_type === "expense" || action_type === "budget";
   const categoryOptions = isCategoryExpense ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
+  const popularCategories = isCategoryExpense ? POPULAR_EXPENSE_CATEGORIES : POPULAR_INCOME_CATEGORIES;
 
   const hasEmptyField = fields.some((f) => {
     const val = formValues[f.id];
@@ -580,14 +715,24 @@ function MissingDetailsForm({
   return (
     <form
       onSubmit={handleFormSubmit}
-      className="mt-3 p-3.5 rounded-2xl bg-white border border-zinc-200/90 shadow-2xs space-y-3 text-zinc-900 w-full select-none"
+      className="mt-3 p-3.5 sm:p-4 rounded-2xl bg-white border border-zinc-200/90 shadow-xs space-y-3.5 text-zinc-900 w-full select-none"
     >
-      <div className="flex items-center justify-between gap-2 border-b border-zinc-100 pb-2">
-        <span className="text-[11px] font-semibold text-zinc-900 tracking-tight flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-zinc-900 shrink-0" />
-          Datos solicitados para continuar
-        </span>
-        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600 border border-zinc-200/60 shrink-0 capitalize">
+      {/* Header estilo modal con Icono y Badge */}
+      <div className="flex items-center justify-between gap-2 border-b border-zinc-100 pb-2.5">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-xl bg-zinc-950 text-white flex items-center justify-center shrink-0 shadow-xs">
+            {getActionIcon(action_type)}
+          </div>
+          <div>
+            <h4 className="text-xs font-bold text-zinc-900 tracking-tight leading-tight">
+              {getActionTitle(action_type)}
+            </h4>
+            <p className="text-[10px] text-zinc-500 font-medium">
+              Completa los datos para registrar en FyDry
+            </p>
+          </div>
+        </div>
+        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-700 border border-zinc-200/70 shrink-0 uppercase tracking-wider">
           {action_type}
         </span>
       </div>
@@ -598,30 +743,85 @@ function MissingDetailsForm({
           const cleanLabel = stripAsterisks(field.label);
           const cleanPlaceholder = field.placeholder ? stripAsterisks(field.placeholder) : "";
 
+          const isAccountField =
+            field.type === "account_select" ||
+            field.id === "account" ||
+            field.id === "from_account" ||
+            field.id === "to_account";
+
+          const isCategoryField =
+            field.type === "category_select" || field.id === "category";
+
+          const isAmountField =
+            field.type === "number" ||
+            field.id === "amount" ||
+            field.id === "total_amount" ||
+            field.id === "limit_amount" ||
+            field.id === "initial_balance";
+
+          const isDateField =
+            field.type === "date" ||
+            field.id === "date" ||
+            field.id === "due_date";
+
+          // Sugerencias de conceptos para campos de texto
+          const conceptSuggestions: string[] = (
+            field.suggestions && field.suggestions.length > 0
+              ? field.suggestions
+              : DEFAULT_CONCEPT_SUGGESTIONS[action_type] || []
+          ).map((s) => stripAsterisks(s));
+
           return (
-            <div key={field.id} className="space-y-1">
+            <div key={field.id} className="space-y-1.5">
               <label
                 htmlFor={`field-${messageId}-${field.id}`}
-                className="block text-[11px] font-medium text-zinc-700 leading-snug"
+                className="block text-xs font-semibold text-zinc-800 leading-snug"
               >
-                {cleanLabel}
+                {cleanLabel} <span className="text-rose-500">*</span>
               </label>
 
-              {field.type === "account_select" ? (
+              {/* 1. Selección de Cuenta Dinámica por Botones/Pills con Saldo */}
+              {isAccountField ? (
                 accountsList.length > 0 ? (
-                  <select
-                    id={`field-${messageId}-${field.id}`}
-                    value={currentVal}
-                    disabled={isSubmitted}
-                    onChange={(e) => handleChange(field.id, e.target.value)}
-                    className="w-full bg-zinc-50 hover:bg-zinc-100/70 focus:bg-white text-xs text-zinc-900 border border-zinc-200 rounded-xl px-2.5 py-1.5 outline-none focus:border-zinc-950 focus:ring-1 focus:ring-zinc-950 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-                  >
-                    {accountsList.map((acc) => (
-                      <option key={acc.id || acc.name} value={acc.name}>
-                        {acc.name} (${Number(acc.balance || 0).toFixed(2)})
-                      </option>
-                    ))}
-                  </select>
+                  <div className="space-y-1.5">
+                    <div className="flex flex-wrap gap-1.5">
+                      {accountsList.map((acc) => {
+                        const isSelected = currentVal === acc.name;
+                        return (
+                          <button
+                            key={acc.id || acc.name}
+                            type="button"
+                            disabled={isSubmitted}
+                            onClick={() => handleChange(field.id, acc.name)}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+                              isSelected
+                                ? "bg-zinc-950 text-white shadow-xs font-semibold ring-1 ring-zinc-950 scale-[1.02]"
+                                : "bg-zinc-100 hover:bg-zinc-200 text-zinc-700 border border-zinc-200/70"
+                            } disabled:opacity-60 disabled:cursor-not-allowed`}
+                          >
+                            <Wallet
+                              className={`w-3.5 h-3.5 shrink-0 ${
+                                isSelected ? "text-emerald-400" : "text-zinc-500"
+                              }`}
+                            />
+                            <span className="truncate max-w-[140px]">{stripAsterisks(acc.name)}</span>
+                            <span
+                              className={`text-[10px] ${
+                                isSelected ? "text-zinc-300 font-normal" : "text-zinc-400"
+                              }`}
+                            >
+                              · ${Number(acc.balance || 0).toFixed(2)}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {currentVal && (
+                      <p className="text-[10px] text-zinc-500 font-medium">
+                        Cuenta seleccionada: <span className="font-semibold text-zinc-900">{stripAsterisks(currentVal)}</span>
+                      </p>
+                    )}
+                  </div>
                 ) : (
                   <input
                     id={`field-${messageId}-${field.id}`}
@@ -630,74 +830,137 @@ function MissingDetailsForm({
                     disabled={isSubmitted}
                     placeholder={cleanPlaceholder || "Nombre de la cuenta..."}
                     onChange={(e) => handleChange(field.id, e.target.value)}
-                    className="w-full bg-zinc-50 hover:bg-zinc-100/70 focus:bg-white text-xs text-zinc-900 placeholder:text-zinc-400 border border-zinc-200 rounded-xl px-2.5 py-1.5 outline-none focus:border-zinc-950 focus:ring-1 focus:ring-zinc-950 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="w-full px-3 py-2 rounded-xl border border-zinc-200 bg-white text-zinc-900 text-xs placeholder:text-zinc-400 focus:outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 transition-colors shadow-2xs disabled:opacity-60 disabled:cursor-not-allowed"
                   />
                 )
-              ) : field.type === "category_select" ? (
-                <select
-                  id={`field-${messageId}-${field.id}`}
-                  value={currentVal}
-                  disabled={isSubmitted}
-                  onChange={(e) => handleChange(field.id, e.target.value)}
-                  className="w-full bg-zinc-50 hover:bg-zinc-100/70 focus:bg-white text-xs text-zinc-900 border border-zinc-200 rounded-xl px-2.5 py-1.5 outline-none focus:border-zinc-950 focus:ring-1 focus:ring-zinc-950 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {categoryOptions.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
-              ) : field.type === "number" ? (
-                <input
-                  id={`field-${messageId}-${field.id}`}
-                  type="number"
-                  step="any"
-                  value={currentVal}
-                  disabled={isSubmitted}
-                  placeholder={cleanPlaceholder || "0.00"}
-                  onChange={(e) => handleChange(field.id, e.target.value)}
-                  className="w-full bg-zinc-50 hover:bg-zinc-100/70 focus:bg-white text-xs text-zinc-900 placeholder:text-zinc-400 border border-zinc-200 rounded-xl px-2.5 py-1.5 outline-none focus:border-zinc-950 focus:ring-1 focus:ring-zinc-950 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-                />
-              ) : field.type === "date" ? (
+              ) : isCategoryField ? (
+                /* 2. Categorías oficiales con selector y pills rápidas */
+                <div className="space-y-1.5">
+                  <select
+                    id={`field-${messageId}-${field.id}`}
+                    value={currentVal}
+                    disabled={isSubmitted}
+                    onChange={(e) => handleChange(field.id, e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-zinc-200 bg-white text-zinc-900 text-xs focus:outline-none focus:border-zinc-900 transition-colors shadow-2xs cursor-pointer truncate disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {categoryOptions.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                  </select>
+
+                  {!isSubmitted && (
+                    <div className="flex flex-wrap gap-1">
+                      {popularCategories.map((catName) => {
+                        const isSelected = currentVal === catName;
+                        return (
+                          <button
+                            key={catName}
+                            type="button"
+                            onClick={() => handleChange(field.id, catName)}
+                            className={`text-[10px] px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
+                              isSelected
+                                ? "bg-zinc-900 text-white border-zinc-900 font-medium shadow-2xs"
+                                : "bg-zinc-50 hover:bg-zinc-100 text-zinc-600 border-zinc-200/70"
+                            }`}
+                          >
+                            {catName}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              ) : isAmountField ? (
+                /* 3. Monto Numérico con prefijo $ limpio */
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 font-bold text-xs pointer-events-none">
+                    $
+                  </span>
+                  <input
+                    id={`field-${messageId}-${field.id}`}
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    required
+                    value={currentVal}
+                    disabled={isSubmitted}
+                    placeholder={cleanPlaceholder || "0.00"}
+                    onChange={(e) => handleChange(field.id, e.target.value)}
+                    className="w-full pl-7 pr-3 py-2 rounded-xl border border-zinc-200 bg-white text-zinc-950 font-bold text-sm placeholder:text-zinc-300 focus:outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 transition-colors shadow-2xs disabled:opacity-60 disabled:cursor-not-allowed"
+                  />
+                </div>
+              ) : isDateField ? (
+                /* 4. Fecha */
                 <input
                   id={`field-${messageId}-${field.id}`}
                   type="date"
+                  required
                   value={currentVal}
                   disabled={isSubmitted}
                   onChange={(e) => handleChange(field.id, e.target.value)}
-                  className="w-full bg-zinc-50 hover:bg-zinc-100/70 focus:bg-white text-xs text-zinc-900 border border-zinc-200 rounded-xl px-2.5 py-1.5 outline-none focus:border-zinc-950 focus:ring-1 focus:ring-zinc-950 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="w-full px-3 py-2 rounded-xl border border-zinc-200 bg-white text-zinc-900 text-xs focus:outline-none focus:border-zinc-900 transition-colors shadow-2xs cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                 />
               ) : (
-                <input
-                  id={`field-${messageId}-${field.id}`}
-                  type="text"
-                  value={currentVal}
-                  disabled={isSubmitted}
-                  placeholder={cleanPlaceholder || "Escribe el dato..."}
-                  onChange={(e) => handleChange(field.id, e.target.value)}
-                  className="w-full bg-zinc-50 hover:bg-zinc-100/70 focus:bg-white text-xs text-zinc-900 placeholder:text-zinc-400 border border-zinc-200 rounded-xl px-2.5 py-1.5 outline-none focus:border-zinc-950 focus:ring-1 focus:ring-zinc-950 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-                />
+                /* 5. Concepto / Descripción con Chips de Sugerencias Clickeables */
+                <div className="space-y-1.5">
+                  <input
+                    id={`field-${messageId}-${field.id}`}
+                    type="text"
+                    required
+                    maxLength={255}
+                    value={currentVal}
+                    disabled={isSubmitted}
+                    placeholder={cleanPlaceholder || "Escribe el concepto..."}
+                    onChange={(e) => handleChange(field.id, e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-zinc-200 bg-white text-zinc-900 text-xs placeholder:text-zinc-400 focus:outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 transition-colors shadow-2xs disabled:opacity-60 disabled:cursor-not-allowed"
+                  />
+
+                  {conceptSuggestions.length > 0 && !isSubmitted && (
+                    <div className="flex flex-wrap gap-1">
+                      {conceptSuggestions.map((sug) => {
+                        const isMatch = currentVal.trim().toLowerCase() === sug.trim().toLowerCase();
+                        return (
+                          <button
+                            key={sug}
+                            type="button"
+                            onClick={() => handleChange(field.id, sug)}
+                            className={`text-[10px] px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
+                              isMatch
+                                ? "bg-zinc-900 text-white border-zinc-900 font-semibold shadow-2xs"
+                                : "bg-zinc-50 hover:bg-zinc-100/90 text-zinc-600 border-zinc-200/80 hover:text-zinc-900"
+                            }`}
+                          >
+                            {sug}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           );
         })}
       </div>
 
+      {/* Botón de Acción Destacado */}
       <div className="pt-2 border-t border-zinc-100">
         <button
           type="submit"
           disabled={isSubmitted || hasEmptyField}
-          className="w-full flex items-center justify-center gap-1.5 bg-zinc-950 hover:bg-zinc-800 text-white font-medium py-2 px-3 rounded-xl text-xs transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-xs"
+          className="w-full flex items-center justify-center gap-2 bg-zinc-950 hover:bg-zinc-800 text-white font-semibold py-2.5 px-4 rounded-xl text-xs transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-xs"
         >
           {isSubmitted ? (
             <>
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
               <span>Datos enviados</span>
             </>
           ) : (
             <>
-              <Send className="w-3.5 h-3.5 text-zinc-200" />
-              <span>Enviar datos solicitados</span>
+              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <span>{getSubmitButtonLabel(action_type)}</span>
             </>
           )}
         </button>
@@ -1209,8 +1472,16 @@ export default function AiAssistantChat() {
               label: stripAsterisks(String(f.label || "Dato solicitado")),
               placeholder: f.placeholder ? stripAsterisks(String(f.placeholder)) : undefined,
               type: f.type || "text",
+              value: f.value ? stripAsterisks(String(f.value)) : undefined,
+              suggestions: Array.isArray(f.suggestions)
+                ? f.suggestions.map((s: any) => stripAsterisks(String(s)))
+                : undefined,
             }))
           : [];
+
+        const generalSuggestions = Array.isArray(rawArgs.suggestions)
+          ? rawArgs.suggestions.map((s: any) => stripAsterisks(String(s)))
+          : undefined;
 
         setMessages((prev) => [
           ...prev,
@@ -1223,6 +1494,7 @@ export default function AiAssistantChat() {
               action_type: actionType,
               message: formPrompt,
               fields: fieldsList,
+              suggestions: generalSuggestions,
               isSubmitted: false,
             },
           },
@@ -1313,15 +1585,26 @@ export default function AiAssistantChat() {
         const matchedAcc = findMatchingAccount(rawAccount, accountsList);
 
         if (!matchedAcc) {
-          const available = accountsList.map((a) => a.name).join(", ");
           const methodStr = rawAccount || "ese método de pago";
           setMessages((prev) => [
             ...prev,
             {
-              id: `assistant-warn-${Date.now()}`,
+              id: `assistant-missing-${Date.now()}`,
               role: "assistant",
-              content: `Veo que mencionas pagar con "${methodStr}", pero no lo tienes registrado entre tus cuentas de FyDry. Tus cuentas disponibles son: ${available}. ¿Deseas asociar el movimiento a alguna de estas o prefieres que primero registremos "${methodStr}" como una nueva cuenta?`,
+              content: `Veo que mencionas pagar con "${methodStr}", pero no está registrado entre tus cuentas de FyDry. Selecciona a continuación a cuál de tus cuentas deseas asociar el gasto:`,
               timestamp: new Date(),
+              missingDetails: {
+                action_type: "expense",
+                message: `Veo que mencionas pagar con "${methodStr}", pero no está registrado entre tus cuentas de FyDry. Selecciona la cuenta a debitar:`,
+                fields: [
+                  {
+                    id: "account",
+                    label: "Selecciona una de tus cuentas registradas",
+                    type: "account_select",
+                  },
+                ],
+                isSubmitted: false,
+              },
             },
           ]);
           return;
@@ -1347,15 +1630,26 @@ export default function AiAssistantChat() {
         const matchedAcc = findMatchingAccount(rawAccount, accountsList);
 
         if (!matchedAcc) {
-          const available = accountsList.map((a) => a.name).join(", ");
           const methodStr = rawAccount || "esa cuenta";
           setMessages((prev) => [
             ...prev,
             {
-              id: `assistant-warn-${Date.now()}`,
+              id: `assistant-missing-${Date.now()}`,
               role: "assistant",
-              content: `Veo que mencionas recibir el ingreso en "${methodStr}", pero no lo tienes registrado entre tus cuentas de FyDry. Tus cuentas disponibles son: ${available}. ¿Deseas asociar el movimiento a alguna de estas o prefieres que primero registremos "${methodStr}" como una nueva cuenta?`,
+              content: `Veo que mencionas recibir el ingreso en "${methodStr}", pero no está registrado entre tus cuentas de FyDry. Selecciona a continuación a cuál de tus cuentas deseas asociar el ingreso:`,
               timestamp: new Date(),
+              missingDetails: {
+                action_type: "income",
+                message: `Veo que mencionas recibir el ingreso en "${methodStr}", pero no está registrado entre tus cuentas de FyDry. Selecciona la cuenta de destino:`,
+                fields: [
+                  {
+                    id: "account",
+                    label: "Selecciona una de tus cuentas registradas",
+                    type: "account_select",
+                  },
+                ],
+                isSubmitted: false,
+              },
             },
           ]);
           return;
@@ -1383,17 +1677,33 @@ export default function AiAssistantChat() {
         const matchedTo = findMatchingAccount(rawTo, accountsList);
 
         if (!matchedFrom || !matchedTo) {
-          const available = accountsList.map((a) => a.name).join(", ");
           const missing = !matchedFrom
             ? rawFrom || "la cuenta de origen"
             : rawTo || "la cuenta de destino";
           setMessages((prev) => [
             ...prev,
             {
-              id: `assistant-warn-${Date.now()}`,
+              id: `assistant-missing-${Date.now()}`,
               role: "assistant",
-              content: `Veo que mencionas la cuenta "${missing}", pero no la tienes registrada entre tus cuentas de FyDry. Tus cuentas disponibles son: ${available}. ¿Deseas asociar la transferencia a alguna de estas o prefieres que primero registremos "${missing}" como una nueva cuenta?`,
+              content: `Veo que mencionas "${missing}", pero no está registrada entre tus cuentas de FyDry. Selecciona las cuentas para realizar la transferencia:`,
               timestamp: new Date(),
+              missingDetails: {
+                action_type: "transfer",
+                message: `Selecciona las cuentas para realizar la transferencia:`,
+                fields: [
+                  {
+                    id: "from_account",
+                    label: "Cuenta de Origen",
+                    type: "account_select",
+                  },
+                  {
+                    id: "to_account",
+                    label: "Cuenta de Destino",
+                    type: "account_select",
+                  },
+                ],
+                isSubmitted: false,
+              },
             },
           ]);
           return;
@@ -1407,15 +1717,26 @@ export default function AiAssistantChat() {
           const matchedFrom = findMatchingAccount(rawFrom, accountsList);
 
           if (!matchedFrom) {
-            const available = accountsList.map((a) => a.name).join(", ");
             const fromAccountName = toolArgs.from_account || rawFrom || "esa cuenta";
             setMessages((prev) => [
               ...prev,
               {
-                id: `assistant-warn-${Date.now()}`,
+                id: `assistant-missing-${Date.now()}`,
                 role: "assistant",
-                content: `Veo que deseas abonar a la deuda usando "${fromAccountName}", pero no lo tienes registrado entre tus cuentas de FyDry. Tus cuentas disponibles son: ${available}. ¿Deseas asociar el pago a alguna de estas o prefieres registrar esa cuenta primero?`,
+                content: `Veo que deseas abonar usando "${fromAccountName}", pero no está registrada entre tus cuentas de FyDry. Selecciona la cuenta desde la cual deseas abonar:`,
                 timestamp: new Date(),
+                missingDetails: {
+                  action_type: "pay_debt",
+                  message: `Selecciona la cuenta para realizar el abono a la deuda:`,
+                  fields: [
+                    {
+                      id: "from_account",
+                      label: "Cuenta a Debitar",
+                      type: "account_select",
+                    },
+                  ],
+                  isSubmitted: false,
+                },
               },
             ]);
             return;
@@ -1729,6 +2050,40 @@ export default function AiAssistantChat() {
                       }`}
                     >
                       {stripAsterisks(msg.content)}
+
+                      {/* Fila de botones rápidos de cuentas si el asistente menciona cuentas o pide seleccionar cuenta */}
+                      {!isUser &&
+                        !msg.missingDetails &&
+                        !msg.pendingAction &&
+                        accountsList.length > 0 &&
+                        shouldShowAccountPills(msg.content) && (
+                          <div className="mt-3 pt-2.5 border-t border-zinc-200/70 space-y-1.5">
+                            <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider block">
+                              Cuentas disponibles (toca para seleccionar):
+                            </span>
+                            <div className="flex flex-wrap gap-1.5">
+                              {accountsList.map((acc) => (
+                                <button
+                                  key={acc.id || acc.name}
+                                  type="button"
+                                  onClick={() =>
+                                    handleSendMessage(
+                                      undefined,
+                                      `Usar cuenta ${stripAsterisks(acc.name)}`
+                                    )
+                                  }
+                                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-zinc-950 hover:text-white text-zinc-800 border border-zinc-200 shadow-2xs text-xs font-medium transition-all cursor-pointer group"
+                                >
+                                  <Wallet className="w-3.5 h-3.5 text-zinc-400 group-hover:text-emerald-400 shrink-0" />
+                                  <span>{stripAsterisks(acc.name)}</span>
+                                  <span className="text-[10px] text-zinc-400 group-hover:text-zinc-300">
+                                    · ${Number(acc.balance || 0).toFixed(2)}
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
 
                       {/* Tarjeta interactiva con inputs para datos solicitados */}
                       {msg.missingDetails && (
