@@ -15,7 +15,7 @@ class UserProfile(Base, TimestampMixin):
     phone = Column(String(50), nullable=True)
     country = Column(String(100), nullable=True)
     city = Column(String(100), nullable=True)
-    preferred_currency = Column(String(10), default="USD", nullable=False)
+    preferred_currency = Column(String(10), default="DOP", nullable=False)
     language = Column(String(10), default="es", nullable=False)
     budget_reset_day = Column(Integer, default=1, nullable=False)  # Día 1 al 31 del mes en que reinicia el presupuesto
 

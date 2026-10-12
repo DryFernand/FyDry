@@ -84,7 +84,7 @@ class UserSettingsResponse(BaseModel):
     phone: Optional[str] = None
     city: Optional[str] = None
     country: Optional[str] = None
-    preferred_currency: str = "USD"
+    preferred_currency: str = "DOP"
     language: str = "es"
     budget_reset_day: int = 1
     notifications_enabled: bool = True

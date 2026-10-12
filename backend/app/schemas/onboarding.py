@@ -8,7 +8,7 @@ class OnboardingDataInput(BaseModel):
     phone: Optional[str] = None
     country: Optional[str] = None
     city: Optional[str] = None
-    preferred_currency: str = Field(default="USD", description="USD, EUR, MXN, COP, ARS, CLP, etc.")
+    preferred_currency: str = Field(default="DOP", description="DOP, USD, EUR, etc.")
 
     # 2. Laborales
     employment_type: str = Field(..., description="employed, freelance, business_owner, student, other")
