@@ -1,19 +1,18 @@
+import calendar
 import json
-import re
-import urllib.request
-import urllib.parse
-from datetime import datetime, timezone
-from typing import List, Optional, Any
-from fastapi import APIRouter, Depends, HTTPException, status
+from datetime import date, datetime, timedelta
+from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.api.deps import get_current_user
 from app.models.user import User
-from app.models.financial import EmailIntegration, PendingNotification
+from app.models.financial import Account, Budget, Expense, EmailIntegration, PendingNotification
+from app.services.ledger import money, budget_period, LIABILITY_TYPES
 from app.schemas.financial import (
     NotificationResponse,
-    NotificationUpdate,
     EmailIntegrationResponse,
     EmailSyncConnectRequest,
     EmailScanResult,
@@ -22,92 +21,41 @@ from app.schemas.financial import (
 router = APIRouter()
 
 
-# ==========================================
-# PARSER BANCARIO HEURÍSTICO
-# ==========================================
-BANK_KEYWORDS = [
-    "compra", "cargo", "pago", "retiro", "transferencia", "depósito", "deposito",
-    "nómina", "nomina", "spei", "bizum", "zelle", "paypal", "stripe", "uber",
-    "amazon", "walmart", "supermercado", "restaurante", "oxxo", "bbva", "santander"
-]
+def _to_response(n: PendingNotification) -> NotificationResponse:
+    try:
+        draft = json.loads(n.draft_data) if n.draft_data else {}
+    except ValueError:
+        draft = {}
+    return NotificationResponse(
+        id=n.id,
+        title=n.title,
+        message=n.message,
+        source=n.source,
+        target_type=n.target_type,
+        draft_data=draft,
+        is_read=n.is_read,
+        is_processed=n.is_processed,
+        created_at=n.created_at,
+    )
 
 
-def extract_financial_data_from_text(subject: str, body: str, sender: str = "") -> Optional[dict]:
-    """Analiza el texto de un correo bancario para extraer monto, concepto, tipo y categoría."""
-    full_text = f"{subject} {body} {sender}".lower()
+def _active_notifications(db: Session, user_id: str) -> List[NotificationResponse]:
+    notifs = db.query(PendingNotification).filter(
+        PendingNotification.user_id == user_id,
+        PendingNotification.is_dismissed == False,
+        PendingNotification.is_processed == False,
+    ).order_by(PendingNotification.created_at.desc()).all()
+    return [_to_response(n) for n in notifs]
 
-    # 1. Extraer Monto ($ 1,234.56, RD$ 45.20, 1200.00 DOP, USD, etc.)
-    amount = 0.0
-    matches = re.findall(r"(?:[\$\€\£]|rd\$|dop|rd|usd|eur|mxn|cop|clp|ars|monto:?|total:?|importe:?)\s*([0-9]{1,3}(?:[,\.][0-9]{3})*(?:[,\.][0-9]{1,2})?|[0-9]+(?:[,\.][0-9]{1,2})?)", full_text)
-    if not matches:
-        matches = re.findall(r"([0-9]+(?:[,\.][0-9]{1,2}))", full_text)
 
-    for raw in matches:
-        cleaned = raw.strip().replace(" ", "")
-        if not cleaned:
-            continue
-        try:
-            if "," in cleaned and "." in cleaned:
-                cleaned = cleaned.replace(",", "")
-            elif "," in cleaned and "." not in cleaned:
-                cleaned = cleaned.replace(",", ".")
-            val = float(cleaned)
-            if val >= 1.0:
-                amount = val
-                break
-        except Exception:
-            continue
-
-    if amount <= 0:
-        return None
-
-    # 2. Determinar Tipo (expense, income, movement)
-    target_type = "expense"
-    if any(k in full_text for k in ["nómina", "nomina", "abono", "depósito", "deposito", "recibiste", "te transfirió", "te envio", "sueldo"]):
-        target_type = "income"
-    elif any(k in full_text for k in ["traspaso entre cuentas", "traspaso propio", "transferencia entre tus cuentas", "movimiento entre cuentas"]):
-        target_type = "movement"
-    else:
-        target_type = "expense"
-
-    # 3. Inferir Categoría
-    category = "Otros Gastos" if target_type == "expense" else "Otros Ingresos"
-    if target_type == "income":
-        if "nomina" in full_text or "nómina" in full_text or "sueldo" in full_text or "salario" in full_text:
-            category = "Salario / Nómina Principal"
-        elif "freelance" in full_text or "honorarios" in full_text:
-            category = "Servicios Freelance"
-        elif "reembolso" in full_text or "devolucion" in full_text:
-            category = "Reembolsos & Devoluciones"
-    elif target_type == "expense":
-        if any(k in full_text for k in ["supermercado", "walmart", "carrefour", "mercadona", "soriana", "oxxo", "costco", "alimentos", "comida"]):
-            category = "Supermercado & Alimentación"
-        elif any(k in full_text for k in ["restaurante", "mcdonalds", "starbucks", "burger", "uber eats", "rappi", "didi food"]):
-            category = "Restaurantes & Bares"
-        elif any(k in full_text for k in ["uber", "cabify", "didi", "taxi", "gasolina", "combustible", "peaje", "repsol", "pemex"]):
-            category = "Transporte Público & Taxi"
-        elif any(k in full_text for k in ["netflix", "spotify", "apple", "google", "prime", "hbo", "disney", "youtube"]):
-            category = "Suscripciones Digitales"
-        elif any(k in full_text for k in ["luz", "agua", "gas", "cfe", "naturgy", "iberdrola", "telefonía", "telcel", "movistar", "internet"]):
-            category = "Servicios Públicos (Luz/Agua/Gas)"
-        elif any(k in full_text for k in ["farmacia", "hospital", "salud", "médico", "dental"]):
-            category = "Salud & Farmacia"
-        elif any(k in full_text for k in ["impuesto", "sat", "hacienda", "tasa", "comisión", "comision bancaria"]):
-            category = "Impuestos & Tasas"
-
-    # 4. Concepto / Descripción
-    clean_desc = subject.strip()
-    if len(clean_desc) > 60:
-        clean_desc = clean_desc[:57] + "..."
-
-    return {
-        "amount": round(amount, 2),
-        "description": clean_desc or ("Cargo detectado" if target_type == "expense" else "Abono detectado"),
-        "category": category,
-        "from_account_name": "Cuenta Principal",
-        "to_account_name": "Cuenta Destino" if target_type == "movement" else "",
-        "date": datetime.now(timezone.utc).strftime("%d %b"),
-    }
+def _get_notification(db: Session, user_id: str, notif_id: str) -> PendingNotification:
+    notif = db.query(PendingNotification).filter(
+        PendingNotification.id == notif_id,
+        PendingNotification.user_id == user_id,
+    ).first()
+    if not notif:
+        raise HTTPException(status_code=404, detail="Notificación no encontrada.")
+    return notif
 
 
 # ==========================================
@@ -119,32 +67,7 @@ def get_notifications(
     current_user: User = Depends(get_current_user),
 ):
     """Retrieve all active pending notifications & draft transactions."""
-    notifs = db.query(PendingNotification).filter(
-        PendingNotification.user_id == current_user.id,
-        PendingNotification.is_dismissed != "true",
-        PendingNotification.is_processed != "true",
-    ).order_by(PendingNotification.created_at.desc()).all()
-
-    result = []
-    for n in notifs:
-        try:
-            draft = json.loads(n.draft_data)
-        except Exception:
-            draft = {}
-        result.append(
-            NotificationResponse(
-                id=n.id,
-                title=n.title,
-                message=n.message,
-                source=n.source,
-                target_type=n.target_type,
-                draft_data=draft,
-                is_read=(n.is_read == "true"),
-                is_processed=(n.is_processed == "true"),
-                created_at=n.created_at,
-            )
-        )
-    return result
+    return _active_notifications(db, current_user.id)
 
 
 @router.put("/notifications/{notif_id}/read", response_model=NotificationResponse)
@@ -154,29 +77,11 @@ def mark_notification_read(
     current_user: User = Depends(get_current_user),
 ):
     """Mark a notification as read."""
-    notif = db.query(PendingNotification).filter(
-        PendingNotification.id == notif_id,
-        PendingNotification.user_id == current_user.id,
-    ).first()
-    if not notif:
-        raise HTTPException(status_code=404, detail="Notificación no encontrada.")
-
-    notif.is_read = "true"
+    notif = _get_notification(db, current_user.id, notif_id)
+    notif.is_read = True
     db.commit()
     db.refresh(notif)
-
-    draft = json.loads(notif.draft_data) if notif.draft_data else {}
-    return NotificationResponse(
-        id=notif.id,
-        title=notif.title,
-        message=notif.message,
-        source=notif.source,
-        target_type=notif.target_type,
-        draft_data=draft,
-        is_read=True,
-        is_processed=(notif.is_processed == "true"),
-        created_at=notif.created_at,
-    )
+    return _to_response(notif)
 
 
 @router.put("/notifications/{notif_id}/process", response_model=NotificationResponse)
@@ -186,30 +91,12 @@ def mark_notification_processed(
     current_user: User = Depends(get_current_user),
 ):
     """Mark a notification draft as converted into real transaction."""
-    notif = db.query(PendingNotification).filter(
-        PendingNotification.id == notif_id,
-        PendingNotification.user_id == current_user.id,
-    ).first()
-    if not notif:
-        raise HTTPException(status_code=404, detail="Notificación no encontrada.")
-
-    notif.is_read = "true"
-    notif.is_processed = "true"
+    notif = _get_notification(db, current_user.id, notif_id)
+    notif.is_read = True
+    notif.is_processed = True
     db.commit()
     db.refresh(notif)
-
-    draft = json.loads(notif.draft_data) if notif.draft_data else {}
-    return NotificationResponse(
-        id=notif.id,
-        title=notif.title,
-        message=notif.message,
-        source=notif.source,
-        target_type=notif.target_type,
-        draft_data=draft,
-        is_read=True,
-        is_processed=True,
-        created_at=notif.created_at,
-    )
+    return _to_response(notif)
 
 
 @router.delete("/notifications/{notif_id}")
@@ -218,22 +105,16 @@ def delete_notification(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Dismiss and delete a pending notification without allowing it to regenerate."""
-    notif = db.query(PendingNotification).filter(
-        PendingNotification.id == notif_id,
-        PendingNotification.user_id == current_user.id,
-    ).first()
-    if not notif:
-        raise HTTPException(status_code=404, detail="Notificación no encontrada.")
-
-    notif.is_dismissed = "true"
-    notif.is_read = "true"
+    """Dismiss a pending notification without allowing it to regenerate."""
+    notif = _get_notification(db, current_user.id, notif_id)
+    notif.is_dismissed = True
+    notif.is_read = True
     db.commit()
     return {"status": "success", "message": "Notificación descartada permanentemente."}
 
 
 # ==========================================
-# EMAIL SYNC INTEGRATION
+# EMAIL SYNC INTEGRATION (lectura de Gmail: próximamente)
 # ==========================================
 @router.get("/email-sync/status", response_model=Optional[EmailIntegrationResponse])
 def get_email_sync_status(
@@ -241,19 +122,7 @@ def get_email_sync_status(
     current_user: User = Depends(get_current_user),
 ):
     """Get the current email sync integration status."""
-    integration = db.query(EmailIntegration).filter(
-        EmailIntegration.user_id == current_user.id
-    ).first()
-    if not integration:
-        return None
-
-    return EmailIntegrationResponse(
-        id=integration.id,
-        provider=integration.provider,
-        email=integration.email,
-        is_active=(integration.is_active == "true"),
-        last_synced_at=integration.last_synced_at,
-    )
+    return db.query(EmailIntegration).filter(EmailIntegration.user_id == current_user.id).first()
 
 
 @router.post("/email-sync/connect", response_model=EmailIntegrationResponse)
@@ -262,41 +131,17 @@ def connect_email_sync(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Connect or update Google Gmail integration for automated financial scans."""
-    integration = db.query(EmailIntegration).filter(
-        EmailIntegration.user_id == current_user.id
-    ).first()
-
+    """Registra el correo a sincronizar. No se almacenan tokens de Google hasta que la lectura real esté disponible."""
+    integration = db.query(EmailIntegration).filter(EmailIntegration.user_id == current_user.id).first()
     if not integration:
-        integration = EmailIntegration(
-            user_id=current_user.id,
-            provider="google",
-            email=req.email.strip().lower(),
-            access_token=req.access_token,
-            refresh_token=req.refresh_token,
-            is_active="true",
-            last_synced_at=datetime.now(timezone.utc),
-        )
+        integration = EmailIntegration(user_id=current_user.id, provider="google")
         db.add(integration)
-    else:
-        integration.email = req.email.strip().lower()
-        if req.access_token:
-            integration.access_token = req.access_token
-        if req.refresh_token:
-            integration.refresh_token = req.refresh_token
-        integration.is_active = "true"
-        integration.last_synced_at = datetime.now(timezone.utc)
+    integration.email = req.email.strip().lower()
+    integration.is_active = True
 
     db.commit()
     db.refresh(integration)
-
-    return EmailIntegrationResponse(
-        id=integration.id,
-        provider=integration.provider,
-        email=integration.email,
-        is_active=True,
-        last_synced_at=integration.last_synced_at,
-    )
+    return integration
 
 
 @router.post("/email-sync/disconnect")
@@ -304,10 +149,8 @@ def disconnect_email_sync(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Disconnect and revoke Google Gmail integration."""
-    integration = db.query(EmailIntegration).filter(
-        EmailIntegration.user_id == current_user.id
-    ).first()
+    """Disconnect Gmail integration."""
+    integration = db.query(EmailIntegration).filter(EmailIntegration.user_id == current_user.id).first()
     if integration:
         db.delete(integration)
         db.commit()
@@ -317,250 +160,120 @@ def disconnect_email_sync(
 
 @router.post("/email-sync/scan-now", response_model=EmailScanResult)
 def scan_emails_now(
-    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Scan emails for financial transactions, create draft notifications and alert user."""
-    integration = db.query(EmailIntegration).filter(
-        EmailIntegration.user_id == current_user.id
-    ).first()
-
-    email_account = integration.email if integration else current_user.email
-
-    # Si hay token de Google en vivo, intentar llamar a Gmail API; de lo contrario usar motor inteligente
-    new_found = 0
-    scanned_count = 5
-
-    # Muestras representativas de correos bancarios con IDs fijos determinísticos por usuario
-    sample_emails = [
-        {
-            "id": f"mail-sample-supermarket-4850-{current_user.id}",
-            "subject": "Notificación de compra con tarjeta débito por $48.50 en Supermercado",
-            "body": "Estimado cliente, se ha registrado un cargo por $48.50 USD en Supermercado Central con su tarjeta terminada en 4821.",
-            "sender": "notificaciones@banco.com",
-        },
-        {
-            "id": f"mail-sample-payroll-1850-{current_user.id}",
-            "subject": "Abono de Nómina / Salario mensual recibido por $1,850.00",
-            "body": "Ha recibido un depósito por concepto de Nómina Quincenal por el importe de $1,850.00 USD.",
-            "sender": "pagos@empresa.com",
-        },
-    ]
-
-    # Verificar si el usuario ya tiene notificaciones para evitar duplicar
-    existing_ids = {
-        n.email_message_id for n in db.query(PendingNotification).filter(
-            PendingNotification.user_id == current_user.id
-        ).all() if n.email_message_id
-    }
-
-    for mail in sample_emails:
-        if mail["id"] in existing_ids:
-            continue
-
-        extracted = extract_financial_data_from_text(mail["subject"], mail["body"], mail["sender"])
-        if extracted:
-            notif = PendingNotification(
-                user_id=current_user.id,
-                title=f"{'🟢 Ingreso detectado' if extracted['category'] in ['Salario / Nómina Principal', 'Servicios Freelance'] else '🔴 Gasto detectado'}: ${extracted['amount']:.2f}",
-                message=f"Correo de {mail['sender']}: {extracted['description']}",
-                source="gmail",
-                target_type="income" if extracted['category'] in ['Salario / Nómina Principal', 'Servicios Freelance'] else "expense",
-                draft_data=json.dumps(extracted),
-                is_read="false",
-                is_processed="false",
-                email_message_id=mail["id"],
-            )
-            db.add(notif)
-            new_found += 1
-
-    if integration:
-        integration.last_synced_at = datetime.now(timezone.utc)
-
-    db.commit()
-
+    """La lectura automática de correos bancarios aún no está disponible; no se generan datos de ejemplo."""
     return EmailScanResult(
-        scanned_count=scanned_count,
-        new_found=new_found,
-        message=f"Escaneo completado en {email_account}. Se encontraron {new_found} nuevas transacciones para confirmar.",
+        scanned_count=0,
+        new_found=0,
+        message="La lectura automática de correos bancarios estará disponible próximamente.",
     )
 
 
 # ==========================================
 # MOTOR DE ALERTAS AUTOMÁTICAS (CORTE, PAGO, SOBREGIRO, MÍNIMO, PRESUPUESTO >80%)
 # ==========================================
+def _day_in_month(year: int, month: int, day: int) -> date:
+    return date(year, month, min(day, calendar.monthrange(year, month)[1]))
+
+
+def _last_cutoff(today: date, cutoff_day: int) -> date:
+    """Fecha de corte más reciente (hoy o antes)."""
+    this_month = _day_in_month(today.year, today.month, cutoff_day)
+    if this_month <= today:
+        return this_month
+    prev_year, prev_month = (today.year - 1, 12) if today.month == 1 else (today.year, today.month - 1)
+    return _day_in_month(prev_year, prev_month, cutoff_day)
+
+
 @router.post("/notifications/check-alerts", response_model=List[NotificationResponse])
 def check_financial_alerts(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Evalúa las 5 reglas financieras y emite alertas automáticas para PC/Móvil."""
-    from app.models.financial import Account, Budget, Expense
+    """Evalúa las reglas financieras y emite alertas (una por regla y día)."""
+    today = date.today()
+    today_str = today.isoformat()
 
-    today = datetime.now()
-    today_day = today.day
-    today_str = today.strftime("%Y-%m-%d")
-
-    # IDs de alertas ya generadas hoy para no duplicar en el mismo día
-    existing_alert_ids = {
-        n.email_message_id for n in db.query(PendingNotification).filter(
-            PendingNotification.user_id == current_user.id
-        ).all() if n.email_message_id
+    existing_keys = {
+        key for (key,) in db.query(PendingNotification.email_message_id).filter(
+            PendingNotification.user_id == current_user.id,
+            PendingNotification.email_message_id.like(f"alert-%-{today_str}"),
+        )
     }
 
-    new_alerts = []
+    def emit(key: str, title: str, message: str, target_type: str, draft: dict) -> None:
+        alert_key = f"{key}-{today_str}"
+        if alert_key in existing_keys:
+            return
+        existing_keys.add(alert_key)
+        db.add(PendingNotification(
+            user_id=current_user.id,
+            title=title,
+            message=message,
+            source="system",
+            target_type=target_type,
+            draft_data=json.dumps(draft),
+            email_message_id=alert_key,
+        ))
 
-    # 1. Evaluar Cuentas y Tarjetas de Crédito
-    accounts = db.query(Account).filter(Account.user_id == current_user.id).all()
-    for acc in accounts:
-        # a) Tarjeta de crédito: Día de corte
-        if acc.type == "credit_card" and acc.cutoff_day:
-            c_day = int(acc.cutoff_day)
-            if abs(today_day - c_day) <= 1:
-                alert_key = f"alert-cutoff-{acc.id}-{today_str}"
-                if alert_key not in existing_alert_ids:
-                    notif = PendingNotification(
-                        user_id=current_user.id,
-                        title=f"📅 Día de corte: {acc.name}",
-                        message=f"El día de corte de tu tarjeta es el día {c_day}. Revisa tus consumos de este periodo.",
-                        source="system",
-                        target_type="account",
-                        draft_data=json.dumps({"account_id": acc.id, "account_name": acc.name, "type": "credit_card"}),
-                        is_read="false",
-                        is_processed="false",
-                        email_message_id=alert_key,
-                    )
-                    db.add(notif)
-                    new_alerts.append(notif)
+    # 1. Cuentas y tarjetas de crédito
+    for acc in db.query(Account).filter(Account.user_id == current_user.id).all():
+        balance = money(acc.balance)
+        draft = {"account_id": acc.id, "account_name": acc.name, "type": acc.type, "balance": float(balance)}
 
-        # b) Tarjeta de crédito: Día final de pago
-        if acc.type == "credit_card" and acc.cutoff_day and acc.grace_days:
-            c_day = int(acc.cutoff_day)
-            g_days = int(acc.grace_days)
-            pay_day = ((c_day + g_days - 1) % 30) + 1
-            if abs(today_day - pay_day) <= 1:
-                alert_key = f"alert-payment-{acc.id}-{today_str}"
-                if alert_key not in existing_alert_ids:
-                    notif = PendingNotification(
-                        user_id=current_user.id,
-                        title=f"⏰ Fecha límite de pago: {acc.name}",
-                        message=f"El plazo de pago de tu tarjeta vence el día {pay_day}. Realiza tu pago para evitar intereses y mora.",
-                        source="system",
-                        target_type="account",
-                        draft_data=json.dumps({"account_id": acc.id, "account_name": acc.name, "type": "credit_card"}),
-                        is_read="false",
-                        is_processed="false",
-                        email_message_id=alert_key,
-                    )
-                    db.add(notif)
-                    new_alerts.append(notif)
+        if acc.type in LIABILITY_TYPES:
+            if acc.cutoff_day:
+                cutoff = _last_cutoff(today, acc.cutoff_day)
+                next_cutoff = _last_cutoff(today + timedelta(days=1), acc.cutoff_day)
+                if cutoff == today or next_cutoff == today + timedelta(days=1):
+                    emit(f"alert-cutoff-{acc.id}", f"📅 Día de corte: {acc.name}",
+                         f"El corte de tu tarjeta es el {next_cutoff.strftime('%d/%m')}. Revisa tus consumos de este periodo.",
+                         "account", draft)
+                if acc.grace_days:
+                    pay_date = cutoff + timedelta(days=acc.grace_days)
+                    if 0 <= (pay_date - today).days <= 2:
+                        emit(f"alert-payment-{acc.id}", f"⏰ Fecha límite de pago: {acc.name}",
+                             f"El pago de tu tarjeta vence el {pay_date.strftime('%d/%m')}. Paga a tiempo para evitar intereses y mora.",
+                             "account", draft)
 
-        # c) Tarjeta de crédito: Sobregiro (cuando el saldo baja de 0)
-        if acc.type == "credit_card" and acc.balance < 0:
-            overdraft_used = abs(acc.balance)
-            overdraft_max = acc.overdraft_limit or 0.0
-            overdraft_remaining = max(0.0, overdraft_max - overdraft_used)
-            alert_key = f"alert-overdraft-{acc.id}-{today_str}"
-            if alert_key not in existing_alert_ids:
-                notif = PendingNotification(
-                    user_id=current_user.id,
-                    title=f"🚨 Alerta de Sobregiro: {acc.name}",
-                    message=f"Tu tarjeta ha entrado en sobregiro por -${overdraft_used:.2f}. Margen de sobregiro restante: ${overdraft_remaining:.2f}.",
-                    source="system",
-                    target_type="account",
-                    draft_data=json.dumps({"account_id": acc.id, "account_name": acc.name, "type": "credit_card", "balance": acc.balance}),
-                    is_read="false",
-                    is_processed="false",
-                    email_message_id=alert_key,
-                )
-                db.add(notif)
-                new_alerts.append(notif)
+            credit_limit = money(acc.credit_limit)
+            if credit_limit > 0 and balance > credit_limit:
+                used = balance - credit_limit
+                remaining = max(money(0), money(acc.overdraft_limit) - used)
+                emit(f"alert-overdraft-{acc.id}", f"🚨 Alerta de Sobregiro: {acc.name}",
+                     f"Tu tarjeta superó el límite por {acc.currency} {used:,.2f}. Margen de sobregiro restante: {acc.currency} {remaining:,.2f}.",
+                     "account", draft)
+        else:
+            if balance < 0:
+                emit(f"alert-overdraft-{acc.id}", f"🚨 Saldo negativo: {acc.name}",
+                     f"Tu cuenta está en {acc.currency} {balance:,.2f}.", "account", draft)
+            min_b = money(acc.min_balance)
+            if min_b > 0 and balance <= min_b:
+                emit(f"alert-minbal-{acc.id}", f"📉 Saldo mínimo alcanzado: {acc.name}",
+                     f"El saldo de tu cuenta ({acc.currency} {balance:,.2f}) bajó de tu mínimo aceptado ({acc.currency} {min_b:,.2f}).",
+                     "account", draft)
 
-        # d) Saldo mínimo de cuenta (Cualquier tipo de cuenta)
-        if (acc.min_balance or 0) > 0:
-            min_b = acc.min_balance or 0.0
-            if acc.balance <= min_b:
-                alert_key = f"alert-minbal-{acc.id}-{today_str}"
-                if alert_key not in existing_alert_ids:
-                    notif = PendingNotification(
-                        user_id=current_user.id,
-                        title=f"📉 Saldo mínimo alcanzado: {acc.name}",
-                        message=f"El saldo de tu cuenta (${acc.balance:.2f}) ha bajado de tu mínimo aceptado (${min_b:.2f}).",
-                        source="system",
-                        target_type="account",
-                        draft_data=json.dumps({"account_id": acc.id, "account_name": acc.name, "balance": acc.balance}),
-                        is_read="false",
-                        is_processed="false",
-                        email_message_id=alert_key,
-                    )
-                    db.add(notif)
-                    new_alerts.append(notif)
+    # 2. Presupuestos >= 80% en el periodo actual (inicia en el día de reinicio del perfil)
+    reset_day = current_user.profile.budget_reset_day if current_user.profile else 1
+    start, end = budget_period(today, reset_day)
+    spent_by_category = dict(
+        db.query(func.lower(Expense.category), func.sum(Expense.amount)).filter(
+            Expense.user_id == current_user.id,
+            Expense.date >= start,
+            Expense.date <= end,
+        ).group_by(func.lower(Expense.category)).all()
+    )
+    for b in db.query(Budget).filter(Budget.user_id == current_user.id).all():
+        allocated = money(b.allocated_amount)
+        if allocated <= 0:
+            continue
+        spent = money(spent_by_category.get(b.category.strip().lower()))
+        pct = spent / allocated * 100
+        if pct >= 80:
+            emit(f"alert-budget80-{b.id}", f"📊 Presupuesto al {pct:.0f}%: {b.category}",
+                 f"Has consumido {spent:,.2f} de tu límite de {allocated:,.2f} ({pct:.0f}%).",
+                 "budget", {"budget_id": b.id, "category": b.category, "spent": float(spent), "allocated": float(allocated)})
 
-    # 2. Evaluar Presupuestos > 80% (Para el mes calendario actual)
-    budgets = db.query(Budget).filter(Budget.user_id == current_user.id).all()
-    expenses = db.query(Expense).filter(Expense.user_id == current_user.id).all()
-    current_year = today.year
-    current_month = today.month
-
-    monthly_expenses = [
-        e for e in expenses
-        if (e.created_at and e.created_at.year == current_year and e.created_at.month == current_month)
-        or not e.created_at
-    ]
-
-    for b in budgets:
-        if b.allocated_amount > 0:
-            # Calcular gasto en esta categoría durante el mes actual
-            cat_expenses = [e.amount for e in monthly_expenses if e.category.strip().lower() == b.category.strip().lower()]
-            spent = sum(cat_expenses)
-            pct = (spent / b.allocated_amount) * 100.0
-
-            if pct >= 80.0:
-                alert_key = f"alert-budget80-{b.id}-{today_str}"
-                if alert_key not in existing_alert_ids:
-                    notif = PendingNotification(
-                        user_id=current_user.id,
-                        title=f"📊 Presupuesto al {pct:.0f}%: {b.category}",
-                        message=f"Has consumido ${spent:.2f} de tu límite de ${b.allocated_amount:.2f} ({pct:.0f}% consumido).",
-                        source="system",
-                        target_type="budget",
-                        draft_data=json.dumps({"budget_id": b.id, "category": b.category, "spent": spent, "allocated": b.allocated_amount}),
-                        is_read="false",
-                        is_processed="false",
-                        email_message_id=alert_key,
-                    )
-                    db.add(notif)
-                    new_alerts.append(notif)
-
-    if new_alerts:
-        db.commit()
-        for a in new_alerts:
-            db.refresh(a)
-
-    # Devolver todas las notificaciones pendientes activas (no descartadas ni procesadas)
-    all_notifs = db.query(PendingNotification).filter(
-        PendingNotification.user_id == current_user.id,
-        PendingNotification.is_dismissed != "true",
-        PendingNotification.is_processed != "true",
-    ).order_by(PendingNotification.created_at.desc()).all()
-
-    result = []
-    for n in all_notifs:
-        try:
-            draft = json.loads(n.draft_data)
-        except Exception:
-            draft = {}
-        result.append(
-            NotificationResponse(
-                id=n.id,
-                title=n.title,
-                message=n.message,
-                source=n.source,
-                target_type=n.target_type,
-                draft_data=draft,
-                is_read=(n.is_read == "true"),
-                is_processed=(n.is_processed == "true"),
-                created_at=n.created_at,
-            )
-        )
-    return result
+    db.commit()
+    return _active_notifications(db, current_user.id)

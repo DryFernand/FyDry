@@ -5,7 +5,7 @@ import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 _db = os.path.join(tempfile.mkdtemp(), "check.db")
-os.environ["DATABASE_URL"] = f"sqlite:///{_db}"
+os.environ["DATABASE_URL"] = os.environ.get("CHECK_DATABASE_URL") or f"sqlite:///{_db}"
 os.environ["DATABASE_POOLER_URL"] = ""
 
 import aiosmtplib  # noqa: E402

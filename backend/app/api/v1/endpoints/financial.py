@@ -1,12 +1,16 @@
-from typing import List, Optional, Any
-from fastapi import APIRouter, Depends, HTTPException, status
+from datetime import date
+from decimal import Decimal
+from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
 
 from app.core.database import get_db
 from app.api.deps import get_current_user
 from app.models.user import User
-from app.models.financial import Account, Expense, Income, Movement, Budget, Debt
+from app.models.financial import Account, Expense, Income, Movement, Budget, Debt, PendingNotification
+from app.models.planning import RecurringTransaction, SavingsGoal
+from app.services.ledger import money, get_account, apply_delta, ensure_funds
 from app.schemas.financial import (
     AccountCreate,
     AccountUpdate,
@@ -31,6 +35,35 @@ from app.schemas.financial import (
 
 router = APIRouter()
 
+MONEY_FIELDS = {
+    "amount", "to_amount", "tax_amount", "balance", "overdraft_limit", "credit_limit", "min_balance",
+    "allocated_amount", "total_amount", "remaining_amount", "monthly_payment",
+}
+TAX_CATEGORY = "Impuestos & Tasas"
+DEBT_CATEGORY = "Pago de Deudas & Préstamos"
+
+
+def _updates(model_in, nullable: frozenset = frozenset(), partial: bool = True) -> dict:
+    """Campos enviados por el cliente (o todos con defaults si partial=False).
+    Un null explícito solo se acepta en columnas anulables; montos a Decimal."""
+    data = {}
+    for key, value in model_in.model_dump(exclude_unset=partial).items():
+        if value is None and key not in nullable:
+            continue
+        if key in MONEY_FIELDS and value is not None:
+            value = money(value)
+        data[key] = value
+    return data
+
+
+def _date_window(query, column, from_date: Optional[date], to_date: Optional[date], limit: Optional[int], offset: int):
+    if from_date:
+        query = query.filter(column >= from_date)
+    if to_date:
+        query = query.filter(column <= to_date)
+    query = query.offset(offset)
+    return query.limit(limit) if limit else query
+
 
 # ==========================================
 # ACCOUNTS CRUD
@@ -41,7 +74,7 @@ def get_accounts(
     current_user: User = Depends(get_current_user),
 ):
     """Retrieve all accounts owned by the user."""
-    return db.query(Account).filter(Account.user_id == current_user.id).all()
+    return db.query(Account).filter(Account.user_id == current_user.id).order_by(Account.created_at).all()
 
 
 @router.post("/accounts", response_model=AccountResponse, status_code=status.HTTP_201_CREATED)
@@ -51,20 +84,8 @@ def create_account(
     current_user: User = Depends(get_current_user),
 ):
     """Create a new financial account (Bank, Debit/Credit Card, Wallet, Cash, Savings)."""
-    account = Account(
-        user_id=current_user.id,
-        name=account_in.name,
-        type=account_in.type,
-        balance=account_in.balance,
-        currency=account_in.currency,
-        account_number=account_in.account_number,
-        card_number=account_in.card_number,
-        cutoff_day=account_in.cutoff_day,
-        grace_days=account_in.grace_days,
-        overdraft_limit=account_in.overdraft_limit or 0.0,
-        credit_limit=account_in.credit_limit or 0.0,
-        min_balance=account_in.min_balance or 0.0,
-    )
+    data = _updates(account_in, nullable=frozenset({"account_number", "card_number", "cutoff_day", "grace_days"}), partial=False)
+    account = Account(user_id=current_user.id, **data)
     db.add(account)
     db.commit()
     db.refresh(account)
@@ -79,14 +100,12 @@ def update_account(
     current_user: User = Depends(get_current_user),
 ):
     """Update an existing financial account."""
-    account = db.query(Account).filter(
-        Account.id == account_id, Account.user_id == current_user.id
-    ).first()
+    account = get_account(db, current_user.id, account_id)
     if not account:
         raise HTTPException(status_code=404, detail="Cuenta no encontrada.")
 
-    update_data = account_in.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
+    data = _updates(account_in, nullable=frozenset({"account_number", "card_number", "cutoff_day", "grace_days"}))
+    for field, value in data.items():
         setattr(account, field, value)
 
     db.commit()
@@ -100,10 +119,8 @@ def delete_account(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Delete an account owned by the user."""
-    account = db.query(Account).filter(
-        Account.id == account_id, Account.user_id == current_user.id
-    ).first()
+    """Delete an account owned by the user. Its transactions keep the account name for history."""
+    account = get_account(db, current_user.id, account_id)
     if not account:
         raise HTTPException(status_code=404, detail="Cuenta no encontrada.")
 
@@ -118,14 +135,19 @@ def delete_account(
 @router.get("/expenses", response_model=List[ExpenseResponse])
 def get_expenses(
     category: Optional[str] = None,
+    from_date: Optional[date] = None,
+    to_date: Optional[date] = None,
+    limit: Optional[int] = Query(None, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Retrieve all expenses."""
+    """Retrieve expenses, newest first. Optional date range and pagination."""
     query = db.query(Expense).filter(Expense.user_id == current_user.id)
     if category:
         query = query.filter(Expense.category == category)
-    return query.order_by(Expense.created_at.desc()).all()
+    query = query.order_by(Expense.date.desc(), Expense.created_at.desc())
+    return _date_window(query, Expense.date, from_date, to_date, limit, offset).all()
 
 
 @router.post("/expenses", response_model=ExpenseResponse, status_code=status.HTTP_201_CREATED)
@@ -135,46 +157,48 @@ def create_expense(
     current_user: User = Depends(get_current_user),
 ):
     """Create a new expense and debit the amount from the chosen account."""
-    account = None
-    if exp_in.account_id:
-        account = db.query(Account).filter(
-            Account.id == exp_in.account_id, Account.user_id == current_user.id
-        ).first()
-    if not account and exp_in.account_name:
-        account = db.query(Account).filter(
-            Account.user_id == current_user.id,
-            Account.name.ilike(exp_in.account_name.strip()),
-        ).first()
-
-    account_id = account.id if account else None
-    account_name = account.name if account else (exp_in.account_name or "Efectivo Principal")
-
-    # Validar cupo y límite de sobregiro si es tarjeta de crédito
-    if account and account.type == "credit_card":
-        available_funds = account.balance + (account.overdraft_limit or 0.0)
-        if exp_in.amount > available_funds:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Transacción rechazada: El monto (${exp_in.amount:.2f}) supera el cupo disponible más el límite de sobregiro (${available_funds:.2f}) de la tarjeta '{account.name}'.",
-            )
-
-    # Debit balance from account
-    if account:
-        account.balance -= exp_in.amount
-
-    expense = Expense(
-        user_id=current_user.id,
-        account_id=account_id,
-        account_name=account_name,
-        category=exp_in.category,
-        description=exp_in.description,
-        amount=exp_in.amount,
-        date=exp_in.date,
-    )
-    db.add(expense)
+    expense = record_expense(db, current_user.id, exp_in.account_id, exp_in.account_name, exp_in.category,
+                             exp_in.description, money(exp_in.amount), exp_in.date)
     db.commit()
     db.refresh(expense)
     return expense
+
+
+def record_expense(db: Session, user_id: str, account_id, account_name, category, description, amount: Decimal, when: date) -> Expense:
+    """Crea un gasto aplicando su efecto en la cuenta (sin commit). Reutilizado por recurrentes."""
+    account = get_account(db, user_id, account_id, account_name)
+    if account:
+        ensure_funds(account, amount)
+        apply_delta(account, -amount)
+    expense = Expense(
+        user_id=user_id,
+        account_id=account.id if account else None,
+        account_name=account.name if account else (account_name or "Efectivo Principal"),
+        category=category,
+        description=description,
+        amount=amount,
+        date=when,
+    )
+    db.add(expense)
+    return expense
+
+
+def record_income(db: Session, user_id: str, account_id, account_name, category, description, amount: Decimal, when: date) -> Income:
+    """Crea un ingreso aplicando su efecto en la cuenta (sin commit). Reutilizado por recurrentes."""
+    account = get_account(db, user_id, account_id, account_name)
+    if account:
+        apply_delta(account, amount)
+    income = Income(
+        user_id=user_id,
+        account_id=account.id if account else None,
+        account_name=account.name if account else (account_name or "Efectivo Principal"),
+        category=category,
+        description=description,
+        amount=amount,
+        date=when,
+    )
+    db.add(income)
+    return income
 
 
 @router.put("/expenses/{expense_id}", response_model=ExpenseResponse)
@@ -191,53 +215,45 @@ def update_expense(
     if not expense:
         raise HTTPException(status_code=404, detail="Gasto no encontrado.")
 
-    # 1. Restore previous amount to old account
-    old_account = None
-    if expense.account_id:
-        old_account = db.query(Account).filter(
-            Account.id == expense.account_id, Account.user_id == current_user.id
-        ).first()
-    elif expense.account_name:
-        old_account = db.query(Account).filter(
-            Account.user_id == current_user.id,
-            Account.name.ilike(expense.account_name.strip()),
-        ).first()
+    data = _updates(exp_in)
+    account_changed = "account_id" in data or "account_name" in data
 
+    is_tax = db.query(Movement).filter(Movement.tax_expense_id == expense.id).first() is not None
+    if is_tax and ("amount" in data or account_changed):
+        raise HTTPException(status_code=400, detail="Este gasto es el impuesto de un traspaso. Edita el monto desde el traspaso.")
+
+    old_amount = money(expense.amount)
+    new_amount = data.get("amount", old_amount)
+
+    # 1. Revertir efecto anterior
+    old_account = get_account(db, current_user.id, expense.account_id) if expense.account_id else None
     if old_account:
-        old_account.balance += expense.amount
+        apply_delta(old_account, old_amount)
 
-    # 2. Update fields
-    update_data = exp_in.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(expense, field, value)
+    # 2. Abono a deuda: el saldo pendiente sigue al monto del gasto
+    if expense.debt_id and new_amount != old_amount:
+        debt = db.query(Debt).filter(Debt.id == expense.debt_id, Debt.user_id == current_user.id).first()
+        if debt:
+            remaining = money(debt.remaining_amount) + old_amount - new_amount
+            if remaining < 0:
+                raise HTTPException(status_code=400, detail="El abono supera el saldo pendiente de la deuda.")
+            debt.remaining_amount = remaining
 
-    # 3. Apply new debit to target account
-    new_account = None
-    if expense.account_id:
-        new_account = db.query(Account).filter(
-            Account.id == expense.account_id, Account.user_id == current_user.id
-        ).first()
-    if not new_account and expense.account_name:
-        new_account = db.query(Account).filter(
-            Account.user_id == current_user.id,
-            Account.name.ilike(expense.account_name.strip()),
-        ).first()
+    # 3. Actualizar campos
+    for field in ("category", "description", "amount", "date"):
+        if field in data:
+            setattr(expense, field, data[field])
 
+    # 4. Aplicar a la cuenta destino
+    new_account = get_account(db, current_user.id, data.get("account_id"), data.get("account_name")) if account_changed else old_account
     if new_account:
-        # Validar cupo y límite de sobregiro si es tarjeta de crédito
-        if new_account.type == "credit_card":
-            available_funds = new_account.balance + (new_account.overdraft_limit or 0.0)
-            if expense.amount > available_funds:
-                db.rollback()
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Transacción rechazada: El monto (${expense.amount:.2f}) supera el cupo disponible más el límite de sobregiro (${available_funds:.2f}) de la tarjeta '{new_account.name}'.",
-                )
-        new_account.balance -= expense.amount
+        ensure_funds(new_account, new_amount)
+        apply_delta(new_account, -new_amount)
         expense.account_id = new_account.id
         expense.account_name = new_account.name
-    else:
+    elif account_changed:
         expense.account_id = None
+        expense.account_name = data.get("account_name") or expense.account_name
 
     db.commit()
     db.refresh(expense)
@@ -250,27 +266,27 @@ def delete_expense(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Delete an expense and restore account balance."""
+    """Delete an expense and restore account balance (and debt / transfer tax links)."""
     expense = db.query(Expense).filter(
         Expense.id == expense_id, Expense.user_id == current_user.id
     ).first()
     if not expense:
         raise HTTPException(status_code=404, detail="Gasto no encontrado.")
 
-    # Restore account balance
-    account = None
-    if expense.account_id:
-        account = db.query(Account).filter(
-            Account.id == expense.account_id, Account.user_id == current_user.id
-        ).first()
-    elif expense.account_name:
-        account = db.query(Account).filter(
-            Account.user_id == current_user.id,
-            Account.name.ilike(expense.account_name.strip()),
-        ).first()
-
+    amount = money(expense.amount)
+    account = get_account(db, current_user.id, expense.account_id) if expense.account_id else None
     if account:
-        account.balance += expense.amount
+        apply_delta(account, amount)
+
+    if expense.debt_id:
+        debt = db.query(Debt).filter(Debt.id == expense.debt_id, Debt.user_id == current_user.id).first()
+        if debt:
+            debt.remaining_amount = min(money(debt.total_amount), money(debt.remaining_amount) + amount)
+
+    # Si era el impuesto de un traspaso, el traspaso deja de tener impuesto (evita doble reembolso)
+    for mov in db.query(Movement).filter(Movement.tax_expense_id == expense.id).all():
+        mov.tax_amount = Decimal("0")
+        mov.tax_expense_id = None
 
     db.delete(expense)
     db.commit()
@@ -283,14 +299,19 @@ def delete_expense(
 @router.get("/incomes", response_model=List[IncomeResponse])
 def get_incomes(
     category: Optional[str] = None,
+    from_date: Optional[date] = None,
+    to_date: Optional[date] = None,
+    limit: Optional[int] = Query(None, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Retrieve all incomes."""
+    """Retrieve incomes, newest first. Optional date range and pagination."""
     query = db.query(Income).filter(Income.user_id == current_user.id)
     if category:
         query = query.filter(Income.category == category)
-    return query.order_by(Income.created_at.desc()).all()
+    query = query.order_by(Income.date.desc(), Income.created_at.desc())
+    return _date_window(query, Income.date, from_date, to_date, limit, offset).all()
 
 
 @router.post("/incomes", response_model=IncomeResponse, status_code=status.HTTP_201_CREATED)
@@ -300,34 +321,8 @@ def create_income(
     current_user: User = Depends(get_current_user),
 ):
     """Create a new income and credit the amount to the chosen account."""
-    account = None
-    if inc_in.account_id:
-        account = db.query(Account).filter(
-            Account.id == inc_in.account_id, Account.user_id == current_user.id
-        ).first()
-    if not account and inc_in.account_name:
-        account = db.query(Account).filter(
-            Account.user_id == current_user.id,
-            Account.name.ilike(inc_in.account_name.strip()),
-        ).first()
-
-    account_id = account.id if account else None
-    account_name = account.name if account else (inc_in.account_name or "Efectivo Principal")
-
-    # Credit balance to account
-    if account:
-        account.balance += inc_in.amount
-
-    income = Income(
-        user_id=current_user.id,
-        account_id=account_id,
-        account_name=account_name,
-        category=inc_in.category,
-        description=inc_in.description,
-        amount=inc_in.amount,
-        date=inc_in.date,
-    )
-    db.add(income)
+    income = record_income(db, current_user.id, inc_in.account_id, inc_in.account_name, inc_in.category,
+                           inc_in.description, money(inc_in.amount), inc_in.date)
     db.commit()
     db.refresh(income)
     return income
@@ -347,44 +342,25 @@ def update_income(
     if not income:
         raise HTTPException(status_code=404, detail="Ingreso no encontrado.")
 
-    # 1. Deduct previous amount from old account
-    old_account = None
-    if income.account_id:
-        old_account = db.query(Account).filter(
-            Account.id == income.account_id, Account.user_id == current_user.id
-        ).first()
-    elif income.account_name:
-        old_account = db.query(Account).filter(
-            Account.user_id == current_user.id,
-            Account.name.ilike(income.account_name.strip()),
-        ).first()
+    data = _updates(inc_in)
+    account_changed = "account_id" in data or "account_name" in data
 
+    old_account = get_account(db, current_user.id, income.account_id) if income.account_id else None
     if old_account:
-        old_account.balance -= income.amount
+        apply_delta(old_account, -money(income.amount))
 
-    # 2. Update fields
-    update_data = inc_in.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(income, field, value)
+    for field in ("category", "description", "amount", "date"):
+        if field in data:
+            setattr(income, field, data[field])
 
-    # 3. Apply new credit to target account
-    new_account = None
-    if income.account_id:
-        new_account = db.query(Account).filter(
-            Account.id == income.account_id, Account.user_id == current_user.id
-        ).first()
-    elif income.account_name:
-        new_account = db.query(Account).filter(
-            Account.user_id == current_user.id,
-            Account.name.ilike(income.account_name.strip()),
-        ).first()
-
+    new_account = get_account(db, current_user.id, data.get("account_id"), data.get("account_name")) if account_changed else old_account
     if new_account:
-        new_account.balance += income.amount
+        apply_delta(new_account, money(income.amount))
         income.account_id = new_account.id
         income.account_name = new_account.name
-    else:
+    elif account_changed:
         income.account_id = None
+        income.account_name = data.get("account_name") or income.account_name
 
     db.commit()
     db.refresh(income)
@@ -404,20 +380,9 @@ def delete_income(
     if not income:
         raise HTTPException(status_code=404, detail="Ingreso no encontrado.")
 
-    # Revert account balance
-    account = None
-    if income.account_id:
-        account = db.query(Account).filter(
-            Account.id == income.account_id, Account.user_id == current_user.id
-        ).first()
-    elif income.account_name:
-        account = db.query(Account).filter(
-            Account.user_id == current_user.id,
-            Account.name.ilike(income.account_name.strip()),
-        ).first()
-
+    account = get_account(db, current_user.id, income.account_id) if income.account_id else None
     if account:
-        account.balance -= income.amount
+        apply_delta(account, -money(income.amount))
 
     db.delete(income)
     db.commit()
@@ -427,15 +392,78 @@ def delete_income(
 # ==========================================
 # MOVEMENTS (Transferencias entre Cuentas) CRUD con Impuestos y Presupuestos
 # ==========================================
+def _tax_category(db: Session, user_id: str) -> str:
+    tax_budget = db.query(Budget).filter(
+        Budget.user_id == user_id,
+        Budget.category.ilike("%impuesto%"),
+    ).first()
+    return tax_budget.category if (tax_budget and money(tax_budget.allocated_amount) > 0) else TAX_CATEGORY
+
+
+def _apply_movement(db: Session, user_id: str, mov: Movement, from_acc: Optional[Account], to_acc: Optional[Account]) -> None:
+    """Aplica el traspaso: origen paga monto + impuesto; destino recibe to_amount (o el mismo monto). Registra el impuesto como gasto."""
+    if from_acc and to_acc and from_acc.id == to_acc.id:
+        raise HTTPException(status_code=400, detail="La cuenta de origen y destino no pueden ser la misma.")
+
+    amount = money(mov.amount)
+    tax = money(mov.tax_amount)
+    if from_acc and to_acc and from_acc.currency != to_acc.currency and mov.to_amount is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Las cuentas usan monedas distintas ({from_acc.currency} → {to_acc.currency}). Indica el monto recibido en destino.",
+        )
+    received = money(mov.to_amount) if mov.to_amount is not None else amount
+
+    if from_acc:
+        ensure_funds(from_acc, amount + tax)
+        apply_delta(from_acc, -(amount + tax))
+        mov.from_account_id = from_acc.id
+        mov.from_account_name = from_acc.name
+    if to_acc:
+        apply_delta(to_acc, received)
+        mov.to_account_id = to_acc.id
+        mov.to_account_name = to_acc.name
+
+    mov.tax_expense_id = None
+    if tax > 0:
+        tax_exp = Expense(
+            user_id=user_id,
+            account_id=from_acc.id if from_acc else None,
+            account_name=mov.from_account_name,
+            category=_tax_category(db, user_id),
+            description=f"Impuesto por traspaso {mov.from_account_name} ➔ {mov.to_account_name}",
+            amount=tax,
+            date=mov.date,
+        )
+        db.add(tax_exp)
+        db.flush()
+        mov.tax_expense_id = tax_exp.id
+
+
+def _revert_movement(db: Session, user_id: str, mov: Movement) -> None:
+    from_acc = get_account(db, user_id, mov.from_account_id) if mov.from_account_id else None
+    to_acc = get_account(db, user_id, mov.to_account_id) if mov.to_account_id else None
+    if from_acc:
+        apply_delta(from_acc, money(mov.amount) + money(mov.tax_amount))
+    if to_acc:
+        apply_delta(to_acc, -(money(mov.to_amount) if mov.to_amount is not None else money(mov.amount)))
+    if mov.tax_expense_id:
+        db.query(Expense).filter(Expense.id == mov.tax_expense_id, Expense.user_id == user_id).delete()
+        mov.tax_expense_id = None
+
+
 @router.get("/movements", response_model=List[MovementResponse])
 def get_movements(
+    from_date: Optional[date] = None,
+    to_date: Optional[date] = None,
+    limit: Optional[int] = Query(None, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Retrieve all account-to-account transfer movements."""
-    return db.query(Movement).filter(
-        Movement.user_id == current_user.id
-    ).order_by(Movement.created_at.desc()).all()
+    """Retrieve account-to-account transfer movements, newest first."""
+    query = db.query(Movement).filter(Movement.user_id == current_user.id).order_by(Movement.date.desc(), Movement.created_at.desc())
+    return _date_window(query, Movement.date, from_date, to_date, limit, offset).all()
 
 
 @router.post("/movements", response_model=MovementResponse, status_code=status.HTTP_201_CREATED)
@@ -444,89 +472,23 @@ def create_movement(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Create a movement/transfer between two accounts with optional tax calculation and budget integration."""
-    # Find from_account
-    from_acc = None
-    if mov_in.from_account_id:
-        from_acc = db.query(Account).filter(
-            Account.id == mov_in.from_account_id, Account.user_id == current_user.id
-        ).first()
-    if not from_acc and mov_in.from_account_name:
-        from_acc = db.query(Account).filter(
-            Account.user_id == current_user.id,
-            Account.name.ilike(mov_in.from_account_name.strip()),
-        ).first()
-
-    # Find to_account
-    to_acc = None
-    if mov_in.to_account_id:
-        to_acc = db.query(Account).filter(
-            Account.id == mov_in.to_account_id, Account.user_id == current_user.id
-        ).first()
-    if not to_acc and mov_in.to_account_name:
-        to_acc = db.query(Account).filter(
-            Account.user_id == current_user.id,
-            Account.name.ilike(mov_in.to_account_name.strip()),
-        ).first()
-
-    tax_val = max(0.0, float(mov_in.tax_amount or 0.0))
-    total_debited = mov_in.amount + tax_val
-
-    # Validar cupo y sobregiro si la cuenta origen es tarjeta de crédito
-    if from_acc and from_acc.type == "credit_card":
-        available_funds = from_acc.balance + (from_acc.overdraft_limit or 0.0)
-        if total_debited > available_funds:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Traspaso rechazado: El monto total (${total_debited:.2f}) supera el cupo disponible más el límite de sobregiro (${available_funds:.2f}) de la tarjeta '{from_acc.name}'.",
-            )
-
-    # Apply double accounting transfer (Origin pays amount + tax; Destination receives exact amount)
-    if from_acc:
-        from_acc.balance -= total_debited
-    if to_acc:
-        to_acc.balance += mov_in.amount
-
+    """Create a movement/transfer between two accounts with optional tax and currency conversion."""
+    from_acc = get_account(db, current_user.id, mov_in.from_account_id, mov_in.from_account_name)
+    to_acc = get_account(db, current_user.id, mov_in.to_account_id, mov_in.to_account_name)
     from_name = from_acc.name if from_acc else (mov_in.from_account_name or "Cuenta Origen")
     to_name = to_acc.name if to_acc else (mov_in.to_account_name or "Cuenta Destino")
 
-    # Always record the tax expense under the tax category so it computes in budget limits & alerts
-    tax_expense_id = None
-    if tax_val > 0:
-        tax_budget = db.query(Budget).filter(
-            Budget.user_id == current_user.id,
-            Budget.category.ilike("%impuesto%"),
-            ~Budget.category.ilike("%taxi%"),
-            ~Budget.category.ilike("%transporte%"),
-        ).first()
-
-        category_name = tax_budget.category if (tax_budget and tax_budget.allocated_amount > 0) else "Impuestos & Tasas"
-
-        tax_exp = Expense(
-            user_id=current_user.id,
-            account_id=from_acc.id if from_acc else None,
-            account_name=from_name,
-            category=category_name,
-            description=f"Impuesto por traspaso {from_name} ➔ {to_name}",
-            amount=tax_val,
-            date=mov_in.date,
-        )
-        db.add(tax_exp)
-        db.flush()
-        tax_expense_id = tax_exp.id
-
     mov = Movement(
         user_id=current_user.id,
-        from_account_id=from_acc.id if from_acc else None,
         from_account_name=from_name,
-        to_account_id=to_acc.id if to_acc else None,
         to_account_name=to_name,
-        amount=mov_in.amount,
-        tax_amount=tax_val,
-        tax_expense_id=tax_expense_id,
+        amount=money(mov_in.amount),
+        to_amount=money(mov_in.to_amount) if mov_in.to_amount is not None else None,
+        tax_amount=money(mov_in.tax_amount),
         description=mov_in.description or f"Traspaso de {from_name} a {to_name}",
         date=mov_in.date,
     )
+    _apply_movement(db, current_user.id, mov, from_acc, to_acc)
     db.add(mov)
     db.commit()
     db.refresh(mov)
@@ -540,91 +502,32 @@ def update_movement(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Update a movement and recalculate balances of origin and destination accounts and budget tax expense."""
+    """Update a movement: revert its previous effect and apply the new one."""
     mov = db.query(Movement).filter(
         Movement.id == mov_id, Movement.user_id == current_user.id
     ).first()
     if not mov:
         raise HTTPException(status_code=404, detail="Movimiento no encontrado.")
 
-    # Validate foreign account IDs if provided
-    if mov_in.from_account_id is not None:
-        target_from = db.query(Account).filter(
-            Account.id == mov_in.from_account_id, Account.user_id == current_user.id
-        ).first()
-        if not target_from:
-            raise HTTPException(status_code=404, detail="Cuenta de origen no encontrada o no pertenece al usuario.")
+    data = _updates(mov_in, nullable=frozenset({"to_amount"}))
 
-    if mov_in.to_account_id is not None:
-        target_to = db.query(Account).filter(
-            Account.id == mov_in.to_account_id, Account.user_id == current_user.id
-        ).first()
-        if not target_to:
-            raise HTTPException(status_code=404, detail="Cuenta de destino no encontrada o no pertenece al usuario.")
+    def resolve(side: str) -> Optional[Account]:
+        acc_id, acc_name = data.get(f"{side}_account_id"), data.get(f"{side}_account_name")
+        if acc_id or acc_name:
+            acc = get_account(db, current_user.id, acc_id, acc_name)
+            if not acc:
+                raise HTTPException(status_code=404, detail="Cuenta no encontrada o no pertenece al usuario.")
+            return acc
+        current_id = getattr(mov, f"{side}_account_id")
+        return get_account(db, current_user.id, current_id) if current_id else None
 
-    # 1. Revert previous transfer (including previous tax)
-    prev_from = db.query(Account).filter(Account.id == mov.from_account_id, Account.user_id == current_user.id).first() if mov.from_account_id else None
-    prev_to = db.query(Account).filter(Account.id == mov.to_account_id, Account.user_id == current_user.id).first() if mov.to_account_id else None
-    if prev_from:
-        prev_from.balance += (mov.amount + mov.tax_amount)
-    if prev_to:
-        prev_to.balance -= mov.amount
+    from_acc, to_acc = resolve("from"), resolve("to")
 
-    # Remove previous tax expense if existed
-    if mov.tax_expense_id:
-        db.query(Expense).filter(Expense.id == mov.tax_expense_id, Expense.user_id == current_user.id).delete()
-        mov.tax_expense_id = None
-
-    # 2. Update fields
-    update_data = mov_in.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(mov, field, value)
-
-    # 3. Apply new transfer
-    new_tax = max(0.0, float(mov.tax_amount or 0.0))
-    mov.tax_amount = new_tax
-    new_from = db.query(Account).filter(Account.id == mov.from_account_id, Account.user_id == current_user.id).first() if mov.from_account_id else None
-    new_to = db.query(Account).filter(Account.id == mov.to_account_id, Account.user_id == current_user.id).first() if mov.to_account_id else None
-
-    # Validar cupo y límite de sobregiro si new_from es tarjeta de crédito
-    if new_from and new_from.type == "credit_card":
-        available_funds = new_from.balance + (new_from.overdraft_limit or 0.0)
-        total_debited = mov.amount + new_tax
-        if total_debited > available_funds:
-            db.rollback()
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Traspaso rechazado: El monto total (${total_debited:.2f}) supera el cupo disponible más el límite de sobregiro (${available_funds:.2f}) de la tarjeta '{new_from.name}'.",
-            )
-
-    if new_from:
-        new_from.balance -= (mov.amount + new_tax)
-        mov.from_account_name = new_from.name
-    if new_to:
-        new_to.balance += mov.amount
-        mov.to_account_name = new_to.name
-
-    # Record updated tax expense
-    if new_tax > 0:
-        tax_budget = db.query(Budget).filter(
-            Budget.user_id == current_user.id,
-            Budget.category.ilike("%impuesto%"),
-            ~Budget.category.ilike("%taxi%"),
-            ~Budget.category.ilike("%transporte%"),
-        ).first()
-        category_name = tax_budget.category if (tax_budget and tax_budget.allocated_amount > 0) else "Impuestos & Tasas"
-        tax_exp = Expense(
-            user_id=current_user.id,
-            account_id=new_from.id if new_from else None,
-            account_name=new_from.name if new_from else mov.from_account_name,
-            category=category_name,
-            description=f"Impuesto por traspaso {mov.from_account_name} ➔ {mov.to_account_name}",
-            amount=new_tax,
-            date=mov.date,
-        )
-        db.add(tax_exp)
-        db.flush()
-        mov.tax_expense_id = tax_exp.id
+    _revert_movement(db, current_user.id, mov)
+    for field in ("amount", "to_amount", "tax_amount", "description", "date"):
+        if field in data:
+            setattr(mov, field, data[field])
+    _apply_movement(db, current_user.id, mov, from_acc, to_acc)
 
     db.commit()
     db.refresh(mov)
@@ -637,25 +540,14 @@ def delete_movement(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Delete a transfer movement, restore balances to origin and destination accounts and remove tax expense."""
+    """Delete a transfer movement, restore balances and remove its tax expense."""
     mov = db.query(Movement).filter(
         Movement.id == mov_id, Movement.user_id == current_user.id
     ).first()
     if not mov:
         raise HTTPException(status_code=404, detail="Movimiento no encontrado.")
 
-    # Revert transfer
-    from_acc = db.query(Account).filter(Account.id == mov.from_account_id, Account.user_id == current_user.id).first() if mov.from_account_id else None
-    to_acc = db.query(Account).filter(Account.id == mov.to_account_id, Account.user_id == current_user.id).first() if mov.to_account_id else None
-    if from_acc:
-        from_acc.balance += (mov.amount + mov.tax_amount)
-    if to_acc:
-        to_acc.balance -= mov.amount
-
-    # Delete associated tax expense if existed
-    if mov.tax_expense_id:
-        db.query(Expense).filter(Expense.id == mov.tax_expense_id, Expense.user_id == current_user.id).delete()
-
+    _revert_movement(db, current_user.id, mov)
     db.delete(mov)
     db.commit()
     return {"status": "success", "message": "Movimiento eliminado y saldos de ambas cuentas restaurados."}
@@ -664,13 +556,21 @@ def delete_movement(
 # ==========================================
 # BUDGETS CRUD
 # ==========================================
+def _ensure_unique_budget(db: Session, user_id: str, category: str, exclude_id: Optional[str] = None) -> None:
+    query = db.query(Budget).filter(Budget.user_id == user_id, func.lower(Budget.category) == category.strip().lower())
+    if exclude_id:
+        query = query.filter(Budget.id != exclude_id)
+    if query.first():
+        raise HTTPException(status_code=409, detail=f"Ya tienes un presupuesto para '{category}'.")
+
+
 @router.get("/budgets", response_model=List[BudgetResponse])
 def get_budgets(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """Retrieve all budget allocations for the user."""
-    return db.query(Budget).filter(Budget.user_id == current_user.id).all()
+    return db.query(Budget).filter(Budget.user_id == current_user.id).order_by(Budget.created_at).all()
 
 
 @router.post("/budgets", response_model=BudgetResponse, status_code=status.HTTP_201_CREATED)
@@ -679,11 +579,12 @@ def create_budget(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Create a new budget allocation."""
+    """Create a new monthly budget allocation (one per category)."""
+    _ensure_unique_budget(db, current_user.id, budget_in.category)
     budget = Budget(
         user_id=current_user.id,
-        category=budget_in.category,
-        allocated_amount=budget_in.allocated_amount,
+        category=budget_in.category.strip(),
+        allocated_amount=money(budget_in.allocated_amount),
         color=budget_in.color or "bg-zinc-900",
     )
     db.add(budget)
@@ -706,8 +607,10 @@ def update_budget(
     if not budget:
         raise HTTPException(status_code=404, detail="Presupuesto no encontrado.")
 
-    update_data = budget_in.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
+    data = _updates(budget_in)
+    if "category" in data:
+        _ensure_unique_budget(db, current_user.id, data["category"], exclude_id=budget.id)
+    for field, value in data.items():
         setattr(budget, field, value)
 
     db.commit()
@@ -742,7 +645,7 @@ def get_debts(
     current_user: User = Depends(get_current_user),
 ):
     """Retrieve all debts registered by the user."""
-    return db.query(Debt).filter(Debt.user_id == current_user.id).all()
+    return db.query(Debt).filter(Debt.user_id == current_user.id).order_by(Debt.created_at).all()
 
 
 @router.post("/debts", response_model=DebtResponse, status_code=status.HTTP_201_CREATED)
@@ -752,16 +655,9 @@ def create_debt(
     current_user: User = Depends(get_current_user),
 ):
     """Create a new debt item."""
-    debt = Debt(
-        user_id=current_user.id,
-        creditor=debt_in.creditor,
-        type=debt_in.type,
-        total_amount=debt_in.total_amount,
-        remaining_amount=debt_in.remaining_amount,
-        monthly_payment=debt_in.monthly_payment,
-        interest_rate=debt_in.interest_rate,
-        due_date=debt_in.due_date,
-    )
+    if debt_in.remaining_amount > debt_in.total_amount:
+        raise HTTPException(status_code=400, detail="El saldo pendiente no puede superar el monto total.")
+    debt = Debt(user_id=current_user.id, **_updates(debt_in, partial=False))
     db.add(debt)
     db.commit()
     db.refresh(debt)
@@ -782,9 +678,10 @@ def update_debt(
     if not debt:
         raise HTTPException(status_code=404, detail="Deuda no encontrada.")
 
-    update_data = debt_in.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
+    for field, value in _updates(debt_in).items():
         setattr(debt, field, value)
+    if money(debt.remaining_amount) > money(debt.total_amount):
+        raise HTTPException(status_code=400, detail="El saldo pendiente no puede superar el monto total.")
 
     db.commit()
     db.refresh(debt)
@@ -797,13 +694,14 @@ def delete_debt(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Delete a debt item."""
+    """Delete a debt item. Past payment expenses are kept (unlinked)."""
     debt = db.query(Debt).filter(
         Debt.id == debt_id, Debt.user_id == current_user.id
     ).first()
     if not debt:
         raise HTTPException(status_code=404, detail="Deuda no encontrada.")
 
+    db.query(Expense).filter(Expense.debt_id == debt.id).update({"debt_id": None})
     db.delete(debt)
     db.commit()
     return {"status": "success", "message": "Deuda eliminada exitosamente."}
@@ -816,60 +714,26 @@ def pay_debt(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Pay/amortize a debt: deduct from chosen account, reduce remaining amount, and create expense under 'Pago de Deudas & Préstamos'."""
+    """Pay/amortize a debt: deduct from chosen account, reduce remaining amount, and record a linked expense."""
     debt = db.query(Debt).filter(
         Debt.id == debt_id, Debt.user_id == current_user.id
-    ).first()
+    ).with_for_update().first()
     if not debt:
         raise HTTPException(status_code=404, detail="Deuda no encontrada.")
 
-    if pay_in.amount <= 0:
-        raise HTTPException(status_code=400, detail="El monto del abono debe ser mayor a 0.")
+    amount = money(pay_in.amount)
+    if amount > money(debt.remaining_amount):
+        raise HTTPException(
+            status_code=400,
+            detail=f"El abono ({amount:,.2f}) supera el saldo pendiente ({money(debt.remaining_amount):,.2f}).",
+        )
 
-    # Buscar cuenta de débito
-    account = None
-    if pay_in.account_id:
-        account = db.query(Account).filter(
-            Account.id == pay_in.account_id, Account.user_id == current_user.id
-        ).first()
-    if not account and pay_in.account_name:
-        account = db.query(Account).filter(
-            Account.user_id == current_user.id,
-            Account.name.ilike(pay_in.account_name.strip()),
-        ).first()
-
-    # Validar sobregiro si es tarjeta de crédito
-    if account and account.type == "credit_card":
-        available_funds = account.balance + (account.overdraft_limit or 0.0)
-        if pay_in.amount > available_funds:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Transacción rechazada: El monto del pago (${pay_in.amount:.2f}) supera el cupo disponible más el límite de sobregiro (${available_funds:.2f}) de la tarjeta '{account.name}'.",
-            )
-
-    # 1. Debitar de la cuenta
-    if account:
-        account.balance -= pay_in.amount
-
-    # 2. Amortizar deuda
-    payment_amount = pay_in.amount
-    debt.remaining_amount = max(0.0, float(debt.remaining_amount) - payment_amount)
-
-    # 3. Asentar gasto en categoría "Pago de Deudas & Préstamos" para impactar presupuestos y reportes
-    account_name = account.name if account else (pay_in.account_name or "Cuenta Bancaria")
-    exp_desc = pay_in.description or f"Abono a {debt.creditor} ({debt.type})"
-    exp_date = pay_in.date or "Hoy"
-
-    expense = Expense(
-        user_id=current_user.id,
-        account_id=account.id if account else None,
-        account_name=account_name,
-        category="Pago de Deudas & Préstamos",
-        description=exp_desc,
-        amount=payment_amount,
-        date=exp_date,
+    expense = record_expense(
+        db, current_user.id, pay_in.account_id, pay_in.account_name, DEBT_CATEGORY,
+        pay_in.description or f"Abono a {debt.creditor} ({debt.type})", amount, pay_in.date or date.today(),
     )
-    db.add(expense)
+    expense.debt_id = debt.id
+    debt.remaining_amount = money(debt.remaining_amount) - amount
 
     db.commit()
     db.refresh(debt)
@@ -885,12 +749,8 @@ def reset_financial_data(
     current_user: User = Depends(get_current_user),
 ):
     """Reset all financial data for the authenticated user."""
-    db.query(Expense).filter(Expense.user_id == current_user.id).delete()
-    db.query(Income).filter(Income.user_id == current_user.id).delete()
-    db.query(Movement).filter(Movement.user_id == current_user.id).delete()
-    db.query(Budget).filter(Budget.user_id == current_user.id).delete()
-    db.query(Debt).filter(Debt.user_id == current_user.id).delete()
-    db.query(Account).filter(Account.user_id == current_user.id).delete()
+    for model in (Movement, Expense, Income, Budget, Debt, RecurringTransaction, SavingsGoal, PendingNotification, Account):
+        db.query(model).filter(model.user_id == current_user.id).delete(synchronize_session=False)
 
     db.commit()
     return {

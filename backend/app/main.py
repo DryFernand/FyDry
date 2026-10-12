@@ -1,6 +1,8 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from app.core.config import settings
 from app.core.database import init_db
 from app.api.v1.router import api_router
@@ -23,6 +25,13 @@ app = FastAPI(
     redoc_url=f"{settings.API_V1_STR}/redoc" if _docs_enabled else None,
     lifespan=lifespan,
 )
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    # Sin "input": no se reflejan datos enviados (contraseñas) y se evita fallar al serializar inf/nan
+    errors = [{k: v for k, v in err.items() if k in ("loc", "msg", "type")} for err in exc.errors()]
+    return JSONResponse(status_code=422, content={"detail": errors})
+
 
 # Set all CORS enabled origins
 app.add_middleware(

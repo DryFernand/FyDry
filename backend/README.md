@@ -62,6 +62,23 @@ uvicorn app.main:app --reload --port 8000
 
 ## 🗄️ Migraciones con Alembic
 
+El servidor ya no crea tablas al arrancar en PostgreSQL (solo en SQLite local). El esquema se gestiona solo con Alembic.
+
+### Primera vez sobre una base existente (creada antes con `create_all`)
+Haz un backup en Supabase y luego:
+```bash
+alembic stamp 0001_baseline
+alembic upgrade head
+```
+`0003` convierte montos a `NUMERIC(14,2)`, fechas texto a `DATE` (textos como "Hoy" toman la fecha de creación) y elimina los tokens de Gmail guardados en texto plano.
+
+### Checks rápidos
+```bash
+python tests/check_auth_security.py
+python tests/check_ledger.py
+```
+Usan SQLite temporal; con `CHECK_DATABASE_URL` apuntan a otra base (nunca a producción).
+
 ### Generar una nueva migración automáticamente:
 ```bash
 alembic revision --autogenerate -m "descripcion_del_cambio"
