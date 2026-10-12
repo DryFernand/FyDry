@@ -44,12 +44,33 @@ export interface PendingAction {
   error?: string;
 }
 
+export interface MissingDetailField {
+  id: string;
+  label: string;
+  placeholder?: string;
+  type?: "text" | "number" | "category_select" | "account_select" | "date" | string;
+  value?: string;
+}
+
+export interface MissingDetailsPayload {
+  action_type: string;
+  message: string;
+  fields: MissingDetailField[];
+  isSubmitted?: boolean;
+}
+
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant" | "system";
   content: string;
   timestamp: Date;
   pendingAction?: PendingAction;
+  missingDetails?: MissingDetailsPayload;
+}
+
+export function stripAsterisks(text?: string | null): string {
+  if (!text) return "";
+  return String(text).replace(/\*/g, "");
 }
 
 const ALLOWED_TOOLS = new Set([
@@ -60,6 +81,7 @@ const ALLOWED_TOOLS = new Set([
   "create_budget",
   "create_debt",
   "pay_debt",
+  "request_missing_details",
 ]);
 
 const ALLOWED_ACCOUNT_TYPES = new Set([
@@ -266,7 +288,8 @@ const INITIAL_GREETING =
   "Hola. Soy tu asistente de bienestar financiero en FyDry. Estoy aquí para acompañarte a organizar tus gastos, revisar tus presupuestos o resolver inquietudes sobre tus finanzas con calma y claridad.\n\n¿En qué te gustaría que nos enfoquemos hoy?";
 
 function splitAssistantResponse(text: string): string[] {
-  const trimmed = text.trim();
+  const cleaned = stripAsterisks(text);
+  const trimmed = cleaned.trim();
   if (!trimmed) return [];
   if (trimmed.length <= 250 && !trimmed.includes("\n\n")) {
     return [trimmed];
@@ -434,10 +457,10 @@ function ActionCard({ action, onConfirm, onCancel }: ActionCardProps) {
         {details.map((d, idx) => (
           <div key={idx} className="flex flex-col min-w-0">
             <span className="text-[10px] text-zinc-400 font-medium">
-              {d.label}
+              {stripAsterisks(d.label)}
             </span>
-            <span className="text-zinc-800 font-semibold truncate" title={d.value}>
-              {d.value}
+            <span className="text-zinc-800 font-semibold truncate" title={stripAsterisks(d.value)}>
+              {stripAsterisks(d.value)}
             </span>
           </div>
         ))}
@@ -492,6 +515,194 @@ function ActionCard({ action, onConfirm, onCancel }: ActionCardProps) {
         </div>
       )}
     </div>
+  );
+}
+
+interface MissingDetailsFormProps {
+  messageId: string;
+  missingDetails: MissingDetailsPayload;
+  accountsList: AccountItem[];
+  onSubmit: (
+    messageId: string,
+    answers: Record<string, string>,
+    actionType: string,
+    fields: MissingDetailField[]
+  ) => void;
+}
+
+function MissingDetailsForm({
+  messageId,
+  missingDetails,
+  accountsList,
+  onSubmit,
+}: MissingDetailsFormProps) {
+  const { action_type, fields, isSubmitted } = missingDetails;
+
+  const [formValues, setFormValues] = useState<Record<string, string>>(() => {
+    const initial: Record<string, string> = {};
+    fields.forEach((field) => {
+      if (field.value) {
+        initial[field.id] = field.value;
+      } else if (field.type === "account_select" && accountsList.length > 0) {
+        initial[field.id] = accountsList[0].name;
+      } else if (field.type === "category_select") {
+        const catList = action_type === "income" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+        initial[field.id] = catList[0] || "";
+      } else if (field.type === "date") {
+        initial[field.id] = new Date().toISOString().split("T")[0];
+      } else {
+        initial[field.id] = "";
+      }
+    });
+    return initial;
+  });
+
+  const handleChange = (id: string, value: string) => {
+    setFormValues((prev) => ({ ...prev, [id]: value }));
+  };
+
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isSubmitted) return;
+    const anyEmpty = fields.some((f) => !formValues[f.id] || !formValues[f.id].trim());
+    if (anyEmpty) return;
+    onSubmit(messageId, formValues, action_type, fields);
+  };
+
+  const isCategoryExpense = action_type === "expense" || action_type === "budget";
+  const categoryOptions = isCategoryExpense ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
+
+  const hasEmptyField = fields.some((f) => {
+    const val = formValues[f.id];
+    return !val || !val.trim();
+  });
+
+  return (
+    <form
+      onSubmit={handleFormSubmit}
+      className="mt-3 p-3.5 rounded-2xl bg-white border border-zinc-200/90 shadow-2xs space-y-3 text-zinc-900 w-full select-none"
+    >
+      <div className="flex items-center justify-between gap-2 border-b border-zinc-100 pb-2">
+        <span className="text-[11px] font-semibold text-zinc-900 tracking-tight flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-zinc-900 shrink-0" />
+          Datos solicitados para continuar
+        </span>
+        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600 border border-zinc-200/60 shrink-0 capitalize">
+          {action_type}
+        </span>
+      </div>
+
+      <div className="space-y-3">
+        {fields.map((field) => {
+          const currentVal = formValues[field.id] ?? "";
+          const cleanLabel = stripAsterisks(field.label);
+          const cleanPlaceholder = field.placeholder ? stripAsterisks(field.placeholder) : "";
+
+          return (
+            <div key={field.id} className="space-y-1">
+              <label
+                htmlFor={`field-${messageId}-${field.id}`}
+                className="block text-[11px] font-medium text-zinc-700 leading-snug"
+              >
+                {cleanLabel}
+              </label>
+
+              {field.type === "account_select" ? (
+                accountsList.length > 0 ? (
+                  <select
+                    id={`field-${messageId}-${field.id}`}
+                    value={currentVal}
+                    disabled={isSubmitted}
+                    onChange={(e) => handleChange(field.id, e.target.value)}
+                    className="w-full bg-zinc-50 hover:bg-zinc-100/70 focus:bg-white text-xs text-zinc-900 border border-zinc-200 rounded-xl px-2.5 py-1.5 outline-none focus:border-zinc-950 focus:ring-1 focus:ring-zinc-950 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {accountsList.map((acc) => (
+                      <option key={acc.id || acc.name} value={acc.name}>
+                        {acc.name} (${Number(acc.balance || 0).toFixed(2)})
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    id={`field-${messageId}-${field.id}`}
+                    type="text"
+                    value={currentVal}
+                    disabled={isSubmitted}
+                    placeholder={cleanPlaceholder || "Nombre de la cuenta..."}
+                    onChange={(e) => handleChange(field.id, e.target.value)}
+                    className="w-full bg-zinc-50 hover:bg-zinc-100/70 focus:bg-white text-xs text-zinc-900 placeholder:text-zinc-400 border border-zinc-200 rounded-xl px-2.5 py-1.5 outline-none focus:border-zinc-950 focus:ring-1 focus:ring-zinc-950 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                  />
+                )
+              ) : field.type === "category_select" ? (
+                <select
+                  id={`field-${messageId}-${field.id}`}
+                  value={currentVal}
+                  disabled={isSubmitted}
+                  onChange={(e) => handleChange(field.id, e.target.value)}
+                  className="w-full bg-zinc-50 hover:bg-zinc-100/70 focus:bg-white text-xs text-zinc-900 border border-zinc-200 rounded-xl px-2.5 py-1.5 outline-none focus:border-zinc-950 focus:ring-1 focus:ring-zinc-950 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {categoryOptions.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+              ) : field.type === "number" ? (
+                <input
+                  id={`field-${messageId}-${field.id}`}
+                  type="number"
+                  step="any"
+                  value={currentVal}
+                  disabled={isSubmitted}
+                  placeholder={cleanPlaceholder || "0.00"}
+                  onChange={(e) => handleChange(field.id, e.target.value)}
+                  className="w-full bg-zinc-50 hover:bg-zinc-100/70 focus:bg-white text-xs text-zinc-900 placeholder:text-zinc-400 border border-zinc-200 rounded-xl px-2.5 py-1.5 outline-none focus:border-zinc-950 focus:ring-1 focus:ring-zinc-950 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                />
+              ) : field.type === "date" ? (
+                <input
+                  id={`field-${messageId}-${field.id}`}
+                  type="date"
+                  value={currentVal}
+                  disabled={isSubmitted}
+                  onChange={(e) => handleChange(field.id, e.target.value)}
+                  className="w-full bg-zinc-50 hover:bg-zinc-100/70 focus:bg-white text-xs text-zinc-900 border border-zinc-200 rounded-xl px-2.5 py-1.5 outline-none focus:border-zinc-950 focus:ring-1 focus:ring-zinc-950 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                />
+              ) : (
+                <input
+                  id={`field-${messageId}-${field.id}`}
+                  type="text"
+                  value={currentVal}
+                  disabled={isSubmitted}
+                  placeholder={cleanPlaceholder || "Escribe el dato..."}
+                  onChange={(e) => handleChange(field.id, e.target.value)}
+                  className="w-full bg-zinc-50 hover:bg-zinc-100/70 focus:bg-white text-xs text-zinc-900 placeholder:text-zinc-400 border border-zinc-200 rounded-xl px-2.5 py-1.5 outline-none focus:border-zinc-950 focus:ring-1 focus:ring-zinc-950 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="pt-2 border-t border-zinc-100">
+        <button
+          type="submit"
+          disabled={isSubmitted || hasEmptyField}
+          className="w-full flex items-center justify-center gap-1.5 bg-zinc-950 hover:bg-zinc-800 text-white font-medium py-2 px-3 rounded-xl text-xs transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-xs"
+        >
+          {isSubmitted ? (
+            <>
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Datos enviados</span>
+            </>
+          ) : (
+            <>
+              <Send className="w-3.5 h-3.5 text-zinc-200" />
+              <span>Enviar datos solicitados</span>
+            </>
+          )}
+        </button>
+      </div>
+    </form>
   );
 }
 
@@ -873,21 +1084,62 @@ export default function AiAssistantChat() {
     ]);
   };
 
-  const handleSendMessage = async (e?: React.FormEvent) => {
+  const handleMissingDetailsSubmit = (
+    messageId: string,
+    answers: Record<string, string>,
+    actionType: string,
+    fields: MissingDetailField[]
+  ) => {
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === messageId && m.missingDetails
+          ? {
+              ...m,
+              missingDetails: {
+                ...m.missingDetails,
+                isSubmitted: true,
+              },
+            }
+          : m
+      )
+    );
+
+    const answerLines = fields
+      .map((f) => {
+        const val = (answers[f.id] || "").trim();
+        if (!val) return null;
+        return `${stripAsterisks(f.label)}: ${val}`;
+      })
+      .filter(Boolean);
+
+    const userText =
+      answerLines.length > 0
+        ? `Aquí tienes los datos solicitados:\n${answerLines.join("\n")}`
+        : `Datos completados para la operación.`;
+
+    handleSendMessage(undefined, stripAsterisks(userText));
+  };
+
+  const handleSendMessage = async (
+    e?: React.FormEvent,
+    customText?: string
+  ) => {
     if (e) e.preventDefault();
-    const trimmed = inputMessage.trim();
-    if (!trimmed || isLoading || isTyping) return;
+    const textToSend = typeof customText === "string" ? customText.trim() : inputMessage.trim();
+    if (!textToSend || isLoading || isTyping) return;
 
     const userMsg: ChatMessage = {
       id: `user-${Date.now()}`,
       role: "user",
-      content: trimmed,
+      content: stripAsterisks(textToSend),
       timestamp: new Date(),
     };
 
     const newHistory = [...messages, userMsg];
     setMessages(newHistory);
-    setInputMessage("");
+    if (!customText) {
+      setInputMessage("");
+    }
     setIsLoading(true);
 
     try {
@@ -906,7 +1158,7 @@ export default function AiAssistantChat() {
         body: JSON.stringify({
           messages: newHistory.map((m) => ({
             role: m.role,
-            content: m.content,
+            content: stripAsterisks(m.content),
           })),
           userAccounts: accountsList.map((a) => ({
             id: a.id,
@@ -932,7 +1184,7 @@ export default function AiAssistantChat() {
         return;
       }
 
-      const fullAssistantText = data.message || "";
+      const fullAssistantText = stripAsterisks(data.message || "");
       const toolCall = data.tool_call;
       const chunks = splitAssistantResponse(fullAssistantText);
 
@@ -943,6 +1195,40 @@ export default function AiAssistantChat() {
           typeof toolCall.name === "string" &&
           ALLOWED_TOOLS.has(toolCall.name)
       );
+
+      // Si la herramienta solicitada es request_missing_details
+      if (isValidToolCall && toolCall.name === "request_missing_details") {
+        const rawArgs = toolCall.arguments || {};
+        const actionType = String(rawArgs.action_type || "expense");
+        const formPrompt = stripAsterisks(
+          rawArgs.message || data.message || "Por favor, completa los siguientes datos para continuar:"
+        );
+        const fieldsList: MissingDetailField[] = Array.isArray(rawArgs.fields)
+          ? rawArgs.fields.map((f: any, idx: number) => ({
+              id: String(f.id || `field_${idx}`),
+              label: stripAsterisks(String(f.label || "Dato solicitado")),
+              placeholder: f.placeholder ? stripAsterisks(String(f.placeholder)) : undefined,
+              type: f.type || "text",
+            }))
+          : [];
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `assistant-missing-${Date.now()}`,
+            role: "assistant",
+            content: formPrompt,
+            timestamp: new Date(),
+            missingDetails: {
+              action_type: actionType,
+              message: formPrompt,
+              fields: fieldsList,
+              isSubmitted: false,
+            },
+          },
+        ]);
+        return;
+      }
 
       // Si no hay tool call o la herramienta no está permitida, mostrar como mensaje conversacional normal
       if (!isValidToolCall) {
@@ -1434,13 +1720,25 @@ export default function AiAssistantChat() {
                     }`}
                   >
                     <div
-                      className={`text-xs sm:text-[13px] leading-relaxed max-w-[85%] rounded-2xl px-3.5 py-2.5 shadow-2xs whitespace-pre-line ${
+                      className={`text-xs sm:text-[13px] leading-relaxed ${
+                        msg.missingDetails ? "w-full max-w-[95%] sm:max-w-[90%]" : "max-w-[85%]"
+                      } rounded-2xl px-3.5 py-2.5 shadow-2xs whitespace-pre-line ${
                         isUser
                           ? "bg-zinc-950 text-white rounded-br-xs"
                           : "bg-zinc-100 text-zinc-800 rounded-bl-xs border border-zinc-200/50"
                       }`}
                     >
-                      {msg.content}
+                      {stripAsterisks(msg.content)}
+
+                      {/* Tarjeta interactiva con inputs para datos solicitados */}
+                      {msg.missingDetails && (
+                        <MissingDetailsForm
+                          messageId={msg.id}
+                          missingDetails={msg.missingDetails}
+                          accountsList={accountsList}
+                          onSubmit={handleMissingDetailsSubmit}
+                        />
+                      )}
 
                       {/* Tarjeta interactiva de acción si existe */}
                       {msg.pendingAction && (

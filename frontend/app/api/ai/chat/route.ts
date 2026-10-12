@@ -15,13 +15,14 @@ Tu misión es acompañar al usuario con sensatez, calma y empatía en:
 Pautas de tono y estilo (Lenguaje Humano y Calmado):
 - Habla con calma, cercanía y calidez natural, como un mentor financiero prudente conversando con un amigo de confianza.
 - PROHIBIDO estrictamente usar muletillas y clichés corporativos de IA como: "es fundamental", "en conclusión", "un papel crucial", "como modelo de lenguaje", "es importante destacar", "en resumen", "sin duda alguna", "recuerda que".
+- PROHIBIDO terminantemente usar asteriscos (*) o doble asterisco (**) en cualquier parte de tus respuestas. No uses negrita de markdown con asteriscos ni viñetas con asteriscos bajo ninguna circunstancia. Tu texto debe ser siempre limpio, natural y libre de asteriscos.
 - Sé directo, práctico y conciso. Ve al grano sin rodeos ni preámbulos vacíos.
 - Usa oraciones claras con ritmo humano y pausado.
 
 Directivas Estrictas de Registro y Ejecución de Acciones:
-- Dispones de herramientas para interactuar con FyDry: create_expense, create_income, create_transfer, create_account, create_budget, create_debt y pay_debt.
-- Si el usuario te solicita registrar o crear un gasto, ingreso, transferencia, presupuesto o deuda, pero faltan datos esenciales (como monto, categoría, cuenta o concepto): NO llames a ninguna herramienta todavía. Pregunta de forma directa y amable por los datos que faltan. Solo invoca la herramienta correspondiente cuando el usuario te haya proporcionado toda la información necesaria.
-- Al invocar una herramienta, si lo deseas puedes incluir un mensaje muy breve y sereno indicando lo que has preparado para el usuario.
+- Dispones de herramientas para interactuar con FyDry: create_expense, create_income, create_transfer, create_account, create_budget, create_debt, pay_debt y request_missing_details.
+- Cuando el usuario te solicite registrar o crear un gasto, ingreso, transferencia, presupuesto, cuenta o deuda, pero falten datos esenciales (como monto, categoría, cuenta o concepto): NUNCA formules una lista de texto plano con asteriscos. En su lugar, DEBES invocar la herramienta request_missing_details indicando el action_type, un message amable y el listado de fields con las preguntas específicas y sus campos para que el usuario ingrese cada dato solicitado. Si el usuario ya te dio algunos datos (por ejemplo, el monto), pide únicamente los campos faltantes.
+- Al invocar una herramienta, si lo deseas puedes incluir un mensaje muy breve y sereno indicando lo que has preparado para el usuario (siempre libre de asteriscos).
 - Al invocar herramientas como create_expense, create_income o create_budget, NUNCA inventes categorías nuevas. Debes seleccionar estrictamente la categoría oficial que mejor se adapte a la descripción del usuario (por ejemplo, si el usuario dice 'comida' o 'almuerzo' usa 'Restaurantes & Bares' o 'Supermercado & Alimentación'; si dice 'uber' usa 'Transporte Público & Taxi'; si dice 'sueldo' usa 'Salario / Nómina Principal'). Si ninguna coincide de forma exacta, asóciala a la más afín de la lista oficial, o a 'Otros Gastos' / 'Otros Ingresos'.
 
 Categorías Oficiales de FyDry para Gastos y Presupuestos:
@@ -43,6 +44,7 @@ const ALLOWED_TOOLS = new Set([
   "create_budget",
   "create_debt",
   "pay_debt",
+  "request_missing_details",
 ]);
 
 const TOOLS = [
@@ -244,6 +246,42 @@ const TOOLS = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "request_missing_details",
+      description: "Úsala obligatoriamente cuando el usuario te pida registrar o realizar una acción (gasto, ingreso, transferencia, cuenta, presupuesto, deuda o pago) pero falten datos requeridos. Presenta las preguntas claras con sus campos para que el usuario pueda completarlos mediante inputs interactivos en pantalla.",
+      parameters: {
+        type: "object",
+        properties: {
+          action_type: {
+            type: "string",
+            enum: ["expense", "income", "transfer", "account", "budget", "debt", "pay_debt"],
+            description: "El tipo de operación que se está intentando completar.",
+          },
+          message: {
+            type: "string",
+            description: "Mensaje cordial y sereno explicando qué se va a registrar (sin ningún asterisco).",
+          },
+          fields: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                id: { type: "string", description: "Identificador del campo (ej. description, category, account, amount, creditor, limit_amount)." },
+                label: { type: "string", description: "Pregunta o etiqueta del dato solicitado (sin asteriscos)." },
+                placeholder: { type: "string", description: "Texto de ejemplo para el input." },
+                type: { type: "string", enum: ["text", "number", "category_select", "account_select", "date"] },
+              },
+              required: ["id", "label"],
+            },
+            description: "Lista de campos/preguntas requeridas con sus datos solicitados.",
+          },
+        },
+        required: ["action_type", "message", "fields"],
+      },
+    },
+  },
 ];
 
 export async function POST(req: NextRequest) {
@@ -350,7 +388,7 @@ REGLAS ESTRICTAS PARA CUENTAS Y MÉTODOS DE PAGO:
    DEBES detectarlo de inmediato y señalárselo amablemente al usuario antes de ejecutar nada:
    'Veo que mencionas pagar con [Método], pero no lo tienes registrado entre tus cuentas de FyDry. Tus cuentas disponibles son: [Cuenta A, Cuenta B...]. ¿Deseas asociar el movimiento a alguna de estas o prefieres que primero registremos [Método] como una nueva cuenta?'
    NUNCA inventes cuentas ni registres operaciones en cuentas inexistentes.
-3. Si el usuario pide registrar una acción pero no indica la cuenta, pregúntale amablemente desde cuál de sus cuentas registradas desea hacerlo, mostrándole sus opciones disponibles.`;
+3. Si el usuario pide registrar una acción pero no indica la cuenta u otro dato esencial, usa la herramienta request_missing_details incluyendo el campo con type 'account_select' para que elija su cuenta cómodamente en pantalla sin asteriscos.`;
     } else {
       accountsPromptSection = `CUENTAS DISPONIBLES DEL USUARIO:
 El usuario no tiene cuentas registradas aún. Si pide registrar un gasto o ingreso, indícale amablemente que primero debe crear una cuenta (o ofrécele registrar una cuenta primero).`;

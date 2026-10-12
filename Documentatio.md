@@ -1,5 +1,26 @@
 # Registro de Cambios y Documentación del Proyecto (Documentatio.md)
 
+## [2026-10-12] - Chat de Asistencia de IA: Preguntas Interactivas con Inputs y Erradicación Total de Asteriscos
+
+### Resumen
+Se implementó un flujo de interacción guiada en el Asistente de IA de FyDry para que, en lugar de solicitar datos faltantes mediante listas en texto plano con asteriscos, se desplieguen preguntas estructuradas acompañadas directamente de controles de entrada (inputs y selects) integrados en el chat. Asimismo, se erradicó por completo el uso de asteriscos (* y **) tanto a nivel de directivas en el System Prompt como mediante sanitización recursiva en el cliente.
+
+### Cambios Realizados:
+- **Erradicación Total de Asteriscos (*, **)**:
+  - En route.ts, se incorporó al SYSTEM_PROMPT la prohibición explícita de utilizar asteriscos para negritas, viñetas o listas.
+  - En AiAssistantChat.tsx, se integró la función utilitaria stripAsterisks que expurga de forma segura y recursiva cualquier asterisco residual antes de renderizar los textos, etiquetas, tarjetas de confirmación y envíos.
+- **Nueva Herramienta request_missing_details**:
+  - Incorporación en ALLOWED_TOOLS y definición en el catálogo JSON Schema de herramientas para la IA.
+  - Soporta el tipado dinámico de campos: category_select (con catálogo oficial de gastos/ingresos), account_select (con cuentas bancarias y saldos reales del usuario), number (para montos), date (para fechas) y text (para conceptos/descripciones).
+- **Subcomponente Interactivo MissingDetailsForm**:
+  - Renderizado de preguntas claras con su control respectivo debajo.
+  - Botón de acción 'Enviar datos solicitados' con validación previa de campos requeridos.
+  - Bloqueo y estado isSubmitted = true tras el envío, serializando las respuestas limpias directamente a la conversación para que el asistente proceda con la creación.
+- **Auditoría de Calidad y Preservación**:
+  - Veredicto de Seguridad: LUZ VERDE (sanitización estricta, renderizado seguro sin XSS, límites de payload y autenticación íntegra).
+  - Veredicto de QA: LUZ VERDE (npx tsc --noEmit código 0 y build de producción Next.js Turbopack completado con éxito sin regresiones en las 15 funciones del chat).
+
+---
 ## [2026-10-08] - Unificación y Simplificación de Filtros en Pantalla de Gastos
 
 ### Resumen
