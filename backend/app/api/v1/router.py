@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import health, auth, onboarding, financial, notifications
+from app.api.v1.endpoints import health, auth, onboarding, financial, notifications, planning
 
 api_router = APIRouter()
 api_router.include_router(health.router, tags=["Health"])
@@ -7,3 +7,4 @@ api_router.include_router(auth.router, prefix="/auth", tags=["Authentication & S
 api_router.include_router(onboarding.router, prefix="/onboarding", tags=["User Onboarding & Profile"])
 api_router.include_router(financial.router, tags=["Financial Core (Accounts, Expenses, Incomes, Budgets, Debts)"])
 api_router.include_router(notifications.router, tags=["Email Sync & Intelligent Notifications"])
+api_router.include_router(planning.router, tags=["Planning (Recurring, Goals, Insights)"])
