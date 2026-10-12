@@ -12,10 +12,12 @@ export default function CTASection() {
           whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          className="relative rounded-3xl bg-zinc-950 text-white p-8 sm:p-14 overflow-hidden shadow-2xl border border-zinc-900"
+          className="glow-border relative rounded-3xl text-white p-8 sm:p-14 overflow-hidden shadow-2xl"
         >
           {/* Subtle glow background */}
-          <div className="absolute -top-24 -right-24 w-96 h-96 bg-zinc-800/40 rounded-full blur-3xl pointer-events-none" />
+          <div className="blob absolute -top-24 -right-24 w-96 h-96 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none" aria-hidden="true" />
+          <div className="blob absolute -bottom-32 -left-24 w-96 h-96 bg-zinc-700/40 rounded-full blur-3xl pointer-events-none [animation-delay:-9s]" aria-hidden="true" />
+          <div className="absolute inset-0 opacity-[0.07] pointer-events-none [background-image:radial-gradient(#fff_1px,transparent_1px)] [background-size:22px_22px]" aria-hidden="true" />
 
           <div className="relative z-10 max-w-2xl mx-auto text-center flex flex-col items-center">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-300 text-xs font-medium mb-6">

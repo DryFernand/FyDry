@@ -63,7 +63,8 @@ export default function Pricing() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
-            className="p-7 rounded-2xl bg-zinc-950 text-white border border-zinc-900 shadow-xl flex flex-col justify-between"
+            whileHover={{ y: -6 }}
+            className="glow-border p-7 rounded-2xl text-white shadow-xl shadow-emerald-900/10 flex flex-col justify-between"
           >
             <div>
               <div className="text-sm font-bold text-white flex items-center gap-1.5">

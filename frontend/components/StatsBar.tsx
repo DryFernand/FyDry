@@ -46,13 +46,14 @@ export default function StatsBar() {
             return (
               <motion.div
                 key={index}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                whileInView={{ opacity: 1, y: 0, scale: 1 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-                className="flex flex-col items-center text-center p-4 rounded-xl bg-white border border-zinc-200/70 shadow-xs hover:border-zinc-300 transition-colors"
+                transition={{ duration: 0.5, delay: index * 0.1, ease: [0.16, 1, 0.3, 1] }}
+                whileHover={{ y: -4 }}
+                className="group flex flex-col items-center text-center p-4 rounded-xl bg-white border border-zinc-200/70 shadow-xs hover:border-emerald-200 hover:shadow-lg hover:shadow-emerald-900/5 transition-[box-shadow,border-color]"
               >
-                <div className="w-8 h-8 rounded-lg bg-zinc-100 flex items-center justify-center text-zinc-900 mb-2">
+                <div className="w-8 h-8 rounded-lg bg-zinc-100 flex items-center justify-center text-zinc-900 mb-2 transition-colors group-hover:bg-zinc-950 group-hover:text-emerald-400">
                   <Icon className="w-4 h-4" />
                 </div>
                 <div className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-900">

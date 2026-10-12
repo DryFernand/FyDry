@@ -78,14 +78,14 @@ const features = [
           <div className="text-[10px] text-zinc-500">Meta Fondo Emergencia</div>
           <div className="text-xs font-bold text-zinc-900 mt-1">75% Completado</div>
           <div className="w-full bg-zinc-200 rounded-full h-1.5 mt-2">
-            <div className="bg-zinc-900 h-1.5 rounded-full w-[75%]" />
+            <motion.div className="bg-zinc-900 h-1.5 rounded-full" initial={{ width: 0 }} whileInView={{ width: "75%" }} viewport={{ once: true }} transition={{ duration: 1.2, delay: 0.3 }} />
           </div>
         </div>
         <div className="p-2.5 rounded bg-zinc-50 border border-zinc-200">
           <div className="text-[10px] text-zinc-500">Presupuesto Supermercado</div>
           <div className="text-xs font-bold text-zinc-900 mt-1">RD$ 9,000 / 12,000</div>
           <div className="w-full bg-zinc-200 rounded-full h-1.5 mt-2">
-            <div className="bg-emerald-500 h-1.5 rounded-full w-[60%]" />
+            <motion.div className="bg-emerald-500 h-1.5 rounded-full" initial={{ width: 0 }} whileInView={{ width: "75%" }} viewport={{ once: true }} transition={{ duration: 1.2, delay: 0.45 }} />
           </div>
         </div>
       </div>
@@ -140,12 +140,17 @@ export default function BentoFeatures() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
-                whileHover={{ y: -4 }}
-                className={`${item.colSpan} p-6 sm:p-7 rounded-2xl bg-white border border-zinc-200 shadow-xs hover:shadow-md hover:border-zinc-300 transition-all duration-300 flex flex-col justify-between`}
+                whileHover={{ y: -6 }}
+                onPointerMove={(e) => {
+                  const r = e.currentTarget.getBoundingClientRect();
+                  e.currentTarget.style.setProperty("--spot-x", `${e.clientX - r.left}px`);
+                  e.currentTarget.style.setProperty("--spot-y", `${e.clientY - r.top}px`);
+                }}
+                className={`spotlight-card group ${item.colSpan} p-6 sm:p-7 rounded-2xl bg-white border border-zinc-200 shadow-xs hover:shadow-xl hover:shadow-emerald-900/5 hover:border-zinc-300 transition-[box-shadow,border-color] duration-300 flex flex-col justify-between`}
               >
                 <div>
                   <div className="flex items-center justify-between mb-4">
-                    <div className="w-10 h-10 rounded-xl bg-zinc-100 flex items-center justify-center text-zinc-900">
+                    <div className="w-10 h-10 rounded-xl bg-zinc-100 flex items-center justify-center text-zinc-900 transition-all duration-300 group-hover:bg-zinc-950 group-hover:text-emerald-400 group-hover:rotate-6 group-hover:scale-110">
                       <Icon className="w-5 h-5" />
                     </div>
                     <span className="text-[11px] font-semibold text-zinc-600 bg-zinc-100/80 px-2.5 py-1 rounded-full">

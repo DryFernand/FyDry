@@ -1,391 +1,333 @@
 "use client";
 
-import { useState } from "react";
-import { motion } from "motion/react";
+import { useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion, useScroll, useTransform } from "motion/react";
 import {
   ArrowRight,
-  TrendingUp,
-  ShieldCheck,
-  Zap,
-  PieChart,
   Wallet,
-  Sparkles,
+  PieChart,
   CheckCircle2,
-  BellRing,
   HeartHandshake,
   AlertCircle,
-  Clock,
+  Bot,
+  Sparkles,
+  Zap,
+  BellRing,
 } from "lucide-react";
+import { PhoneFrame, TiltCard, CountUp } from "./landing/primitives";
+import { PlanScreen } from "./landing/AppScreens";
+
+const ROTATING = ["tranquiliza tu mente.", "controla tus tarjetas.", "ahorra sin estrés.", "sabe cuánto gastar hoy."];
+
+const ease = [0.16, 1, 0.3, 1] as const;
+
+function FloatingCard({
+  className,
+  delay,
+  float,
+  children,
+}: {
+  className: string;
+  delay: number;
+  float: number;
+  children: React.ReactNode;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1, y: [0, float, 0] }}
+      transition={{
+        opacity: { duration: 0.6, delay },
+        scale: { duration: 0.6, delay, ease },
+        y: { repeat: Infinity, duration: 5 + delay * 2, ease: "easeInOut" },
+      }}
+      className={`absolute z-20 flex items-center gap-3 p-3 rounded-2xl bg-white/95 backdrop-blur-md border border-zinc-200 shadow-[0_12px_30px_-10px_rgba(0,0,0,0.12)] ${className}`}
+    >
+      {children}
+    </motion.div>
+  );
+}
 
 export default function Hero() {
-  const [activeTab, setActiveTab] = useState<"mensual" | "categorias" | "ahorro">("mensual");
+  const [wordIndex, setWordIndex] = useState(0);
+  const sectionRef = useRef<HTMLElement>(null);
+  const { scrollYProgress } = useScroll({ target: sectionRef, offset: ["start start", "end start"] });
+  const mockupY = useTransform(scrollYProgress, [0, 1], [0, 120]);
+  const phoneY = useTransform(scrollYProgress, [0, 1], [0, -60]);
+  const glowOpacity = useTransform(scrollYProgress, [0, 0.6], [1, 0]);
+
+  useEffect(() => {
+    const id = setInterval(() => setWordIndex((i) => (i + 1) % ROTATING.length), 2800);
+    return () => clearInterval(id);
+  }, []);
 
   return (
-    <section className="relative pt-16 pb-24 md:pt-24 md:pb-32 overflow-hidden border-b border-zinc-200/60 bg-gradient-to-b from-zinc-50/50 via-white to-white">
-      {/* Background Subtle Grid Pattern */}
-      <div className="absolute inset-0 bg-grid-pattern opacity-40 pointer-events-none" />
-
-      {/* ======================================================== */}
-      {/* FLOATING ANIMATED CARDS (DESKTOP / TABLET)               */}
-      {/* ======================================================== */}
-      
-      {/* Floating Card 1: Gasto Hormiga Detectado (Top Left) */}
-      <motion.div
-        initial={{ opacity: 0, x: -30, y: -10 }}
-        animate={{
-          opacity: 1,
-          x: 0,
-          y: [0, -12, 0],
-        }}
-        transition={{
-          opacity: { duration: 0.8, delay: 0.2 },
-          x: { duration: 0.8, delay: 0.2 },
-          y: {
-            repeat: Infinity,
-            duration: 5,
-            ease: "easeInOut",
-          },
-        }}
-        className="hidden lg:flex items-center gap-3 absolute top-24 left-8 xl:left-16 z-20 p-3.5 rounded-2xl bg-white/95 backdrop-blur-md border border-zinc-200 shadow-[0_12px_30px_-10px_rgba(0,0,0,0.08)] ring-1 ring-zinc-950/5"
-      >
-        <div className="w-9 h-9 rounded-xl bg-amber-50 border border-amber-200/60 flex items-center justify-center text-amber-600 shrink-0">
-          <AlertCircle className="w-5 h-5" />
-        </div>
-        <div>
-          <div className="text-[11px] font-semibold text-zinc-900 flex items-center gap-1">
-            <span>Gasto hormiga detectado</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-          </div>
-          <div className="text-xs text-zinc-500 flex items-center gap-1.5 mt-0.5">
-            <span className="font-bold text-zinc-900">RD$ 900</span>
-            <span className="text-[10px] bg-amber-50 text-amber-700 font-medium px-1.5 py-0.2 rounded">
-              café ×6 este mes
-            </span>
-          </div>
-        </div>
-      </motion.div>
-
-      {/* Floating Card 2: Índice de Paz Mental (Top Right) */}
-      <motion.div
-        initial={{ opacity: 0, x: 30, y: 10 }}
-        animate={{
-          opacity: 1,
-          x: 0,
-          y: [0, 14, 0],
-        }}
-        transition={{
-          opacity: { duration: 0.8, delay: 0.3 },
-          x: { duration: 0.8, delay: 0.3 },
-          y: {
-            repeat: Infinity,
-            duration: 5.5,
-            ease: "easeInOut",
-          },
-        }}
-        className="hidden lg:flex items-center gap-3 absolute top-28 right-8 xl:right-16 z-20 p-3.5 rounded-2xl bg-white/95 backdrop-blur-md border border-zinc-200 shadow-[0_12px_30px_-10px_rgba(0,0,0,0.08)] ring-1 ring-zinc-950/5"
-      >
-        <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200/60 flex items-center justify-center text-emerald-600 shrink-0">
-          <HeartHandshake className="w-5 h-5" />
-        </div>
-        <div>
-          <div className="text-[11px] font-semibold text-zinc-900 flex items-center gap-1">
-            <span>Paz Mental</span>
-            <span className="text-[10px] text-emerald-600 font-bold">82/100</span>
-          </div>
-          <div className="text-[11px] text-zinc-500">Tu puntaje de este mes</div>
-        </div>
-      </motion.div>
-
-      {/* Floating Card 3: Auto-categorización IA (Mid-Right Floating Badge) */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{
-          opacity: 1,
-          scale: 1,
-          y: [0, -10, 0],
-        }}
-        transition={{
-          opacity: { duration: 0.8, delay: 0.4 },
-          y: {
-            repeat: Infinity,
-            duration: 6,
-            ease: "easeInOut",
-          },
-        }}
-        className="hidden xl:flex items-center gap-2.5 absolute bottom-44 right-10 z-20 py-2.5 px-4 rounded-xl bg-zinc-900 text-white shadow-xl text-xs"
-      >
-        <Sparkles className="w-4 h-4 text-emerald-400 animate-spin" style={{ animationDuration: "8s" }} />
-        <span>Asistente IA: &quot;Cena 1,500 con la Visa&quot;</span>
-      </motion.div>
-
-      {/* Floating Card 4: Ahorro Promedio Mensual (Mid-Left Floating Badge) */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{
-          opacity: 1,
-          scale: 1,
-          y: [0, 10, 0],
-        }}
-        transition={{
-          opacity: { duration: 0.8, delay: 0.5 },
-          y: {
-            repeat: Infinity,
-            duration: 6.5,
-            ease: "easeInOut",
-          },
-        }}
-        className="hidden xl:flex items-center gap-2.5 absolute bottom-36 left-12 z-20 py-2.5 px-4 rounded-xl bg-white border border-zinc-200 shadow-lg text-xs font-semibold text-zinc-800"
-      >
-        <TrendingUp className="w-4 h-4 text-emerald-600" />
-        <span>Disponible hoy: RD$ 1,250</span>
+    <section
+      ref={sectionRef}
+      className="relative pt-14 pb-20 md:pt-20 md:pb-28 overflow-hidden border-b border-zinc-200/60 bg-gradient-to-b from-zinc-50 via-white to-white"
+    >
+      {/* Fondo: cuadrícula + manchas de luz en movimiento */}
+      <div className="absolute inset-0 bg-grid-pattern opacity-50 pointer-events-none [mask-image:radial-gradient(ellipse_at_top,#000_40%,transparent_75%)]" />
+      <motion.div style={{ opacity: glowOpacity }} className="absolute inset-0 pointer-events-none" aria-hidden="true">
+        <div className="blob absolute -top-32 left-[10%] w-[30rem] h-[30rem] rounded-full bg-emerald-200/50 blur-3xl" />
+        <div className="blob absolute top-40 right-[5%] w-[26rem] h-[26rem] rounded-full bg-sky-100/70 blur-3xl [animation-delay:-6s]" />
+        <div className="blob absolute top-[28rem] left-[35%] w-[22rem] h-[22rem] rounded-full bg-zinc-200/60 blur-3xl [animation-delay:-12s]" />
       </motion.div>
 
       <div className="relative max-w-6xl mx-auto px-4 sm:px-6">
-        {/* Top Centered Header */}
         <div className="flex flex-col items-center text-center max-w-3xl mx-auto">
-          {/* Main Headline */}
+          <motion.a
+            href="#como-funciona"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="group inline-flex items-center gap-2 pl-1.5 pr-3 py-1 rounded-full bg-white border border-zinc-200 shadow-xs text-xs font-medium text-zinc-700 hover:border-zinc-300 transition-colors"
+          >
+            <span className="px-2 py-0.5 rounded-full bg-emerald-500 text-white text-[10px] font-bold">Nuevo</span>
+            <span>Plan y Metas: cuánto puedes gastar hoy</span>
+            <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+          </motion.a>
+
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight text-zinc-950 leading-[1.1]"
+            transition={{ duration: 0.7, ease }}
+            className="mt-6 w-full text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight text-zinc-950 leading-[1.1]"
           >
-            Ordena tus gastos, <br className="hidden sm:inline" />
-            <span className="bg-gradient-to-r from-zinc-900 via-zinc-700 to-zinc-500 bg-clip-text text-transparent">
-              tranquiliza tu mente.
+            Ordena tus gastos,
+            <span className="sr-only"> {ROTATING[0]}</span>
+            <span className="relative block h-[1.2em] overflow-hidden" aria-hidden="true">
+              <AnimatePresence mode="wait">
+                <motion.span
+                  key={wordIndex}
+                  initial={{ y: "100%", opacity: 0, filter: "blur(6px)" }}
+                  animate={{ y: "0%", opacity: 1, filter: "blur(0px)" }}
+                  exit={{ y: "-100%", opacity: 0, filter: "blur(6px)" }}
+                  transition={{ duration: 0.5, ease }}
+                  className="absolute inset-x-0"
+                >
+                  <span className="shimmer-text inline-block whitespace-nowrap bg-linear-to-r from-zinc-900 via-emerald-500 to-zinc-900 bg-clip-text text-transparent">{ROTATING[wordIndex]}</span>
+                </motion.span>
+              </AnimatePresence>
             </span>
           </motion.h1>
 
-          {/* Subtitle */}
           <motion.p
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.15 }}
-            className="mt-6 text-lg sm:text-xl text-zinc-600 max-w-2xl font-normal leading-relaxed"
+            transition={{ duration: 0.7, delay: 0.15, ease }}
+            className="mt-6 text-lg sm:text-xl text-zinc-600 max-w-2xl leading-relaxed"
           >
             Registra gastos e ingresos en pesos y dólares, controla tarjetas, deudas y presupuestos, y descubre cuánto puedes gastar hoy sin hojas de cálculo complicadas.
           </motion.p>
 
-          {/* CTA Buttons */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.25 }}
+            transition={{ duration: 0.7, delay: 0.25, ease }}
             className="mt-8 flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto"
           >
             <motion.a
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              whileHover={{ scale: 1.03, y: -1 }}
+              whileTap={{ scale: 0.97 }}
               href="/register"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white font-medium text-sm shadow-[0_2px_8px_rgba(0,0,0,0.12)] transition-all"
+              className="group relative w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl bg-zinc-950 text-white font-semibold text-sm shadow-[0_8px_24px_-6px_rgba(16,185,129,0.45)] overflow-hidden"
             >
+              <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" aria-hidden="true" />
               <span>Comenzar gratis hoy</span>
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
             </motion.a>
             <motion.a
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              href="#simulador"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-white hover:bg-zinc-50 text-zinc-800 font-medium text-sm border border-zinc-200 shadow-sm transition-all"
+              href="#como-funciona"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-white/80 backdrop-blur hover:bg-white text-zinc-800 font-medium text-sm border border-zinc-200 shadow-sm transition-colors"
             >
-              <span>Explorar simulador</span>
+              Ver cómo funciona
             </motion.a>
           </motion.div>
 
-          {/* Quick Value Props */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.6, delay: 0.35 }}
-            className="mt-8 flex flex-wrap items-center justify-center gap-6 text-xs text-zinc-500"
+          <motion.ul
+            initial="hidden"
+            animate="show"
+            variants={{ show: { transition: { staggerChildren: 0.08, delayChildren: 0.4 } } }}
+            className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-zinc-500"
           >
-            <div className="flex items-center gap-1.5">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-              <span>Gratis, sin tarjeta</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-              <span>Pesos (RD$) y dólares (US$)</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-              <span>Exporta a CSV y PDF</span>
-            </div>
-          </motion.div>
+            {["Gratis, sin tarjeta", "Pesos (RD$) y dólares (US$)", "Exporta a CSV y PDF"].map((t) => (
+              <motion.li
+                key={t}
+                variants={{ hidden: { opacity: 0, y: 6 }, show: { opacity: 1, y: 0 } }}
+                className="flex items-center gap-1.5"
+              >
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" aria-hidden="true" />
+                <span>{t}</span>
+              </motion.li>
+            ))}
+          </motion.ul>
         </div>
 
-        {/* Interactive Dashboard Mockup Preview */}
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.4 }}
-          className="mt-14 sm:mt-18 relative rounded-2xl border border-zinc-200 bg-white p-3 sm:p-5 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.08)] ring-1 ring-zinc-950/5 overflow-hidden"
-        >
-          {/* Mockup Window Controls */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-zinc-100 pb-3 mb-4 px-1 sm:px-2">
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5">
-                <div className="w-2.5 h-2.5 rounded-full bg-zinc-200" />
-                <div className="w-2.5 h-2.5 rounded-full bg-zinc-200" />
-                <div className="w-2.5 h-2.5 rounded-full bg-zinc-200" />
-              </div>
-              <span className="text-[11px] sm:text-xs font-mono text-zinc-400 truncate">app.fydry.io/dashboard</span>
+        {/* Composición de producto: panel de escritorio + teléfono */}
+        <div className="relative mt-14 sm:mt-20 lg:min-h-[660px]">
+          <FloatingCard className="hidden lg:flex -top-6 -left-6" delay={0.6} float={-12}>
+            <div className="w-9 h-9 rounded-xl bg-amber-50 border border-amber-200/60 flex items-center justify-center text-amber-600 shrink-0">
+              <AlertCircle className="w-5 h-5" aria-hidden="true" />
             </div>
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
-              <button
-                onClick={() => setActiveTab("mensual")}
-                className={`px-2.5 py-1 text-[11px] sm:text-xs rounded-md transition-all whitespace-nowrap shrink-0 ${
-                  activeTab === "mensual"
-                    ? "bg-zinc-900 text-white font-medium shadow-xs"
-                    : "text-zinc-600 hover:bg-zinc-100"
-                }`}
-              >
-                Vista General
-              </button>
-              <button
-                onClick={() => setActiveTab("categorias")}
-                className={`px-2.5 py-1 text-[11px] sm:text-xs rounded-md transition-all whitespace-nowrap shrink-0 ${
-                  activeTab === "categorias"
-                    ? "bg-zinc-900 text-white font-medium shadow-xs"
-                    : "text-zinc-600 hover:bg-zinc-100"
-                }`}
-              >
-                Categorías
-              </button>
-              <button
-                onClick={() => setActiveTab("ahorro")}
-                className={`px-2.5 py-1 text-[11px] sm:text-xs rounded-md transition-all whitespace-nowrap shrink-0 ${
-                  activeTab === "ahorro"
-                    ? "bg-zinc-900 text-white font-medium shadow-xs"
-                    : "text-zinc-600 hover:bg-zinc-100"
-                }`}
-              >
-                Paz Mental
-              </button>
+            <div>
+              <div className="text-[11px] font-semibold text-zinc-900 flex items-center gap-1">
+                Gasto hormiga detectado
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+              </div>
+              <div className="text-xs text-zinc-500">
+                <span className="font-bold text-zinc-900">RD$ 900</span> en café este mes
+              </div>
             </div>
-          </div>
+          </FloatingCard>
 
-          {/* Interactive Mockup Content */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Balance Overview Card */}
-            <motion.div
-              whileHover={{ y: -2 }}
-              transition={{ duration: 0.2 }}
-              className="p-5 rounded-xl border border-zinc-100 bg-zinc-50/50 flex flex-col justify-between"
-            >
-              <div>
-                <div className="flex items-center justify-between text-xs text-zinc-500 mb-1">
-                  <span>Balance Disponible</span>
-                  <Wallet className="w-4 h-4 text-zinc-400" />
-                </div>
-                <div className="text-3xl font-bold text-zinc-900 tracking-tight">RD$ 48,500</div>
-                <div className="mt-2 inline-flex items-center gap-1 text-xs text-emerald-600 font-medium">
-                  <TrendingUp className="w-3.5 h-3.5" />
-                  <span>Disponible hoy: RD$ 1,250</span>
-                </div>
-              </div>
+          <FloatingCard className="hidden lg:flex bottom-16 left-6" delay={0.9} float={10}>
+            <div className="w-9 h-9 rounded-xl bg-zinc-950 flex items-center justify-center text-white shrink-0">
+              <BellRing className="w-4 h-4" aria-hidden="true" />
+            </div>
+            <div>
+              <div className="text-[11px] font-semibold text-zinc-900">Corte de la Visa en 2 días</div>
+              <div className="text-[11px] text-zinc-500">Revisa tus consumos</div>
+            </div>
+          </FloatingCard>
 
-              <div className="mt-6 pt-4 border-t border-zinc-200/60">
-                <div className="flex justify-between text-xs text-zinc-500 mb-1.5">
-                  <span>Presupuesto Consumido</span>
-                  <span className="font-semibold text-zinc-800">58%</span>
-                </div>
-                <div className="w-full bg-zinc-200 rounded-full h-2 overflow-hidden">
-                  <div className="bg-zinc-900 h-2 rounded-full w-[58%]" />
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Categorías Desglosadas */}
-            <motion.div
-              whileHover={{ y: -2 }}
-              transition={{ duration: 0.2 }}
-              className="p-5 rounded-xl border border-zinc-100 bg-zinc-50/50 flex flex-col justify-between"
-            >
-              <div>
-                <div className="flex items-center justify-between text-xs text-zinc-500 mb-3">
-                  <span>Desglose por Categoría</span>
-                  <PieChart className="w-4 h-4 text-zinc-400" />
-                </div>
-                <div className="space-y-2.5">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="flex items-center gap-2 text-zinc-700">
-                      <span className="w-2.5 h-2.5 rounded-full bg-zinc-900" />
-                      Vivienda & Servicios
-                    </span>
-                    <span className="font-semibold text-zinc-900">RD$ 18,000</span>
+          <motion.div style={{ y: mockupY }} className="hidden lg:block">
+            <TiltCard className="relative rounded-2xl border border-zinc-200 bg-white p-4 sm:p-5 shadow-[0_30px_70px_-20px_rgba(0,0,0,0.18)] ring-1 ring-zinc-950/5 lg:mr-64">
+              <div className="flex items-center justify-between gap-2.5 border-b border-zinc-100 pb-3 mb-4 px-1">
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5" aria-hidden="true">
+                    <div className="w-2.5 h-2.5 rounded-full bg-red-300" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-amber-300" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-300" />
                   </div>
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="flex items-center gap-2 text-zinc-700">
-                      <span className="w-2.5 h-2.5 rounded-full bg-zinc-500" />
-                      Alimentación & Super
-                    </span>
-                    <span className="font-semibold text-zinc-900">RD$ 9,600</span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="flex items-center gap-2 text-zinc-700">
-                      <span className="w-2.5 h-2.5 rounded-full bg-zinc-300" />
-                      Ocio & Suscripciones
-                    </span>
-                    <span className="font-semibold text-zinc-900">RD$ 2,350</span>
-                  </div>
+                  <span className="text-xs font-mono text-zinc-400">fydry.app/dashboard</span>
                 </div>
-              </div>
-
-              <div className="mt-4 pt-3 border-t border-zinc-200/60 flex items-center justify-between text-xs text-zinc-500">
-                <span>Gastos Hormiga Detectados</span>
-                <span className="text-amber-600 font-medium">RD$ 2,100 / mes</span>
-              </div>
-            </motion.div>
-
-            {/* Transacciones Recientes */}
-            <motion.div
-              whileHover={{ y: -2 }}
-              transition={{ duration: 0.2 }}
-              className="p-5 rounded-xl border border-zinc-100 bg-zinc-50/50 flex flex-col justify-between"
-            >
-              <div>
-                <div className="flex items-center justify-between text-xs text-zinc-500 mb-3">
-                  <span>Últimos Movimientos</span>
-                  <span className="text-[10px] text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full font-medium">
-                    Sincronizado
-                  </span>
-                </div>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-xs font-medium text-zinc-800">Supermercado Local</div>
-                      <div className="text-[10px] text-zinc-400">Hoy, 10:45 AM</div>
-                    </div>
-                    <span className="text-xs font-semibold text-zinc-900">-RD$ 3,240</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-xs font-medium text-zinc-800">Ingreso Freelance / Proyecto</div>
-                      <div className="text-[10px] text-zinc-400">Ayer, 4:12 PM</div>
-                    </div>
-                    <span className="text-xs font-semibold text-emerald-600">+RD$ 25,000</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-xs font-medium text-zinc-800">Netflix (recurrente)</div>
-                      <div className="text-[10px] text-zinc-400">24 Ago, 8:00 AM</div>
-                    </div>
-                    <span className="text-xs font-semibold text-zinc-900">-RD$ 650</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-4 pt-3 border-t border-zinc-200/60 flex items-center justify-between text-xs text-zinc-600">
-                <span className="flex items-center gap-1">
-                  <Zap className="w-3.5 h-3.5 text-zinc-900" />
-                  Con asistente IA
+                <span className="inline-flex items-center gap-1.5 text-[11px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full font-medium">
+                  <HeartHandshake className="w-3.5 h-3.5" aria-hidden="true" />
+                  Paz Mental 82/100
                 </span>
-                <span className="text-xs font-medium text-zinc-900">Al día</span>
               </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div className="p-5 rounded-xl border border-zinc-100 bg-zinc-50/60 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between text-xs text-zinc-500 mb-1">
+                      <span>Balance total</span>
+                      <Wallet className="w-4 h-4 text-zinc-400" aria-hidden="true" />
+                    </div>
+                    <div className="text-2xl lg:text-3xl font-bold text-zinc-900 tracking-tight">
+                      <CountUp value={48500} prefix="RD$ " />
+                    </div>
+                    <div className="text-xs text-zinc-500 mt-0.5">US$ 320.00</div>
+                  </div>
+                  <div className="mt-6 pt-4 border-t border-zinc-200/60">
+                    <div className="flex justify-between text-xs text-zinc-500 mb-1.5">
+                      <span>Presupuesto</span>
+                      <span className="font-semibold text-zinc-800">58%</span>
+                    </div>
+                    <div className="w-full bg-zinc-200 rounded-full h-2 overflow-hidden">
+                      <motion.div
+                        className="bg-zinc-900 h-2 rounded-full"
+                        initial={{ width: 0 }}
+                        animate={{ width: "58%" }}
+                        transition={{ duration: 1.4, delay: 0.8, ease }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-5 rounded-xl border border-zinc-100 bg-zinc-50/60">
+                  <div className="flex items-center justify-between text-xs text-zinc-500 mb-3">
+                    <span>Por categoría</span>
+                    <PieChart className="w-4 h-4 text-zinc-400" aria-hidden="true" />
+                  </div>
+                  <div className="space-y-3">
+                    {[
+                      { label: "Vivienda", amount: 18000, width: "90%", color: "bg-zinc-900" },
+                      { label: "Supermercado", amount: 9600, width: "48%", color: "bg-zinc-500" },
+                      { label: "Restaurantes", amount: 4200, width: "21%", color: "bg-emerald-500" },
+                      { label: "Suscripciones", amount: 2350, width: "12%", color: "bg-zinc-300" },
+                    ].map((c, i) => (
+                      <div key={c.label}>
+                        <div className="flex justify-between text-xs mb-1">
+                          <span className="text-zinc-700">{c.label}</span>
+                          <span className="font-semibold text-zinc-900">RD$ {c.amount.toLocaleString("en-US")}</span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-zinc-200/70 overflow-hidden">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: c.width }}
+                            transition={{ duration: 1, delay: 0.9 + i * 0.12, ease }}
+                            className={`h-full rounded-full ${c.color}`}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="p-5 rounded-xl border border-zinc-100 bg-zinc-50/60">
+                  <div className="flex items-center justify-between text-xs text-zinc-500 mb-3">
+                    <span>Últimos movimientos</span>
+                    <Zap className="w-3.5 h-3.5 text-zinc-400" aria-hidden="true" />
+                  </div>
+                  <div className="space-y-3">
+                    {[
+                      { name: "Supermercado", meta: "Hoy · Visa", amt: "-RD$ 3,240", income: false },
+                      { name: "Salario", meta: "Ayer · Banco", amt: "+RD$ 25,000", income: true },
+                      { name: "Netflix", meta: "Recurrente · Visa", amt: "-RD$ 650", income: false },
+                      { name: "Café", meta: "Efectivo", amt: "-RD$ 180", income: false },
+                    ].map((m, i) => (
+                      <motion.div
+                        key={m.name}
+                        initial={{ opacity: 0, x: 12 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.4, delay: 1 + i * 0.12 }}
+                        className="flex items-center justify-between gap-2"
+                      >
+                        <div className="min-w-0">
+                          <div className="text-xs font-medium text-zinc-800 truncate">{m.name}</div>
+                          <div className="text-[10px] text-zinc-400 truncate">{m.meta}</div>
+                        </div>
+                        <span className={`text-xs font-semibold whitespace-nowrap ${m.income ? "text-emerald-600" : "text-zinc-900"}`}>{m.amt}</span>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </TiltCard>
+          </motion.div>
+
+          {/* Teléfono: superpuesto en escritorio, protagonista en móvil */}
+          <motion.div
+            style={{ y: phoneY }}
+            className="flex justify-center lg:absolute lg:-right-2 lg:top-10 lg:z-10"
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 60, rotate: 4 }}
+              animate={{ opacity: 1, y: 0, rotate: 0 }}
+              transition={{ duration: 0.9, delay: 0.5, ease }}
+            >
+              <PhoneFrame>
+                <PlanScreen />
+              </PhoneFrame>
             </motion.div>
-          </div>
-        </motion.div>
+          </motion.div>
+
+          <FloatingCard className="hidden lg:flex bottom-16 right-80" delay={1.1} float={-8}>
+            <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200/60 flex items-center justify-center text-emerald-600 shrink-0">
+              <Bot className="w-4 h-4" aria-hidden="true" />
+            </div>
+            <div>
+              <div className="text-[11px] font-semibold text-zinc-900 flex items-center gap-1">
+                Asistente IA <Sparkles className="w-3 h-3 text-emerald-500" aria-hidden="true" />
+              </div>
+              <div className="text-[11px] text-zinc-500">&quot;Cena 1,500 con la Visa&quot;</div>
+            </div>
+          </FloatingCard>
+        </div>
       </div>
     </section>
   );

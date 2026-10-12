@@ -8,41 +8,52 @@ import Pricing from "@/components/Pricing";
 import FAQ from "@/components/FAQ";
 import CTASection from "@/components/CTASection";
 import Footer from "@/components/Footer";
+import Marquee from "@/components/landing/Marquee";
+import FeatureShowcase from "@/components/landing/FeatureShowcase";
+import { LandingMotion } from "@/components/landing/primitives";
 
 export default function Home() {
   return (
-    <div className="min-h-screen flex flex-col bg-white text-zinc-900 selection:bg-zinc-900 selection:text-white">
-      {/* 1. Header & Navigation */}
-      <Navbar />
+    <LandingMotion>
+      <div className="min-h-screen flex flex-col bg-white text-zinc-900 selection:bg-zinc-900 selection:text-white">
+        {/* 1. Header & Navigation */}
+        <Navbar />
 
-      {/* 2. Hero Section with Interactive Dashboard */}
-      <main className="flex-1">
-        <Hero />
+        <main className="flex-1">
+          {/* 2. Hero con panel y teléfono animados */}
+          <Hero />
 
-        {/* 3. Social Proof & Key Metrics */}
-        <StatsBar />
+          {/* 3. Cinta de funciones en movimiento */}
+          <Marquee />
 
-        {/* 4. Bento Grid Core Features */}
-        <BentoFeatures />
+          {/* 4. Datos clave */}
+          <StatsBar />
 
-        {/* 5. Interactive Expense & Savings Calculator */}
-        <InteractiveCalculator />
+          {/* 5. Recorrido con scroll por las pantallas de la app */}
+          <FeatureShowcase />
 
-        {/* 6. Comparison Table (Traditional vs FyDry) */}
-        <ComparisonSection />
+          {/* 6. Bento Grid Core Features */}
+          <BentoFeatures />
 
-        {/* 7. Transparent Pricing Plans */}
-        <Pricing />
+          {/* 7. Interactive Expense & Savings Calculator */}
+          <InteractiveCalculator />
 
-        {/* 8. Frequently Asked Questions */}
-        <FAQ />
+          {/* 8. Comparison Table (Traditional vs FyDry) */}
+          <ComparisonSection />
 
-        {/* 9. High-impact Final Call to Action */}
-        <CTASection />
-      </main>
+          {/* 9. Transparent Pricing Plans */}
+          <Pricing />
 
-      {/* 10. Footer */}
-      <Footer />
-    </div>
+          {/* 10. Frequently Asked Questions */}
+          <FAQ />
+
+          {/* 11. High-impact Final Call to Action */}
+          <CTASection />
+        </main>
+
+        {/* 12. Footer */}
+        <Footer />
+      </div>
+    </LandingMotion>
   );
 }
