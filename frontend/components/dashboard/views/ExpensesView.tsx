@@ -56,7 +56,8 @@ import {
   markNotificationProcessedApi,
 } from "@/lib/api";
 import { getCycleRange, isTransactionInPeriod, formatCycleLabel } from "@/lib/cycle";
-import { availableFunds, formatMoney, parseAmount, todayISO } from "@/lib/money";
+import { availableFunds, currencySymbol, formatMoney, isLiability, parseAmount, todayISO } from "@/lib/money";
+import ConfirmDialog, { useEscapeKey } from "../ConfirmDialog";
 
 export function getCategoryIcon(category: string): LucideIcon {
   const norm = (category || "").toLowerCase().trim();
@@ -111,6 +112,9 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
   const [selectedAccountFilter, setSelectedAccountFilter] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  useEscapeKey(isModalOpen, () => setIsModalOpen(false));
+  const mainCurrency = accounts[0]?.currency || "DOP";
   const [editingExpense, setEditingExpense] = useState<TransactionItem | null>(null);
 
   // Navegador de Ciclos Históricos
@@ -335,18 +339,20 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
       (editingExpense.account === selectedModalAccount.name ||
         editingExpense.account === selectedModalAccount.id);
 
-    const currentBalance =
-      selectedModalAccount.balance +
-      (isSameAccountAsEditing ? editingExpense.amount : 0);
+    // Tarjeta de crédito: el saldo es lo consumido, así que el gasto lo AUMENTA.
+    const isCard = isLiability(selectedModalAccount);
+    const editedAmount = isSameAccountAsEditing ? editingExpense.amount : 0;
+    const currentBalance = selectedModalAccount.balance + (isCard ? -editedAmount : editedAmount);
 
-    const resultingBalance = currentBalance - numAmountPreview;
+    const resultingBalance = isCard ? currentBalance + numAmountPreview : currentBalance - numAmountPreview;
     const overdraftLimit = selectedModalAccount.overdraftLimit || 0;
-    const totalAvailableFunds = currentBalance + overdraftLimit;
+    const totalAvailableFunds = availableFunds(selectedModalAccount) + editedAmount;
     const exceedsFunds = numAmountPreview > totalAvailableFunds;
-    const usesOverdraft = resultingBalance < 0 && !exceedsFunds;
+    const usesOverdraft = !isCard && resultingBalance < 0 && !exceedsFunds;
     const overdraftUsedAmount = usesOverdraft ? Math.abs(resultingBalance) : 0;
 
     return {
+      isCard,
       currentBalance,
       resultingBalance,
       overdraftLimit,
@@ -467,22 +473,22 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
     setEditingExpense(null);
   };
 
-  const handleDeleteExpense = async (id: string) => {
-    if (confirm("¿Deseas eliminar este gasto?")) {
-      setFormError(null);
-      try {
-        await deleteTransactionApi(id);
-      } catch (err) {
-        setFormError(err instanceof Error ? err.message : "No se pudo eliminar el gasto.");
-        return;
-      }
-      setExpenses((prev) => prev.filter((e) => e.id !== id));
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new Event("fydry_storage_updated"));
-      }
-      setIsModalOpen(false);
-      setEditingExpense(null);
+  const handleDeleteExpense = (id: string) => setPendingDeleteId(id);
+
+  const deleteExpenseConfirmed = async (id: string) => {
+    setFormError(null);
+    try {
+      await deleteTransactionApi(id);
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "No se pudo eliminar el gasto.");
+      return;
     }
+    setExpenses((prev) => prev.filter((e) => e.id !== id));
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("fydry_storage_updated"));
+    }
+    setIsModalOpen(false);
+    setEditingExpense(null);
   };
 
   const ModalCategoryIcon = getCategoryIcon(cat);
@@ -606,7 +612,7 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
             </span>
           </div>
           <div className="text-2xl font-bold tracking-tight text-zinc-950">
-            ${totalSpentSelectedCycle.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {formatMoney(totalSpentSelectedCycle, mainCurrency)}
           </div>
           <div className="text-[11px] text-zinc-400">
             {cycleExpenses.length} {cycleExpenses.length === 1 ? "transacción" : "transacciones"} este ciclo • {expenses.length} en total
@@ -622,7 +628,7 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
             </span>
           </div>
           <div className="text-2xl font-bold tracking-tight text-zinc-950">
-            ${dailyAverageSpent.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {formatMoney(dailyAverageSpent, mainCurrency)}
           </div>
           <div className="text-[11px] text-zinc-400 truncate">
             Gasto medio por día ({elapsedDays} {elapsedDays === 1 ? "día transcurrido" : "días transcurridos"})
@@ -650,7 +656,7 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
                 <span className="truncate">{topCategoryInfo.category}</span>
               </div>
               <div className="text-[11px] text-zinc-400 truncate">
-                ${topCategoryInfo.amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} • {topCategoryInfo.percentage}% del ciclo
+                {formatMoney(topCategoryInfo.amount, mainCurrency)} • {topCategoryInfo.percentage}% del ciclo
               </div>
             </>
           ) : (
@@ -674,7 +680,7 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
             </span>
           </div>
           <div className="text-2xl font-bold tracking-tight text-zinc-950">
-            ${totalSpentAllHistory.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {formatMoney(totalSpentAllHistory, mainCurrency)}
           </div>
           <div className="text-[11px] text-zinc-400 flex items-center justify-between">
             <span>Todos los períodos</span>
@@ -783,7 +789,7 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
 
                 <div className="text-right">
                   <div className="text-xs font-bold text-zinc-950">
-                    -${exp.amount.toFixed(2)}
+                    -{formatMoney(exp.amount, accounts.find((a) => a.name === exp.account)?.currency || mainCurrency)}
                   </div>
                   <span className="text-[10px] px-2 py-0.5 rounded-md bg-zinc-100 text-zinc-600 font-medium">
                     {exp.category}
@@ -822,6 +828,9 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
         {isModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
             <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="expense-modal-title"
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
@@ -833,7 +842,7 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
                     <ModalCategoryIcon className="w-5 h-5 text-zinc-700" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-zinc-950">
+                    <h3 id="expense-modal-title" className="text-lg font-bold text-zinc-950">
                       {editingExpense ? "Editar Gasto" : t.expenses.modalTitle}
                     </h3>
                     <p className="text-[11px] text-zinc-500 font-medium">{cat}</p>
@@ -876,7 +885,7 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
-                      {t.expenses.amount}
+                      {t.expenses.amount.replace("$", currencySymbol(selectedModalAccount?.currency || mainCurrency))}
                     </label>
                     <input
                       type="number"
@@ -948,7 +957,7 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
                       {accounts.length > 0 ? (
                         accounts.map((a) => (
                           <option key={a.id} value={a.name}>
-                            {a.name} (${a.balance.toFixed(2)} {a.type})
+                            {a.name} ({formatMoney(a.balance, a.currency)} {a.type})
                           </option>
                         ))
                       ) : (
@@ -970,21 +979,23 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
                       </span>
                       {accountImpactPreview.overdraftLimit > 0 && (
                         <span className="text-[10px] text-zinc-500 bg-zinc-100 px-2 py-0.5 rounded-full border border-zinc-200/60 font-medium">
-                          Sobregiro disp: ${accountImpactPreview.overdraftLimit.toFixed(2)}
+                          Sobregiro disp: {formatMoney(accountImpactPreview.overdraftLimit, selectedModalAccount.currency)}
                         </span>
                       )}
                     </div>
 
                     <div className="space-y-1">
                       <div className="flex justify-between text-zinc-600 text-xs">
-                        <span>Saldo disponible actual:</span>
+                        <span>{accountImpactPreview.isCard ? "Consumido actual:" : "Saldo disponible actual:"}</span>
                         <span className="font-semibold text-zinc-900">
-                          ${accountImpactPreview.currentBalance.toFixed(2)}
+                          {formatMoney(accountImpactPreview.currentBalance, selectedModalAccount.currency)}
                         </span>
                       </div>
 
                       <div className="flex justify-between text-xs">
-                        <span className="text-zinc-600">Saldo tras este gasto:</span>
+                        <span className="text-zinc-600">
+                          {accountImpactPreview.isCard ? "Consumido después:" : "Saldo tras este gasto:"}
+                        </span>
                         <span
                           className={`font-bold ${
                             accountImpactPreview.exceedsFunds
@@ -994,7 +1005,7 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
                               : "text-zinc-900"
                           }`}
                         >
-                          ${accountImpactPreview.resultingBalance.toFixed(2)}
+                          {formatMoney(accountImpactPreview.resultingBalance, selectedModalAccount.currency)}
                         </span>
                       </div>
 
@@ -1002,7 +1013,7 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
                         <div className="text-[11px] text-amber-700 bg-amber-50 px-2.5 py-1.5 rounded-lg border border-amber-200/60 font-medium flex items-center gap-1.5 mt-1.5">
                           <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-amber-600" />
                           <span>
-                            ⚠️ Usará ${accountImpactPreview.overdraftUsedAmount.toFixed(2)} de margen de sobregiro.
+                            ⚠️ Usará {formatMoney(accountImpactPreview.overdraftUsedAmount, selectedModalAccount.currency)} de margen de sobregiro.
                           </span>
                         </div>
                       )}
@@ -1011,7 +1022,7 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
                         <div className="text-[11px] text-rose-700 bg-rose-50 px-2.5 py-1.5 rounded-lg border border-rose-200/60 font-medium flex items-center gap-1.5 mt-1.5">
                           <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-rose-600" />
                           <span>
-                            ⛔ Excede fondos disponibles: El gasto supera el saldo y sobregiro permitido (${accountImpactPreview.totalAvailableFunds.toFixed(2)} máx).
+                            ⛔ Excede fondos disponibles: El gasto supera el saldo y sobregiro permitido ({formatMoney(accountImpactPreview.totalAvailableFunds, selectedModalAccount.currency)} máx).
                           </span>
                         </div>
                       )}
@@ -1054,6 +1065,17 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
           </div>
         )}
       </AnimatePresence>
+
+      <ConfirmDialog
+        open={pendingDeleteId !== null}
+        message="¿Deseas eliminar este gasto?"
+        onCancel={() => setPendingDeleteId(null)}
+        onConfirm={() => {
+          const id = pendingDeleteId;
+          setPendingDeleteId(null);
+          if (id) deleteExpenseConfirmed(id);
+        }}
+      />
     </div>
   );
 }

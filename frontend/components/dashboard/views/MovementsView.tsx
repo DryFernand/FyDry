@@ -27,7 +27,8 @@ import {
   markNotificationProcessedApi,
 } from "@/lib/api";
 import { getCycleRange, isTransactionInPeriod, formatCycleLabel } from "@/lib/cycle";
-import { availableFunds, formatMoney, parseAmount, todayISO } from "@/lib/money";
+import { availableFunds, currencySymbol, formatMoney, isLiability, parseAmount, todayISO } from "@/lib/money";
+import ConfirmDialog, { useEscapeKey } from "../ConfirmDialog";
 
 type MovementFilterType = "all" | "savings" | "standard";
 
@@ -66,6 +67,9 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
   const [toAmount, setToAmount] = useState("");
   const [description, setDescription] = useState("");
   const [formError, setFormError] = useState("");
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  useEscapeKey(isModalOpen, () => setIsModalOpen(false));
+  const mainCurrency = accounts[0]?.currency || "DOP";
 
   const loadData = async () => {
     const [movData, accData, settingsData] = await Promise.all([
@@ -196,7 +200,11 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
     }
 
     if (fromAccObj) {
-      const funds = availableFunds(fromAccObj);
+      // Al editar desde la misma cuenta, el traspaso anterior (monto + impuesto) se revierte primero.
+      const funds =
+        editingMovement && editingMovement.fromAccount === fromAccObj.name
+          ? availableFunds(fromAccObj) + editingMovement.amount + (editingMovement.taxAmount || 0)
+          : availableFunds(fromAccObj);
       if (funds !== Infinity && parsedAmount + parsedTax > funds) {
         setFormError(
           `Traspaso rechazado: El monto total con impuestos (${formatMoney(parsedAmount + parsedTax, fromAccObj.currency)}) supera el saldo disponible más el sobregiro permitido (${formatMoney(funds, fromAccObj.currency)}) de "${fromAccObj.name}".`
@@ -252,22 +260,22 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
     setEditingMovement(null);
   };
 
-  const handleDeleteMovement = async (id: string) => {
-    if (confirm("¿Deseas revertir y eliminar este traspaso? Los saldos de ambas cuentas y presupuestos serán restaurados.")) {
-      setFormError("");
-      try {
-        await deleteMovementApi(id);
-      } catch (err) {
-        setFormError(err instanceof Error ? err.message : "No se pudo eliminar el traspaso.");
-        return;
-      }
-      setMovements((prev) => prev.filter((m) => m.id !== id));
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new Event("fydry_storage_updated"));
-      }
-      setIsModalOpen(false);
-      setEditingMovement(null);
+  const handleDeleteMovement = (id: string) => setPendingDeleteId(id);
+
+  const deleteMovementConfirmed = async (id: string) => {
+    setFormError("");
+    try {
+      await deleteMovementApi(id);
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "No se pudo eliminar el traspaso.");
+      return;
     }
+    setMovements((prev) => prev.filter((m) => m.id !== id));
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("fydry_storage_updated"));
+    }
+    setIsModalOpen(false);
+    setEditingMovement(null);
   };
 
   // Filtrado de toda la tabla para búsqueda y tipo de movimiento
@@ -311,8 +319,11 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
   const isCrossCurrency =
     !!fromAccObj && !!toAccObj && (fromAccObj.currency || "DOP") !== (toAccObj.currency || "DOP");
   const numReceived = isCrossCurrency ? parseAmount(toAmount) || 0 : numAmount;
-  const fromBalanceAfter = fromAccObj ? fromAccObj.balance - totalDebitedPreview : 0;
-  const toBalanceAfter = toAccObj ? toAccObj.balance + numReceived : 0;
+  // Tarjetas: el saldo es consumo (sube al pagar desde ella, baja al recibir un pago)
+  const fromBalanceAfter = fromAccObj ? fromAccObj.balance + (isLiability(fromAccObj) ? totalDebitedPreview : -totalDebitedPreview) : 0;
+  const toBalanceAfter = toAccObj ? toAccObj.balance + (isLiability(toAccObj) ? -numReceived : numReceived) : 0;
+  const fromCur = fromAccObj?.currency || mainCurrency;
+  const toCur = toAccObj?.currency || mainCurrency;
 
   return (
     <div className="space-y-6">
@@ -353,7 +364,7 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
             </div>
           </div>
           <div className="text-2xl font-bold tracking-tight text-zinc-950">
-            ${totalTransferredThisMonth.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+            {formatMoney(totalTransferredThisMonth, mainCurrency)}
           </div>
           <div className="text-[11px] text-zinc-400">
             {currentCycleMovements.length} traspasos este ciclo • {movements.length} en historial
@@ -369,7 +380,7 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
             </div>
           </div>
           <div className="text-2xl font-bold tracking-tight text-zinc-950">
-            ${totalTaxesThisMonth.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+            {formatMoney(totalTaxesThisMonth, mainCurrency)}
           </div>
           <div className="text-[11px] text-zinc-400">
             Retenciones debitadas este ciclo
@@ -492,7 +503,7 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
                     </span>
                     {item.taxAmount && item.taxAmount > 0 ? (
                       <span className="font-semibold text-zinc-700 bg-zinc-100 border border-zinc-200/60 px-2 py-0.5 rounded-md">
-                        +${item.taxAmount.toFixed(2)} Impuesto
+                        +{formatMoney(item.taxAmount, accounts.find((a) => a.name === item.fromAccount)?.currency || mainCurrency)} Impuesto
                       </span>
                     ) : null}
                     <span>•</span>
@@ -503,11 +514,11 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
 
               <div className="text-right">
                 <div className="text-xs font-bold text-zinc-950">
-                  ${item.amount.toFixed(2)}
+                  {formatMoney(item.amount, accounts.find((a) => a.name === item.fromAccount)?.currency || mainCurrency)}
                 </div>
                 <div className="text-[10px] text-zinc-400">
                   {item.taxAmount && item.taxAmount > 0
-                    ? `Salen $${(item.amount + item.taxAmount).toFixed(2)}`
+                    ? `Salen ${formatMoney((item.amount + item.taxAmount), accounts.find((a) => a.name === item.fromAccount)?.currency || mainCurrency)}`
                     : "Traspaso exacto"}
                 </div>
               </div>
@@ -551,13 +562,16 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
         {isModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
             <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="movement-modal-title"
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               className="w-full max-w-md bg-white rounded-3xl border border-zinc-200 p-6 shadow-xl space-y-4 max-h-[90vh] overflow-y-auto"
             >
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-bold text-zinc-950">
+                <h3 id="movement-modal-title" className="text-lg font-bold text-zinc-950">
                   {editingMovement ? "Editar Traspaso entre Cuentas" : "Nuevo Traspaso entre Cuentas"}
                 </h3>
                 <button
@@ -589,7 +603,7 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
                   >
                     {accounts.map((a) => (
                       <option key={a.id} value={a.name}>
-                        {a.name} ({a.type} - Saldo: ${a.balance.toFixed(2)})
+                        {a.name} ({a.type} - Saldo: {formatMoney(a.balance, a.currency)})
                       </option>
                     ))}
                   </select>
@@ -607,7 +621,7 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
                   >
                     {accounts.map((a) => (
                       <option key={a.id} value={a.name}>
-                        {a.name} ({a.type} - Saldo: ${a.balance.toFixed(2)})
+                        {a.name} ({a.type} - Saldo: {formatMoney(a.balance, a.currency)})
                       </option>
                     ))}
                   </select>
@@ -617,7 +631,7 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
-                      Monto a Transferir ($)
+                      Monto a Transferir ({currencySymbol(fromCur)})
                     </label>
                     <input
                       type="number"
@@ -632,7 +646,7 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
 
                   <div>
                     <label className="block text-xs font-semibold text-zinc-800 mb-1.5 flex items-center justify-between">
-                      <span>Impuesto / Comisión ($)</span>
+                      <span>Impuesto / Comisión ({currencySymbol(fromCur)})</span>
                       <span className="text-[10px] text-zinc-400 font-normal">Opcional</span>
                     </label>
                     <input
@@ -674,21 +688,21 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
                     <div className="flex justify-between text-zinc-700">
                       <span>Sale de {fromAccount || "Origen"}:</span>
                       <span className="font-bold text-rose-600">
-                        -${totalDebitedPreview.toFixed(2)}
-                        {numTax > 0 && ` (Incluye $${numTax.toFixed(2)} imp.)`}
+                        -{formatMoney(totalDebitedPreview, fromCur)}
+                        {numTax > 0 && ` (Incluye ${formatMoney(numTax, fromCur)} imp.)`}
                       </span>
                     </div>
                     {fromAccObj && (
                       <div className="flex justify-between text-[11px] text-zinc-500">
                         <span>Saldo tras traspaso:</span>
                         <span className={`font-semibold ${fromBalanceAfter < 0 ? "text-amber-600" : "text-zinc-700"}`}>
-                          ${fromBalanceAfter.toFixed(2)}
+                          {formatMoney(fromBalanceAfter, fromCur)}
                         </span>
                       </div>
                     )}
                     {fromAccObj && fromBalanceAfter < 0 && (
                       <div className="text-[11px] text-rose-600 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200/60 font-medium mt-1">
-                        ⚠️ Uso de margen de sobregiro (${Math.abs(fromBalanceAfter).toFixed(2)})
+                        ⚠️ Uso de margen de sobregiro ({formatMoney(Math.abs(fromBalanceAfter), fromCur)})
                       </div>
                     )}
                   </div>
@@ -697,13 +711,13 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
                   <div className="space-y-0.5 pt-1.5 border-t border-zinc-200/60">
                     <div className="flex justify-between text-zinc-700">
                       <span>Llega a {toAccount || "Destino"}:</span>
-                      <span className="font-bold text-emerald-600">+${numReceived.toFixed(2)}</span>
+                      <span className="font-bold text-emerald-600">+{formatMoney(numReceived, toCur)}</span>
                     </div>
                     {toAccObj && (
                       <div className="flex justify-between text-[11px] text-zinc-500">
                         <span>Saldo tras traspaso:</span>
                         <span className="font-semibold text-zinc-700">
-                          ${toBalanceAfter.toFixed(2)}
+                          {formatMoney(toBalanceAfter, toCur)}
                         </span>
                       </div>
                     )}
@@ -765,6 +779,18 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
           </div>
         )}
       </AnimatePresence>
+
+      <ConfirmDialog
+        open={pendingDeleteId !== null}
+        message="¿Deseas revertir y eliminar este traspaso? Los saldos de ambas cuentas y presupuestos serán restaurados."
+        confirmLabel={language === "en" ? "Revert and delete" : "Revertir y eliminar"}
+        onCancel={() => setPendingDeleteId(null)}
+        onConfirm={() => {
+          const id = pendingDeleteId;
+          setPendingDeleteId(null);
+          if (id) deleteMovementConfirmed(id);
+        }}
+      />
     </div>
   );
 }

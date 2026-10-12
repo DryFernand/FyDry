@@ -44,7 +44,8 @@ import {
   markNotificationProcessedApi,
 } from "@/lib/api";
 import { getCycleRange, isTransactionInPeriod, formatCycleLabel } from "@/lib/cycle";
-import { parseAmount, todayISO } from "@/lib/money";
+import { currencySymbol, formatMoney, isLiability, parseAmount, todayISO } from "@/lib/money";
+import ConfirmDialog, { useEscapeKey } from "../ConfirmDialog";
 
 export function getIncomeCategoryIcon(category: string) {
   switch (category) {
@@ -106,6 +107,9 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
   const [selectedAccountFilter, setSelectedAccountFilter] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  useEscapeKey(isModalOpen, () => setIsModalOpen(false));
+  const mainCurrency = accounts[0]?.currency || "DOP";
   const [editingIncome, setEditingIncome] = useState<TransactionItem | null>(null);
 
   const [desc, setDesc] = useState("");
@@ -347,31 +351,34 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
     setEditingIncome(null);
   };
 
-  const handleDeleteIncome = async (id: string) => {
-    if (confirm("¿Deseas eliminar este ingreso?")) {
-      setFormError(null);
-      try {
-        await deleteTransactionApi(id);
-      } catch (err) {
-        setFormError(err instanceof Error ? err.message : "No se pudo eliminar el ingreso.");
-        return;
-      }
-      setIncomes((prev) => prev.filter((i) => i.id !== id));
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new Event("fydry_storage_updated"));
-      }
-      setIsModalOpen(false);
-      setEditingIncome(null);
+  const handleDeleteIncome = (id: string) => setPendingDeleteId(id);
+
+  const deleteIncomeConfirmed = async (id: string) => {
+    setFormError(null);
+    try {
+      await deleteTransactionApi(id);
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "No se pudo eliminar el ingreso.");
+      return;
     }
+    setIncomes((prev) => prev.filter((i) => i.id !== id));
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("fydry_storage_updated"));
+    }
+    setIsModalOpen(false);
+    setEditingIncome(null);
   };
 
   // Simulador contable de saldo resultante en el modal
   const selectedAcc = accounts.find((a) => a.name === selectedAccountId || a.id === selectedAccountId) || accounts[0];
   const numAmountPreview = parseAmount(amount) || 0;
+  // Tarjeta de crédito: el saldo es lo consumido, así que el ingreso (pago) lo REDUCE.
+  const selectedIsCard = !!selectedAcc && isLiability(selectedAcc);
+  const editedIncomeAmount = selectedAcc && editingIncome && editingIncome.account === selectedAcc.name ? editingIncome.amount : 0;
   const currentBalance = selectedAcc
-    ? selectedAcc.balance - (editingIncome && editingIncome.account === selectedAcc.name ? editingIncome.amount : 0)
+    ? selectedAcc.balance + (selectedIsCard ? editedIncomeAmount : -editedIncomeAmount)
     : 0;
-  const resultingBalance = currentBalance + numAmountPreview;
+  const resultingBalance = selectedIsCard ? currentBalance - numAmountPreview : currentBalance + numAmountPreview;
 
   const ModalCategoryIcon = getIncomeCategoryIcon(cat);
 
@@ -494,7 +501,7 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
             </span>
           </div>
           <div className="text-2xl font-bold tracking-tight text-emerald-600">
-            +${totalIncomesSelectedCycle.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            +{formatMoney(totalIncomesSelectedCycle, mainCurrency)}
           </div>
           <div className="text-[11px] text-zinc-400">
             {scope === "cycle"
@@ -524,7 +531,7 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
                 <span className="truncate">{topCategoryInfo.category}</span>
               </div>
               <div className="text-[11px] text-zinc-400 truncate">
-                +${topCategoryInfo.amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} • {topCategoryInfo.percentage}% del ciclo
+                +{formatMoney(topCategoryInfo.amount, mainCurrency)} • {topCategoryInfo.percentage}% del ciclo
               </div>
             </>
           ) : (
@@ -548,7 +555,7 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
             </span>
           </div>
           <div className="text-2xl font-bold tracking-tight text-zinc-950">
-            +${averagePerIncome.toFixed(2)}
+            +{formatMoney(averagePerIncome, mainCurrency)}
           </div>
           <div className="text-[11px] text-zinc-400 truncate">
             Promedio por entrada registrada
@@ -564,7 +571,7 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
             </span>
           </div>
           <div className="text-2xl font-bold tracking-tight text-zinc-950">
-            +${totalIncomesAllHistory.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            +{formatMoney(totalIncomesAllHistory, mainCurrency)}
           </div>
           <div className="text-[11px] text-zinc-400 flex items-center justify-between">
             <span>Todos los períodos registrados</span>
@@ -665,7 +672,7 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
 
                 <div className="text-right">
                   <div className="text-xs font-bold text-emerald-600">
-                    +${inc.amount.toFixed(2)}
+                    +{formatMoney(inc.amount, accounts.find((a) => a.name === inc.account)?.currency || mainCurrency)}
                   </div>
                   <span className="text-[10px] px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-semibold">
                     {t.incomes.credited}
@@ -700,6 +707,9 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
         {isModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
             <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="income-modal-title"
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
@@ -711,7 +721,7 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
                     <ModalCategoryIcon className="w-5 h-5 text-emerald-700" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-zinc-950">
+                    <h3 id="income-modal-title" className="text-lg font-bold text-zinc-950">
                       {editingIncome ? "Editar Ingreso" : t.incomes.modalTitle}
                     </h3>
                     <p className="text-[11px] text-zinc-500 truncate max-w-[200px]">{cat}</p>
@@ -749,7 +759,7 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
-                      {t.incomes.amount}
+                      {t.incomes.amount.replace("$", currencySymbol(selectedAcc?.currency || mainCurrency))}
                     </label>
                     <input
                       type="number"
@@ -813,7 +823,7 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
                       {accounts.length > 0 ? (
                         accounts.map((a) => (
                           <option key={a.id} value={a.name}>
-                            {a.name} (${a.balance.toFixed(2)} {a.type})
+                            {a.name} ({formatMoney(a.balance, a.currency)} {a.type})
                           </option>
                         ))
                       ) : (
@@ -841,23 +851,25 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
 
                     <div className="space-y-1 pt-1 text-xs">
                       <div className="flex items-center justify-between text-zinc-600">
-                        <span>Saldo actual:</span>
+                        <span>{selectedIsCard ? "Consumido actual:" : "Saldo actual:"}</span>
                         <span className="font-semibold text-zinc-900">
-                          ${currentBalance.toFixed(2)}
+                          {formatMoney(currentBalance, selectedAcc.currency)}
                         </span>
                       </div>
 
                       <div className="flex items-center justify-between text-zinc-600">
                         <span>Acreditación estimada:</span>
                         <span className="text-emerald-600 font-semibold">
-                          +${numAmountPreview.toFixed(2)}
+                          +{formatMoney(numAmountPreview, selectedAcc.currency)}
                         </span>
                       </div>
 
                       <div className="flex items-center justify-between pt-1.5 border-t border-zinc-200/60">
-                        <span className="text-zinc-600 font-medium">Saldo final estimado:</span>
+                        <span className="text-zinc-600 font-medium">
+                          {selectedIsCard ? "Consumido después:" : "Saldo final estimado:"}
+                        </span>
                         <span className="text-zinc-950 font-bold">
-                          +${resultingBalance.toFixed(2)}
+                          {formatMoney(resultingBalance, selectedAcc.currency)}
                         </span>
                       </div>
                     </div>
@@ -899,6 +911,17 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
           </div>
         )}
       </AnimatePresence>
+
+      <ConfirmDialog
+        open={pendingDeleteId !== null}
+        message="¿Deseas eliminar este ingreso?"
+        onCancel={() => setPendingDeleteId(null)}
+        onConfirm={() => {
+          const id = pendingDeleteId;
+          setPendingDeleteId(null);
+          if (id) deleteIncomeConfirmed(id);
+        }}
+      />
     </div>
   );
 }

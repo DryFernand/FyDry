@@ -56,7 +56,8 @@ import {
   fetchAccountsApi,
   fetchMovementsApi,
 } from "@/lib/api";
-import { parseAmount } from "@/lib/money";
+import { currencySymbol, formatMoney, parseAmount } from "@/lib/money";
+import ConfirmDialog, { useEscapeKey } from "../ConfirmDialog";
 
 const MONTH_NAMES_ES = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -109,7 +110,10 @@ export default function BudgetView() {
   const [expenses, setExpenses] = useState<TransactionItem[]>([]);
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
   const [movements, setMovements] = useState<MovementItem[]>([]);
+  const budgetCurrency = accounts[0]?.currency || "DOP";
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  useEscapeKey(isModalOpen, () => setIsModalOpen(false));
   const [editingBudget, setEditingBudget] = useState<BudgetItem | null>(null);
 
   // 3 Vistas de periodicidad: Mensual (base), Quincenal (÷2), Semanal (÷4)
@@ -591,22 +595,22 @@ export default function BudgetView() {
     setEditingBudget(null);
   };
 
-  const handleDeleteBudget = async (id: string) => {
-    if (confirm("¿Estás seguro de eliminar este límite de presupuesto?")) {
-      setFormError(null);
-      try {
-        await deleteBudgetApi(id);
-      } catch (err) {
-        setFormError(err instanceof Error ? err.message : "No se pudo eliminar el presupuesto.");
-        return;
-      }
-      setBudgets((prev) => prev.filter((b) => b.id !== id));
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new Event("fydry_storage_updated"));
-      }
-      setIsModalOpen(false);
-      setEditingBudget(null);
+  const handleDeleteBudget = (id: string) => setPendingDeleteId(id);
+
+  const deleteBudgetConfirmed = async (id: string) => {
+    setFormError(null);
+    try {
+      await deleteBudgetApi(id);
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "No se pudo eliminar el presupuesto.");
+      return;
     }
+    setBudgets((prev) => prev.filter((b) => b.id !== id));
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("fydry_storage_updated"));
+    }
+    setIsModalOpen(false);
+    setEditingBudget(null);
   };
 
   // Etiqueta del período activo
@@ -827,10 +831,10 @@ export default function BudgetView() {
             </div>
             <div className="flex items-baseline gap-2">
               <span className="text-3xl font-bold tracking-tight text-zinc-950">
-                ${totalAllocated.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                {formatMoney(totalAllocated, budgetCurrency)}
               </span>
               <span className="text-xs text-zinc-500 font-medium">
-                / Gastado en el período: ${totalSpent.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                / Gastado en el período: {formatMoney(totalSpent, budgetCurrency)}
               </span>
             </div>
           </div>
@@ -839,7 +843,7 @@ export default function BudgetView() {
             <div className="text-right">
               <span className="text-xs font-semibold text-zinc-400 block">{t.budget.availableMargin || "Disponible"}</span>
               <span className="text-lg font-bold text-emerald-600">
-                ${remainingBudget.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                {formatMoney(remainingBudget, budgetCurrency)}
               </span>
             </div>
             <div className="text-right">
@@ -868,7 +872,7 @@ export default function BudgetView() {
             />
           </div>
           <div className="flex justify-between text-[11px] text-zinc-400 font-medium">
-            <span>$0.00</span>
+            <span>{formatMoney(0, budgetCurrency)}</span>
             <span>50%</span>
             <span>100%</span>
           </div>
@@ -881,7 +885,7 @@ export default function BudgetView() {
             <span>
               Ritmo seguro sugerido:{" "}
               <strong className="text-zinc-900 font-semibold">
-                ${dailySafeSpend.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                {formatMoney(dailySafeSpend, budgetCurrency)}
               </strong>{" "}
               / día
             </span>
@@ -1018,7 +1022,7 @@ export default function BudgetView() {
                   <div>
                     <span className="text-[10px] text-zinc-400 block">Gastado en período</span>
                     <span className={`text-sm font-bold ${isOver ? "text-rose-600" : "text-zinc-950"}`}>
-                      ${b.spent.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                      {formatMoney(b.spent, budgetCurrency)}
                     </span>
                   </div>
                   <div className="text-right">
@@ -1026,7 +1030,7 @@ export default function BudgetView() {
                       {periodView === "monthly" ? "Límite Mes" : periodView === "biweekly" ? "Límite Quincenal" : "Límite Semanal"}
                     </span>
                     <span className="text-sm font-bold text-zinc-500">
-                      ${b.allocated.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                      {formatMoney(b.allocated, budgetCurrency)}
                     </span>
                   </div>
                 </div>
@@ -1037,13 +1041,13 @@ export default function BudgetView() {
                     {remaining >= 0 ? "Te quedan:" : "Excedido por:"}
                   </span>
                   <span className={remaining >= 0 ? "text-zinc-950 font-bold" : "text-rose-600 font-bold"}>
-                    ${Math.abs(remaining).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                    {formatMoney(Math.abs(remaining), budgetCurrency)}
                   </span>
                 </div>
 
                 {periodView !== "monthly" && (
                   <div className="text-[10px] text-zinc-400 text-right">
-                    Base mensual: ${b.baseMonthlyAllocated.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                    Base mensual: {formatMoney(b.baseMonthlyAllocated, budgetCurrency)}
                   </div>
                 )}
               </div>
@@ -1103,6 +1107,9 @@ export default function BudgetView() {
         {isModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
             <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="budget-modal-title"
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
@@ -1116,7 +1123,7 @@ export default function BudgetView() {
                       return <ModalIcon className="w-4 h-4 text-zinc-700" />;
                     })()}
                   </div>
-                  <h3 className="font-bold text-zinc-950 text-sm">
+                  <h3 id="budget-modal-title" className="font-bold text-zinc-950 text-sm">
                     {editingBudget ? "Editar Límite Mensual" : "Nuevo Presupuesto Mensual"}
                   </h3>
                 </div>
@@ -1151,7 +1158,7 @@ export default function BudgetView() {
                 {/* Allocated Amount (Mensual Principal) */}
                 <div>
                   <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
-                    Límite Mensual ($) *
+                    Límite Mensual ({currencySymbol(budgetCurrency)}) *
                   </label>
                   <input
                     type="number"
@@ -1170,13 +1177,13 @@ export default function BudgetView() {
                       <div className="flex justify-between">
                         <span>Quincenal:</span>
                         <span className="font-bold text-zinc-900">
-                          ${(parseAmount(newAllocated) / 2).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                          {formatMoney((parseAmount(newAllocated) / 2), budgetCurrency)}
                         </span>
                       </div>
                       <div className="flex justify-between">
                         <span>Semanal:</span>
                         <span className="font-bold text-zinc-900">
-                          ${(parseAmount(newAllocated) / 4).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                          {formatMoney((parseAmount(newAllocated) / 4), budgetCurrency)}
                         </span>
                       </div>
                     </div>
@@ -1228,6 +1235,17 @@ export default function BudgetView() {
           </div>
         )}
       </AnimatePresence>
+
+      <ConfirmDialog
+        open={pendingDeleteId !== null}
+        message="¿Estás seguro de eliminar este límite de presupuesto?"
+        onCancel={() => setPendingDeleteId(null)}
+        onConfirm={() => {
+          const id = pendingDeleteId;
+          setPendingDeleteId(null);
+          if (id) deleteBudgetConfirmed(id);
+        }}
+      />
     </div>
   );
 }

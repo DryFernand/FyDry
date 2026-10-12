@@ -25,7 +25,8 @@ import {
   updateAccountApi,
   deleteAccountApi,
 } from "@/lib/api";
-import { parseAmount } from "@/lib/money";
+import { currencySymbol, formatMoney, parseAmount } from "@/lib/money";
+import ConfirmDialog, { useEscapeKey } from "../ConfirmDialog";
 
 type AccountType = "bank" | "credit_card" | "debit_card" | "card" | "wallet" | "cash" | "savings";
 
@@ -48,6 +49,8 @@ export default function AccountsView() {
   const [minBalance, setMinBalance] = useState("");
   const [currency, setCurrency] = useState("DOP");
   const [formError, setFormError] = useState<string | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  useEscapeKey(isModalOpen, () => setIsModalOpen(false));
 
   const loadAccounts = async () => {
     const data = await fetchAccountsApi();
@@ -174,22 +177,22 @@ export default function AccountsView() {
     setEditingAccount(null);
   };
 
-  const handleDeleteAccount = async (id: string) => {
-    if (confirm("¿Estás seguro de eliminar esta cuenta? Los registros asociados no se perderán.")) {
-      setFormError(null);
-      try {
-        await deleteAccountApi(id);
-      } catch (err) {
-        setFormError(err instanceof Error ? err.message : "No se pudo eliminar la cuenta.");
-        return;
-      }
-      setAccounts((prev) => prev.filter((a) => a.id !== id));
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new Event("fydry_storage_updated"));
-      }
-      setIsModalOpen(false);
-      setEditingAccount(null);
+  const handleDeleteAccount = (id: string) => setPendingDeleteId(id);
+
+  const deleteAccountConfirmed = async (id: string) => {
+    setFormError(null);
+    try {
+      await deleteAccountApi(id);
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "No se pudo eliminar la cuenta.");
+      return;
     }
+    setAccounts((prev) => prev.filter((a) => a.id !== id));
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("fydry_storage_updated"));
+    }
+    setIsModalOpen(false);
+    setEditingAccount(null);
   };
 
   const getAccountIcon = (accType: string) => {
@@ -279,7 +282,7 @@ export default function AccountsView() {
             <Building2 className="w-4 h-4 text-zinc-500" />
           </div>
           <div className="text-2xl font-bold tracking-tight text-zinc-950">
-            ${bankTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+            {formatMoney(bankTotal, accounts[0]?.currency || "DOP")}
           </div>
           <div className="text-[11px] text-zinc-400">
             {accounts.filter((a) => a.type === "bank").length} cuentas activas
@@ -293,7 +296,7 @@ export default function AccountsView() {
             <CreditCard className="w-4 h-4 text-zinc-500" />
           </div>
           <div className="text-2xl font-bold tracking-tight text-zinc-950">
-            ${creditCardTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+            {formatMoney(creditCardTotal, accounts[0]?.currency || "DOP")}
           </div>
           <div className="text-[11px] text-zinc-400">
             {accounts.filter((a) => a.type === "credit_card").length} tarjetas registradas
@@ -307,7 +310,7 @@ export default function AccountsView() {
             <PiggyBank className="w-4 h-4 text-zinc-500" />
           </div>
           <div className="text-2xl font-bold tracking-tight text-zinc-950">
-            ${savingsTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+            {formatMoney(savingsTotal, accounts[0]?.currency || "DOP")}
           </div>
           <div className="text-[11px] text-zinc-400">
             {accounts.filter((a) => a.type === "savings").length} fondos de ahorro
@@ -321,7 +324,7 @@ export default function AccountsView() {
             <Wallet className="w-4 h-4 text-zinc-500" />
           </div>
           <div className="text-2xl font-bold tracking-tight text-zinc-950">
-            ${debitAndOtherTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+            {formatMoney(debitAndOtherTotal, accounts[0]?.currency || "DOP")}
           </div>
           <div className="text-[11px] text-zinc-400">
             {accounts.filter((a) => a.type !== "bank" && a.type !== "credit_card" && a.type !== "savings").length} billeteras / efectivo
@@ -497,6 +500,9 @@ export default function AccountsView() {
         {isModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
             <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="account-modal-title"
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
@@ -507,7 +513,7 @@ export default function AccountsView() {
                   <div className="w-8 h-8 rounded-xl bg-zinc-100 flex items-center justify-center text-zinc-900">
                     <Building2 className="w-4 h-4" />
                   </div>
-                  <h3 className="font-bold text-zinc-950 text-base">
+                  <h3 id="account-modal-title" className="font-bold text-zinc-950 text-base">
                     {editingAccount ? "Editar Cuenta" : t.accounts.modalTitle}
                   </h3>
                 </div>
@@ -625,7 +631,7 @@ export default function AccountsView() {
                   <label className="block text-xs font-semibold text-zinc-800 mb-1.5 flex items-center justify-between">
                     <span className="flex items-center gap-1">
                       <ArrowDownCircle className="w-3.5 h-3.5 text-zinc-500" />
-                      <span>Saldo Mínimo Aceptado ($)</span>
+                      <span>Saldo Mínimo Aceptado ({currencySymbol(currency)})</span>
                     </span>
                     <span className="text-[10px] text-zinc-400 font-normal">Para alertas automáticas</span>
                   </label>
@@ -692,7 +698,7 @@ export default function AccountsView() {
 
                     <div>
                       <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
-                        Límite de la Tarjeta ($) *
+                        Límite de la Tarjeta ({currencySymbol(currency)}) *
                       </label>
                       <input
                         type="number"
@@ -744,7 +750,7 @@ export default function AccountsView() {
 
                     <div>
                       <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
-                        Monto de Sobregiro Permitido ($)
+                        Monto de Sobregiro Permitido ({currencySymbol(currency)})
                       </label>
                       <input
                         type="number"
@@ -809,6 +815,17 @@ export default function AccountsView() {
           </div>
         )}
       </AnimatePresence>
+
+      <ConfirmDialog
+        open={pendingDeleteId !== null}
+        message="¿Estás seguro de eliminar esta cuenta? Los registros asociados no se perderán."
+        onCancel={() => setPendingDeleteId(null)}
+        onConfirm={() => {
+          const id = pendingDeleteId;
+          setPendingDeleteId(null);
+          if (id) deleteAccountConfirmed(id);
+        }}
+      />
     </div>
   );
 }

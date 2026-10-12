@@ -35,6 +35,7 @@ import {
 } from "@/lib/api";
 import { EmailIntegrationData } from "./types";
 import { useLanguage } from "@/context/LanguageContext";
+import ConfirmDialog, { useEscapeKey } from "./ConfirmDialog";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -144,6 +145,9 @@ export default function SettingsModal({
     }
   }, [isOpen, setLanguage]);
 
+  const [confirmDisconnect, setConfirmDisconnect] = useState(false);
+  useEscapeKey(isOpen, onClose);
+
   if (!isOpen) return null;
 
   // Handlers
@@ -199,13 +203,13 @@ export default function SettingsModal({
     setTimeout(() => setScanFeedback(""), 4000);
   };
 
-  const handleDisconnectGmail = async () => {
-    if (confirm("¿Deseas desvincular tu cuenta de correo?")) {
-      await disconnectEmailSyncApi();
-      setEmailSyncData(null);
-      setScanFeedback("Cuenta de correo desvinculada.");
-      setTimeout(() => setScanFeedback(""), 3000);
-    }
+  const handleDisconnectGmail = () => setConfirmDisconnect(true);
+
+  const disconnectGmailConfirmed = async () => {
+    await disconnectEmailSyncApi();
+    setEmailSyncData(null);
+    setScanFeedback("Cuenta de correo desvinculada.");
+    setTimeout(() => setScanFeedback(""), 3000);
   };
 
   const handleRunEmailScan = async () => {
@@ -474,6 +478,9 @@ export default function SettingsModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
       <motion.div
+        role="dialog"
+        aria-modal="true"
+        aria-label={t.settings.title}
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
@@ -1379,6 +1386,17 @@ export default function SettingsModal({
           </div>
         </div>
       </motion.div>
+
+      <ConfirmDialog
+        open={confirmDisconnect}
+        message={language === "en" ? "Do you want to disconnect your email account?" : "¿Deseas desvincular tu cuenta de correo?"}
+        confirmLabel={language === "en" ? "Disconnect" : "Desvincular"}
+        onCancel={() => setConfirmDisconnect(false)}
+        onConfirm={() => {
+          setConfirmDisconnect(false);
+          disconnectGmailConfirmed();
+        }}
+      />
     </div>
   );
 }

@@ -21,7 +21,7 @@ import {
   createTransferApi,
 } from "@/lib/api";
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from "@/lib/categories";
-import { availableFunds, formatMoney, parseAmount, todayISO } from "@/lib/money";
+import { availableFunds, currencySymbol, formatMoney, isLiability, parseAmount, todayISO } from "@/lib/money";
 import { useLanguage } from "@/context/LanguageContext";
 
 export type TransactionType = "expense" | "income" | "transfer";
@@ -312,11 +312,20 @@ export default function QuickTransactionModal({
   const transferFromAcc = accounts.find((a) => a.name === currentFromAccountName);
   const transferToAcc = accounts.find((a) => a.name === currentToAccountName);
 
+  const quickCurrency = transferFromAcc?.currency || accounts[0]?.currency || "DOP";
+
+  // Tarjeta de crédito: el saldo es lo consumido; salir de ella lo AUMENTA y recibir lo REDUCE.
+  const fromIsCard = !!transferFromAcc && isLiability(transferFromAcc);
+  const toIsCard = !!transferToAcc && isLiability(transferToAcc);
   const transferFromBalanceAfter = transferFromAcc
-    ? transferFromAcc.balance - totalDebitedPreview
+    ? fromIsCard
+      ? transferFromAcc.balance + totalDebitedPreview
+      : transferFromAcc.balance - totalDebitedPreview
     : 0;
   const transferToBalanceAfter = transferToAcc
-    ? transferToAcc.balance + parsedAmountPreview
+    ? toIsCard
+      ? transferToAcc.balance - parsedAmountPreview
+      : transferToAcc.balance + parsedAmountPreview
     : 0;
 
   return (
@@ -332,6 +341,9 @@ export default function QuickTransactionModal({
             exit={{ opacity: 0, scale: 0.95, y: 12 }}
             transition={{ duration: 0.18, ease: "easeOut" }}
             onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="quick-tx-title"
             className="w-full max-w-lg bg-white rounded-3xl border border-zinc-200/90 shadow-2xl p-5 sm:p-6 space-y-4 my-auto relative max-h-[92vh] overflow-y-auto"
           >
             {/* Modal Header */}
@@ -341,7 +353,7 @@ export default function QuickTransactionModal({
                   FD
                 </div>
                 <div>
-                  <h3 className="text-base sm:text-lg font-bold text-zinc-950 tracking-tight leading-tight">
+                  <h3 id="quick-tx-title" className="text-base sm:text-lg font-bold text-zinc-950 tracking-tight leading-tight">
                     {isEn ? "Quick Transaction" : "Registrar Transacción"}
                   </h3>
                   <p className="text-[11px] text-zinc-400">
@@ -430,11 +442,11 @@ export default function QuickTransactionModal({
                 {/* Monto */}
                 <div>
                   <label className="block text-xs font-semibold text-zinc-800 mb-1">
-                    {isEn ? "Amount ($)" : "Monto ($)"} <span className="text-rose-500">*</span>
+                    {isEn ? "Amount" : "Monto"} ({currencySymbol(quickCurrency)}) <span className="text-rose-500">*</span>
                   </label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 font-bold text-xs pointer-events-none">
-                      $
+                      {currencySymbol(quickCurrency)}
                     </span>
                     <input
                       type="number"
@@ -548,7 +560,7 @@ export default function QuickTransactionModal({
                     {accounts.length > 0 ? (
                       accounts.map((a) => (
                         <option key={a.id} value={a.name}>
-                          {a.name} (${Number(a.balance).toFixed(2)})
+                          {a.name} ({formatMoney(Number(a.balance), a.currency)})
                         </option>
                       ))
                     ) : (
@@ -573,7 +585,7 @@ export default function QuickTransactionModal({
                         .filter((a) => a.name !== fromAccount)
                         .map((a) => (
                           <option key={a.id} value={a.name}>
-                            {a.name} (${Number(a.balance).toFixed(2)})
+                            {a.name} ({formatMoney(Number(a.balance), a.currency)})
                           </option>
                         ))}
                       {accounts.filter((a) => a.name !== fromAccount).length === 0 && (
@@ -590,12 +602,14 @@ export default function QuickTransactionModal({
               {type === "transfer" && (
                 <div>
                   <label className="block text-xs font-semibold text-zinc-800 mb-1 flex items-center justify-between">
-                    <span>{isEn ? "Bank Fee / Tax ($)" : "Comisión / Impuesto bancario ($)"}</span>
+                    <span>
+                      {isEn ? "Bank Fee / Tax" : "Comisión / Impuesto bancario"} ({currencySymbol(quickCurrency)})
+                    </span>
                     <span className="text-[10px] text-zinc-400 font-normal">{isEn ? "Optional" : "Opcional"}</span>
                   </label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 font-bold text-xs pointer-events-none">
-                      $
+                      {currencySymbol(quickCurrency)}
                     </span>
                     <input
                       type="number"
@@ -633,28 +647,32 @@ export default function QuickTransactionModal({
                             : `Sale de ${transferFromAcc.name}:`}
                         </span>
                         <span className="font-bold text-rose-600">
-                          -${totalDebitedPreview.toFixed(2)}
+                          -{formatMoney(totalDebitedPreview, quickCurrency)}
                           {parsedTaxPreview > 0 &&
-                            ` (${isEn ? "incl." : "incl."} $${parsedTaxPreview.toFixed(2)} ${
+                            ` (${isEn ? "incl." : "incl."} ${formatMoney(parsedTaxPreview, quickCurrency)} ${
                               isEn ? "fee" : "comisión"
                             })`}
                         </span>
                       </div>
                       <div className="flex justify-between text-[11px] text-zinc-500">
-                        <span>{isEn ? "Estimated balance in source:" : "Saldo estimado en origen:"}</span>
+                        <span>
+                          {fromIsCard
+                            ? isEn ? "Consumed after:" : "Consumido después:"
+                            : isEn ? "Estimated balance in source:" : "Saldo estimado en origen:"}
+                        </span>
                         <span
                           className={`font-semibold ${
-                            transferFromBalanceAfter < 0 ? "text-amber-600" : "text-zinc-700"
+                            !fromIsCard && transferFromBalanceAfter < 0 ? "text-amber-600" : "text-zinc-700"
                           }`}
                         >
-                          ${transferFromBalanceAfter.toFixed(2)}
+                          {formatMoney(transferFromBalanceAfter, quickCurrency)}
                         </span>
                       </div>
-                      {transferFromBalanceAfter < 0 && (
+                      {!fromIsCard && transferFromBalanceAfter < 0 && (
                         <div className="text-[11px] text-rose-600 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200/60 font-medium mt-1">
                           {isEn
-                            ? `⚠️ Overdraft margin in use ($${Math.abs(transferFromBalanceAfter).toFixed(2)})`
-                            : `⚠️ Uso de margen de sobregiro ($${Math.abs(transferFromBalanceAfter).toFixed(2)})`}
+                            ? `⚠️ Overdraft margin in use (${formatMoney(Math.abs(transferFromBalanceAfter), quickCurrency)})`
+                            : `⚠️ Uso de margen de sobregiro (${formatMoney(Math.abs(transferFromBalanceAfter), quickCurrency)})`}
                         </div>
                       )}
                     </div>
@@ -668,13 +686,17 @@ export default function QuickTransactionModal({
                             : `Llega a ${transferToAcc.name}:`}
                         </span>
                         <span className="font-bold text-emerald-600">
-                          +${parsedAmountPreview.toFixed(2)}
+                          +{formatMoney(parsedAmountPreview, transferToAcc.currency)}
                         </span>
                       </div>
                       <div className="flex justify-between text-[11px] text-zinc-500">
-                        <span>{isEn ? "Estimated balance in destination:" : "Saldo estimado en destino:"}</span>
+                        <span>
+                          {toIsCard
+                            ? isEn ? "Consumed after:" : "Consumido después:"
+                            : isEn ? "Estimated balance in destination:" : "Saldo estimado en destino:"}
+                        </span>
                         <span className="font-semibold text-zinc-700">
-                          ${transferToBalanceAfter.toFixed(2)}
+                          {formatMoney(transferToBalanceAfter, transferToAcc.currency)}
                         </span>
                       </div>
                     </div>

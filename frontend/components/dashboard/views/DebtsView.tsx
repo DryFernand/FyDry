@@ -33,7 +33,8 @@ import {
   payDebtApi,
   fetchAccountsApi,
 } from "@/lib/api";
-import { availableFunds, formatMoney, parseAmount, todayISO } from "@/lib/money";
+import { availableFunds, currencySymbol, formatMoney, parseAmount, todayISO } from "@/lib/money";
+import ConfirmDialog, { useEscapeKey } from "../ConfirmDialog";
 
 type DebtFilter = "all" | "active" | "liquidated";
 
@@ -73,6 +74,12 @@ export default function DebtsView() {
   const [payDesc, setPayDesc] = useState("");
   const [payError, setPayError] = useState("");
   const [isPaying, setIsPaying] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  useEscapeKey(isModalOpen, () => setIsModalOpen(false));
+  useEscapeKey(isPayModalOpen, () => setIsPayModalOpen(false));
+  const mainCurrency = accounts[0]?.currency || "DOP";
+  const payAccountCurrency =
+    accounts.find((a) => a.name === selectedAccountId || a.id === selectedAccountId)?.currency || mainCurrency;
 
   // Form states
   const [creditor, setCreditor] = useState("");
@@ -234,22 +241,22 @@ export default function DebtsView() {
     setIsModalOpen(false);
     setEditingDebt(null);
   };
-  const handleDeleteDebt = async (id: string) => {
-    if (confirm("¿Deseas eliminar este registro de deuda?")) {
-      setFormError(null);
-      try {
-        await deleteDebtApi(id);
-      } catch (err) {
-        setFormError(err instanceof Error ? err.message : "No se pudo eliminar la deuda.");
-        return;
-      }
-      setDebts((prev) => prev.filter((d) => d.id !== id));
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new Event("fydry_storage_updated"));
-      }
-      setIsModalOpen(false);
-      setEditingDebt(null);
+  const handleDeleteDebt = (id: string) => setPendingDeleteId(id);
+
+  const deleteDebtConfirmed = async (id: string) => {
+    setFormError(null);
+    try {
+      await deleteDebtApi(id);
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "No se pudo eliminar la deuda.");
+      return;
     }
+    setDebts((prev) => prev.filter((d) => d.id !== id));
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("fydry_storage_updated"));
+    }
+    setIsModalOpen(false);
+    setEditingDebt(null);
   };
 
   const handleExecutePayment = async (e: React.FormEvent) => {
@@ -265,7 +272,7 @@ export default function DebtsView() {
 
     if (parsedAmount > payingDebt.remainingAmount) {
       setPayError(
-        `El monto a pagar ($${parsedAmount.toFixed(2)}) no puede ser mayor a la deuda pendiente ($${payingDebt.remainingAmount.toFixed(2)}).`
+        `El monto a pagar (${formatMoney(parsedAmount, mainCurrency)}) no puede ser mayor a la deuda pendiente (${formatMoney(payingDebt.remainingAmount, mainCurrency)}).`
       );
       return;
     }
@@ -350,7 +357,7 @@ export default function DebtsView() {
             <Building2 className="w-4 h-4 text-zinc-500" />
           </div>
           <div className="text-2xl font-bold tracking-tight text-zinc-950">
-            ${totalRemaining.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+            {formatMoney(totalRemaining, mainCurrency)}
           </div>
           <div className="text-[11px] text-zinc-400">
             {debts.length} {t.debts.activeDebts}
@@ -364,7 +371,7 @@ export default function DebtsView() {
             <CreditCard className="w-4 h-4 text-zinc-500" />
           </div>
           <div className="text-2xl font-bold tracking-tight text-zinc-950">
-            ${totalMonthlyCommitment.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+            {formatMoney(totalMonthlyCommitment, mainCurrency)}
             <span className="text-xs font-normal text-zinc-400">/mes</span>
           </div>
           <div className="text-[11px] text-zinc-400">{t.debts.recurringPayment}</div>
@@ -387,8 +394,8 @@ export default function DebtsView() {
             />
           </div>
           <div className="flex justify-between text-[11px] text-zinc-400 pt-1">
-            <span>Amortizado: ${totalAmortized.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
-            <span>Total: ${totalOriginalPrincipal.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+            <span>Amortizado: {formatMoney(totalAmortized, mainCurrency)}</span>
+            <span>Total: {formatMoney(totalOriginalPrincipal, mainCurrency)}</span>
           </div>
         </div>
       </div>
@@ -518,13 +525,13 @@ export default function DebtsView() {
                 <div className="flex items-center justify-between sm:justify-end gap-4">
                   <div className="text-left sm:text-right">
                     <div className={`text-base font-bold ${isLiquidated ? "text-emerald-600 line-through" : "text-zinc-950"}`}>
-                      ${d.remainingAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}{" "}
+                      {formatMoney(d.remainingAmount, mainCurrency)}{" "}
                       <span className="text-xs text-zinc-400 font-normal">
-                        de ${d.totalAmount.toLocaleString()}
+                        de {formatMoney(d.totalAmount, mainCurrency)}
                       </span>
                     </div>
                     <div className="text-xs text-zinc-500 font-medium">
-                      {t.debts.monthlyFee}: ${d.monthlyPayment}/mes
+                      {t.debts.monthlyFee}: {formatMoney(d.monthlyPayment, mainCurrency)}/mes
                     </div>
                   </div>
 
@@ -545,7 +552,7 @@ export default function DebtsView() {
               {/* Progress Bar */}
               <div className="space-y-1.5">
                 <div className="flex justify-between text-[11px] text-zinc-500 font-medium">
-                  <span>{t.debts.amortized}: ${paidAmount.toLocaleString()}</span>
+                  <span>{t.debts.amortized}: {formatMoney(paidAmount, mainCurrency)}</span>
                   <span>{percentPaid}% {t.debts.completed}</span>
                 </div>
                 <div className="w-full bg-zinc-100 rounded-full h-2 overflow-hidden">
@@ -627,6 +634,9 @@ export default function DebtsView() {
         {isPayModalOpen && payingDebt && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
             <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="debt-pay-modal-title"
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
@@ -638,7 +648,7 @@ export default function DebtsView() {
                     <DollarSign className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-zinc-950 text-sm">
+                    <h3 id="debt-pay-modal-title" className="font-bold text-zinc-950 text-sm">
                       Pagar / Abonar a Deuda
                     </h3>
                     <p className="text-[11px] text-zinc-400">{payingDebt.creditor} ({payingDebt.type})</p>
@@ -663,7 +673,7 @@ export default function DebtsView() {
               <div className="bg-zinc-50 p-3.5 rounded-2xl border border-zinc-100 flex items-center justify-between text-xs">
                 <span className="text-zinc-500 font-medium">Saldo Restante:</span>
                 <span className="font-bold text-rose-600 text-sm">
-                  ${payingDebt.remainingAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                  {formatMoney(payingDebt.remainingAmount, mainCurrency)}
                 </span>
               </div>
 
@@ -681,7 +691,7 @@ export default function DebtsView() {
                         className="py-2 px-2.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-xs font-semibold text-zinc-800 transition-colors text-left"
                       >
                         <span className="block text-[10px] text-zinc-400 font-normal">Pagar Cuota</span>
-                        ${payingDebt.monthlyPayment.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                        {formatMoney(payingDebt.monthlyPayment, mainCurrency)}
                       </button>
                     )}
                     <button
@@ -690,7 +700,7 @@ export default function DebtsView() {
                       className="py-2 px-2.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-xs font-semibold text-zinc-800 transition-colors text-left"
                     >
                       <span className="block text-[10px] text-zinc-400 font-normal">Liquidar Total</span>
-                      ${payingDebt.remainingAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                      {formatMoney(payingDebt.remainingAmount, mainCurrency)}
                     </button>
                   </div>
                 </div>
@@ -698,7 +708,7 @@ export default function DebtsView() {
                 {/* Monto a Pagar */}
                 <div>
                   <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
-                    Monto a Pagar ($) *
+                    Monto a Pagar ({currencySymbol(payAccountCurrency)}) *
                   </label>
                   <input
                     type="number"
@@ -725,7 +735,7 @@ export default function DebtsView() {
                   >
                     {accounts.map((acc) => (
                       <option key={acc.id} value={acc.name}>
-                        {acc.name} (${acc.balance.toLocaleString("en-US", { minimumFractionDigits: 2 })})
+                        {acc.name} ({formatMoney(acc.balance, acc.currency)})
                       </option>
                     ))}
                   </select>
@@ -776,13 +786,16 @@ export default function DebtsView() {
         {isModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
             <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="debt-modal-title"
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               className="w-full max-w-md bg-white rounded-3xl border border-zinc-200 p-6 shadow-xl space-y-4 max-h-[90vh] overflow-y-auto"
             >
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-bold text-zinc-950">
+                <h3 id="debt-modal-title" className="text-lg font-bold text-zinc-950">
                   {editingDebt ? "Editar Compromiso de Deuda" : t.debts.modalTitle}
                 </h3>
                 <button
@@ -831,7 +844,7 @@ export default function DebtsView() {
 
                   <div>
                     <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
-                      {t.debts.totalOriginal}
+                      {t.debts.totalOriginal.replace("$", currencySymbol(mainCurrency))}
                     </label>
                     <input
                       type="number"
@@ -848,7 +861,7 @@ export default function DebtsView() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
-                      {t.debts.pendingBalance}
+                      {t.debts.pendingBalance.replace("$", currencySymbol(mainCurrency))}
                     </label>
                     <input
                       type="number"
@@ -864,7 +877,7 @@ export default function DebtsView() {
 
                   <div>
                     <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
-                      {t.debts.monthlyPaymentInput}
+                      {t.debts.monthlyPaymentInput.replace("$", currencySymbol(mainCurrency))}
                     </label>
                     <input
                       type="number"
@@ -934,6 +947,17 @@ export default function DebtsView() {
           </div>
         )}
       </AnimatePresence>
+
+      <ConfirmDialog
+        open={pendingDeleteId !== null}
+        message="¿Deseas eliminar este registro de deuda?"
+        onCancel={() => setPendingDeleteId(null)}
+        onConfirm={() => {
+          const id = pendingDeleteId;
+          setPendingDeleteId(null);
+          if (id) deleteDebtConfirmed(id);
+        }}
+      />
     </div>
   );
 }
