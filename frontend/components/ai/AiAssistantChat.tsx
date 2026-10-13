@@ -505,6 +505,10 @@ function ActionCard({ action, accounts, onConfirm, onCancel }: ActionCardProps) 
       details.push({ label: "Tarjeta", value: args.card || "Tarjeta" });
       details.push({ label: "Monto", value: money(Number(args.amount) || 0, args.card) });
       details.push({ label: "Pagar desde", value: args.from_account || "Cuenta" });
+      details.push({
+        label: "Impuesto",
+        value: money(args.tax_amount !== undefined ? Number(args.tax_amount) || 0 : Math.round((Number(args.amount) || 0) * 0.15) / 100, args.card),
+      });
       if (args.date) details.push({ label: "Fecha", value: args.date });
       break;
     }
@@ -1395,8 +1399,12 @@ export default function AiAssistantChat() {
         const source = findMatchingAccount(String(args.from_account || ""), accountsList.filter((a) => !isLiability(a)));
         if (!source) throw new Error(`La cuenta "${args.from_account}" no existe o es una tarjeta; elige una cuenta de banco, efectivo o ahorro.`);
         const amount = parseStrictAmount(args.amount);
-        await payCreditCardApi(card.id, { fromAccountId: source.id, amount, date: sanitizeDate(args.date) });
-        confirmNote = `Listo, registré el pago de ${formatMoney(amount, card.currency)} a ${card.name} desde ${source.name}.`;
+        // 0.15% DGII por defecto si el modelo no indicó el impuesto
+        const tax = args.tax_amount !== undefined && Number.isFinite(Number(args.tax_amount)) && Number(args.tax_amount) >= 0
+          ? Math.round(Number(args.tax_amount) * 100) / 100
+          : Math.round(amount * 0.15) / 100;
+        await payCreditCardApi(card.id, { fromAccountId: source.id, amount, taxAmount: tax, date: sanitizeDate(args.date) });
+        confirmNote = `Listo, registré el pago de ${formatMoney(amount, card.currency)} a ${card.name} desde ${source.name}${tax > 0 ? ` (impuesto ${formatMoney(tax, card.currency)})` : ""}.`;
       } else {
         throw new Error(`Acción desconocida: ${name}`);
       }

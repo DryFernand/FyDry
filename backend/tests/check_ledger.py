@@ -58,6 +58,13 @@ with TestClient(app) as c:
     pay_mov = post(f"/accounts/{card['id']}/pay", {"from_account_id": bank["id"], "amount": 100, "date": "2026-10-03"}, 201).json()
     assert pay_mov["to_account_id"] == card["id"]
     assert bal(card["id"]) == 200 and bal(bank["id"]) == 899.7
+    # Pago con impuesto 0.15%: el banco paga monto + impuesto, la tarjeta baja solo el monto, el impuesto es un gasto
+    tax_pay = post(f"/accounts/{card['id']}/pay", {"from_account_id": bank["id"], "amount": 100, "tax_amount": 0.15, "date": "2026-10-03"}, 201).json()
+    assert bal(card["id"]) == 100 and bal(bank["id"]) == 799.55
+    tax_exp = next(x for x in c.get(f"{API}/expenses", headers=H).json() if x["id"] == tax_pay["tax_expense_id"])
+    assert tax_exp["amount"] == 0.15 and tax_exp["category"] == "Impuestos & Tasas"
+    assert c.delete(f"{API}/movements/{tax_pay['id']}", headers=H).status_code == 200
+    assert bal(card["id"]) == 200 and bal(bank["id"]) == 899.7
     # El pago queda como movimiento editable (la regla solo impide destinos nuevos hacia tarjetas)
     assert c.put(f"{API}/movements/{pay_mov['id']}", json={"amount": 100, "to_account_name": "Visa"}, headers=H).status_code == 200
 

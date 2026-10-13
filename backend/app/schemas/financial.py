@@ -214,6 +214,8 @@ class CardPaymentRequest(BaseModel):
     from_account_id: Optional[str] = Field(None, max_length=36)
     from_account_name: Optional[str] = Field(None, max_length=255)
     amount: PositiveAmount
+    # Impuesto/comisión que cobra el banco al transferir (ej. 0.15% DGII); lo paga la cuenta de origen
+    tax_amount: Optional[NonNegAmount] = 0.0
     date: Optional[FlexDate] = None
     description: Optional[str] = Field(None, max_length=255)
 

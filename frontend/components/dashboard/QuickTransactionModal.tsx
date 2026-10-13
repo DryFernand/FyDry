@@ -50,6 +50,7 @@ export default function QuickTransactionModal({
   const [fromAccount, setFromAccount] = useState<string>("");
   const [toAccount, setToAccount] = useState<string>("");
   const [cardAccount, setCardAccount] = useState<string>("");
+  const [taxTouched, setTaxTouched] = useState(false);
   const [date, setDate] = useState<string>(todayISO());
 
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
@@ -58,10 +59,20 @@ export default function QuickTransactionModal({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  // Pago de tarjeta: 0.15% (impuesto DGII a transferencias) calculado mientras el usuario no lo edite
+  const autoCardTax = Math.round((parseAmount(amount) || 0) * 0.15) / 100;
+  const effectiveTaxText = type === "card_payment" && !taxTouched ? (autoCardTax > 0 ? autoCardTax.toFixed(2) : "") : taxAmount;
   const cards = accounts.filter((a) => isLiability(a));
   const nonCards = accounts.filter((a) => !isLiability(a));
   /** Cuentas válidas como origen según el tipo de operación. */
-  const sourceAccounts = type === "income" || type === "card_payment" ? nonCards : accounts;
+  const payingCard = cards.find((c) => c.name === cardAccount) || cards[0];
+  // Para pagar una tarjeta: cuentas que no son tarjeta y en la misma moneda que ella
+  const sourceAccounts =
+    type === "card_payment"
+      ? nonCards.filter((a) => (a.currency || "DOP") === (payingCard?.currency || "DOP"))
+      : type === "income"
+      ? nonCards
+      : accounts;
   const effectiveFrom = sourceAccounts.some((a) => a.name === fromAccount) ? fromAccount : sourceAccounts[0]?.name || "";
   // Destino de un traspaso: nunca una tarjeta de crédito (se paga con "Pagar tarjeta")
   const destinationAccounts = nonCards.filter((a) => a.name !== effectiveFrom);
@@ -151,6 +162,7 @@ export default function QuickTransactionModal({
   const resetForm = () => {
     setAmount("");
     setTaxAmount("");
+    setTaxTouched(false);
     setDescription("");
     setDate(todayISO());
     setErrorMessage(null);
@@ -182,7 +194,12 @@ export default function QuickTransactionModal({
       return;
     }
 
+    const parsedTax = effectiveTaxText ? parseAmount(effectiveTaxText) : 0;
     const cleanDesc = description.trim();
+    if (type === "card_payment" && (isNaN(parsedTax) || parsedTax < 0)) {
+      setErrorMessage(isEn ? "Tax amount is invalid." : "El impuesto no es válido.");
+      return;
+    }
     if (type === "card_payment") {
       const card = cards.find((c) => c.name === cardAccount);
       const source = nonCards.find((a) => a.name === effectiveFrom);
@@ -207,6 +224,7 @@ export default function QuickTransactionModal({
         await payCreditCardApi(card.id, {
           fromAccountId: source.id,
           amount: parsedAmount,
+          taxAmount: parsedTax,
           date,
           description: cleanDesc || undefined,
         });
@@ -242,7 +260,6 @@ export default function QuickTransactionModal({
       return;
     }
 
-    const parsedTax = taxAmount ? parseAmount(taxAmount) : 0;
     if (isNaN(parsedTax) || !isFinite(parsedTax) || parsedTax < 0) {
       setErrorMessage(
         isEn
@@ -358,7 +375,7 @@ export default function QuickTransactionModal({
   };
 
   const parsedAmountPreview = parseAmount(amount) || 0;
-  const parsedTaxPreview = parseAmount(taxAmount) || 0;
+  const parsedTaxPreview = parseAmount(effectiveTaxText) || 0;
   const totalDebitedPreview = parsedAmountPreview + parsedTaxPreview;
 
   const currentFromAccountName = effectiveFrom;
@@ -709,6 +726,12 @@ export default function QuickTransactionModal({
                     <span>{isEn ? "Pending balance" : "Pendiente por pagar"}</span>
                     <span className="font-bold">{formatMoney(selectedCard.balance, selectedCard.currency)}</span>
                   </div>
+                  {parsedAmountPreview > 0 && parsedTaxPreview > 0 && (
+                    <div className="flex justify-between text-zinc-500 text-[11px]">
+                      <span>{isEn ? `Leaves ${effectiveFrom} (incl. tax)` : `Sale de ${effectiveFrom} (incl. impuesto)`}</span>
+                      <span className="font-semibold">{formatMoney(parsedAmountPreview + parsedTaxPreview, selectedCard.currency)}</span>
+                    </div>
+                  )}
                   {parsedAmountPreview > 0 && (
                     <div className="flex justify-between text-zinc-500 text-[11px]">
                       <span>{isEn ? "Pending after payment" : "Quedará pendiente"}</span>
@@ -729,14 +752,18 @@ export default function QuickTransactionModal({
                 </div>
               )}
 
-              {/* Comisión / Impuesto bancario (solo para transferencias) */}
-              {type === "transfer" && (
+              {/* Comisión / Impuesto bancario (transferencias y pago de tarjeta) */}
+              {(type === "transfer" || type === "card_payment") && (
                 <div>
                   <label className="block text-xs font-semibold text-zinc-800 mb-1 flex items-center justify-between">
                     <span>
                       {isEn ? "Bank Fee / Tax" : "Comisión / Impuesto bancario"} ({currencySymbol(quickCurrency)})
                     </span>
-                    <span className="text-[10px] text-zinc-400 font-normal">{isEn ? "Optional" : "Opcional"}</span>
+                    <span className="text-[10px] text-zinc-400 font-normal">
+                      {type === "card_payment" && !taxTouched
+                        ? isEn ? "0.15% DGII, editable" : "0.15% DGII, editable"
+                        : isEn ? "Optional" : "Opcional"}
+                    </span>
                   </label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 font-bold text-xs pointer-events-none">
@@ -746,8 +773,11 @@ export default function QuickTransactionModal({
                       type="number"
                       step="0.01"
                       min="0"
-                      value={taxAmount}
-                      onChange={(e) => setTaxAmount(e.target.value)}
+                      value={effectiveTaxText}
+                      onChange={(e) => {
+                        setTaxTouched(true);
+                        setTaxAmount(e.target.value);
+                      }}
                       placeholder={
                         isEn
                           ? "0.00 (Optional, e.g. 0.15% DGII or interbank fee)"

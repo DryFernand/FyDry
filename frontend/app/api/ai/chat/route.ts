@@ -93,7 +93,7 @@ function todayInDR(): string {
 
 const MAX_AMOUNT = 1_000_000_000;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-const AMOUNT_FIELDS = ["amount", "total_amount", "limit_amount", "initial_balance"];
+const AMOUNT_FIELDS = ["amount", "total_amount", "limit_amount", "initial_balance", "tax_amount"];
 const TEXT_LIMITS: Record<string, number> = {
   description: 255,
   account: 255,
@@ -435,6 +435,7 @@ const TOOLS = [
           card: { type: "string", description: "Nombre de la tarjeta de crédito a pagar." },
           from_account: { type: "string", description: "Nombre de la cuenta desde la que se paga (no puede ser una tarjeta)." },
           amount: { type: "number", description: "Monto del pago. Si el usuario dice 'todo' o 'el total', usa el consumido actual de la tarjeta." },
+          tax_amount: { type: "number", description: "Impuesto de la transferencia. Por defecto 0.15% del monto (DGII) salvo que el usuario indique otro valor o 0." },
           date: { type: "string", description: "Fecha del pago en formato YYYY-MM-DD (opcional)." },
         },
         required: ["card", "from_account", "amount"],

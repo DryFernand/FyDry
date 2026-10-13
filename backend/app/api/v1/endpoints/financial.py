@@ -168,7 +168,7 @@ def pay_credit_card(
         from_account_name=source.name,
         to_account_name=card.name,
         amount=amount,
-        tax_amount=Decimal("0"),
+        tax_amount=money(pay_in.tax_amount),
         description=pay_in.description or f"Pago de tarjeta {card.name}",
         date=pay_in.date or date.today(),
     )
