@@ -39,6 +39,15 @@ def apply_delta(account: Account, delta: Decimal) -> None:
         account.balance = money(account.balance) + delta
 
 
+def ensure_can_receive(account: Optional[Account], what: str = "ingresos") -> None:
+    """Una tarjeta de crédito solo baja su consumo con 'Pagar tarjeta', nunca con ingresos ni traspasos."""
+    if account is not None and account.type in LIABILITY_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"La tarjeta '{account.name}' no puede recibir {what}. Para abonarle usa la opción 'Pagar tarjeta'.",
+        )
+
+
 def ensure_funds(account: Account, outflow: Decimal) -> None:
     """Rechaza un egreso que exceda el crédito disponible (tarjeta con límite) o el saldo + sobregiro (cuenta)."""
     overdraft = money(account.overdraft_limit)

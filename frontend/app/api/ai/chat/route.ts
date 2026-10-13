@@ -44,6 +44,7 @@ Uso de los datos reales del usuario:
 - Más abajo recibes un RESUMEN FINANCIERO REAL obtenido de FyDry. Úsalo para responder preguntas como "¿cuánto puedo gastar hoy?", "¿cómo voy este mes?", "¿cuánto debo?" o "¿cuánto tengo en mi cuenta?" con cifras exactas y su moneda (RD$ o US$).
 - Nunca inventes cifras que no estén en el resumen. Si un dato no aparece, dilo con naturalidad y sugiere la sección de FyDry donde verlo.
 - Si el usuario pide registrar varias operaciones en un mismo mensaje, puedes invocar varias herramientas a la vez (una por operación).
+- Tarjetas de crédito: su saldo es lo consumido (deuda). Una tarjeta NUNCA recibe ingresos ni transferencias. Si el usuario quiere pagar o abonar a su tarjeta, usa la herramienta pay_credit_card (desde una cuenta que no sea tarjeta). Nunca uses create_income ni create_transfer hacia una tarjeta.
 - Para fechas relativas ("ayer", "el lunes") calcula la fecha exacta a partir de la fecha de hoy indicada en el resumen y envíala en formato AAAA-MM-DD.`;
 
 const API_BASE = (process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "https://fydry-api-dary.vercel.app/api/v1").replace(/\/+$/, "");
@@ -101,6 +102,7 @@ const TEXT_LIMITS: Record<string, number> = {
   name: 255,
   creditor: 255,
   debt_id_or_name: 255,
+  card: 255,
   type: 30,
   currency: 3,
 };
@@ -214,6 +216,7 @@ const ALLOWED_TOOLS = new Set([
   "create_budget",
   "create_debt",
   "pay_debt",
+  "pay_credit_card",
   "request_missing_details",
 ]);
 
@@ -424,6 +427,23 @@ const TOOLS = [
   {
     type: "function",
     function: {
+      name: "pay_credit_card",
+      description: "Paga o abona a una tarjeta de crédito del usuario desde una de sus cuentas (banco, efectivo, ahorro). Es la única forma de reducir lo consumido en una tarjeta.",
+      parameters: {
+        type: "object",
+        properties: {
+          card: { type: "string", description: "Nombre de la tarjeta de crédito a pagar." },
+          from_account: { type: "string", description: "Nombre de la cuenta desde la que se paga (no puede ser una tarjeta)." },
+          amount: { type: "number", description: "Monto del pago. Si el usuario dice 'todo' o 'el total', usa el consumido actual de la tarjeta." },
+          date: { type: "string", description: "Fecha del pago en formato YYYY-MM-DD (opcional)." },
+        },
+        required: ["card", "from_account", "amount"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "request_missing_details",
       description: "Úsala obligatoriamente cuando el usuario te pida registrar o realizar una acción (gasto, ingreso, transferencia, cuenta, presupuesto, deuda o pago) pero falten datos requeridos, o cuando deba seleccionar una cuenta o categoría. Presenta campos interactivos, pills de cuentas y sugerencias clickeables en pantalla. NUNCA uses asteriscos ni listados en texto plano.",
       parameters: {
@@ -431,7 +451,7 @@ const TOOLS = [
         properties: {
           action_type: {
             type: "string",
-            enum: ["expense", "income", "transfer", "account", "budget", "debt", "pay_debt"],
+            enum: ["expense", "income", "transfer", "account", "budget", "debt", "pay_debt", "pay_card"],
             description: "El tipo de operación que se está intentando completar.",
           },
           message: {

@@ -38,6 +38,7 @@ with TestClient(app) as c:
     usd = post("/accounts", {"name": "Dólares", "type": "savings", "balance": 0, "currency": "usd"}, 201).json()
     assert usd["currency"] == "USD"
     assert post("/accounts", {"name": "X", "type": "Efectivo"}, 201).json()["type"] == "cash"
+    usd2 = post("/accounts", {"name": "Ahorro DOP", "type": "savings", "balance": 0}, 201).json()
 
     # Montos exactos: 0.1 + 0.2 sin errores de float
     post("/expenses", {"account_id": bank["id"], "category": "Comida", "description": "a", "amount": 0.1, "date": "2026-10-01"}, 201)
@@ -48,8 +49,17 @@ with TestClient(app) as c:
     e = post("/expenses", {"account_id": card["id"], "category": "Comida", "description": "c", "amount": 300, "date": "2026-10-02"}, 201).json()
     assert bal(card["id"]) == 300
     post("/expenses", {"account_id": card["id"], "category": "Comida", "description": "d", "amount": 250, "date": "2026-10-02"}, 400)
-    post("/movements", {"from_account_id": bank["id"], "to_account_id": card["id"], "amount": 100, "date": "2026-10-03"}, 201)
+    # La tarjeta solo se abona con "Pagar tarjeta": ni traspasos ni ingresos hacia ella
+    post("/movements", {"from_account_id": bank["id"], "to_account_id": card["id"], "amount": 100, "date": "2026-10-03"}, 400)
+    post("/incomes", {"account_id": card["id"], "category": "Otros", "description": "x", "amount": 10, "date": "2026-10-03"}, 400)
+    post(f"/accounts/{card['id']}/pay", {"from_account_id": bank["id"], "amount": 301}, 400)  # más de lo pendiente
+    post(f"/accounts/{card['id']}/pay", {"from_account_id": card["id"], "amount": 10}, 400)  # tarjeta con tarjeta
+    post(f"/accounts/{bank['id']}/pay", {"from_account_id": bank["id"], "amount": 10}, 404)  # destino no es tarjeta
+    pay_mov = post(f"/accounts/{card['id']}/pay", {"from_account_id": bank["id"], "amount": 100, "date": "2026-10-03"}, 201).json()
+    assert pay_mov["to_account_id"] == card["id"]
     assert bal(card["id"]) == 200 and bal(bank["id"]) == 899.7
+    # El pago queda como movimiento editable (la regla solo impide destinos nuevos hacia tarjetas)
+    assert c.put(f"{API}/movements/{pay_mov['id']}", json={"amount": 100, "to_account_name": "Visa"}, headers=H).status_code == 200
 
     # Null explícito no rompe (antes 500); nombre '%' no actúa como comodín
     r = c.put(f"{API}/expenses/{e['id']}", json={"amount": None, "description": "c2"}, headers=H)
@@ -67,11 +77,11 @@ with TestClient(app) as c:
     assert bal(usd["id"]) == 10 and bal(bank["id"]) == 309.7
 
     # Impuesto de traspaso: borrar el gasto del impuesto y luego el traspaso no reembolsa dos veces
-    m = post("/movements", {"from_account_id": bank["id"], "to_account_id": card["id"], "amount": 100, "tax_amount": 5, "date": "2026-10-05"}, 201).json()
+    m = post("/movements", {"from_account_id": bank["id"], "to_account_id": usd2["id"], "amount": 100, "tax_amount": 5, "date": "2026-10-05"}, 201).json()
     assert bal(bank["id"]) == 204.7
     assert c.delete(f"{API}/expenses/{m['tax_expense_id']}", headers=H).status_code == 200
     assert c.delete(f"{API}/movements/{m['id']}", headers=H).status_code == 200
-    assert bal(bank["id"]) == 309.7 and bal(card["id"]) == 200
+    assert bal(bank["id"]) == 309.7 and bal(card["id"]) == 200 and bal(usd2["id"]) == 0
 
     # Misma cuenta origen/destino rechazada
     post("/movements", {"from_account_id": bank["id"], "to_account_id": bank["id"], "amount": 1, "date": "2026-10-05"}, 400)

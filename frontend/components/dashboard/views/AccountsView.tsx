@@ -299,7 +299,7 @@ export default function AccountsView() {
             {formatMoney(creditCardTotal, accounts[0]?.currency || "DOP")}
           </div>
           <div className="text-[11px] text-zinc-400">
-            {accounts.filter((a) => a.type === "credit_card").length} tarjetas registradas
+            {accounts.filter((a) => a.type === "credit_card").length} tarjetas · pendiente por pagar
           </div>
         </div>
 
@@ -458,19 +458,42 @@ export default function AccountsView() {
                 )}
               </div>
 
-              <div className="pt-2 border-t border-zinc-100 flex items-baseline justify-between">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-semibold text-zinc-400">
-                    {acc.type === "credit_card" ? "Saldo Consumido" : "Saldo Disponible"}
-                  </span>
-                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-600">
-                    {acc.currency || "DOP"}
+              {isCreditCard ? (
+                /* Tarjeta: lo principal es cuánto crédito queda; lo pendiente va en pequeño */
+                <div className="pt-2 border-t border-zinc-100 space-y-1">
+                  <div className="flex items-baseline justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-semibold text-zinc-400">Crédito Disponible</span>
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-600">
+                        {acc.currency || "DOP"}
+                      </span>
+                    </div>
+                    {creditLimit > 0 ? (
+                      <span className={`font-bold tracking-tight text-lg ${creditLimit - acc.balance < 0 ? "text-rose-600" : "text-zinc-950"}`}>
+                        {formatMoney(creditLimit - acc.balance, acc.currency)}
+                      </span>
+                    ) : (
+                      <span className="text-[11px] font-medium text-zinc-400">Define el límite</span>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-zinc-500">Pendiente por pagar</span>
+                    <span className="font-semibold text-zinc-700">{formatMoney(Math.max(0, acc.balance), acc.currency)}</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="pt-2 border-t border-zinc-100 flex items-baseline justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-semibold text-zinc-400">Saldo Disponible</span>
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-600">
+                      {acc.currency || "DOP"}
+                    </span>
+                  </div>
+                  <span className="text-zinc-950 font-bold tracking-tight text-lg">
+                    {formatMoney(acc.balance, acc.currency)}
                   </span>
                 </div>
-                <span className="text-zinc-950 font-bold tracking-tight text-lg">
-                  {currSymbol} {acc.balance.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-                </span>
-              </div>
+              )}
             </motion.div>
           );
         })}

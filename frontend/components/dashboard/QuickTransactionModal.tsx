@@ -12,6 +12,7 @@ import {
   AlertCircle,
   CheckCircle2,
   DollarSign,
+  CreditCard,
 } from "lucide-react";
 import { AccountItem } from "./types";
 import {
@@ -19,12 +20,13 @@ import {
   createExpenseApi,
   createIncomeApi,
   createTransferApi,
+  payCreditCardApi,
 } from "@/lib/api";
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from "@/lib/categories";
 import { availableFunds, currencySymbol, formatMoney, isLiability, parseAmount, todayISO } from "@/lib/money";
 import { useLanguage } from "@/context/LanguageContext";
 
-export type TransactionType = "expense" | "income" | "transfer";
+export type TransactionType = "expense" | "income" | "transfer" | "card_payment";
 
 interface QuickTransactionModalProps {
   isOpen: boolean;
@@ -47,6 +49,7 @@ export default function QuickTransactionModal({
   const [category, setCategory] = useState<string>(EXPENSE_CATEGORIES[0]);
   const [fromAccount, setFromAccount] = useState<string>("");
   const [toAccount, setToAccount] = useState<string>("");
+  const [cardAccount, setCardAccount] = useState<string>("");
   const [date, setDate] = useState<string>(todayISO());
 
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
@@ -54,6 +57,15 @@ export default function QuickTransactionModal({
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const cards = accounts.filter((a) => isLiability(a));
+  const nonCards = accounts.filter((a) => !isLiability(a));
+  /** Cuentas válidas como origen según el tipo de operación. */
+  const sourceAccounts = type === "income" || type === "card_payment" ? nonCards : accounts;
+  const effectiveFrom = sourceAccounts.some((a) => a.name === fromAccount) ? fromAccount : sourceAccounts[0]?.name || "";
+  // Destino de un traspaso: nunca una tarjeta de crédito (se paga con "Pagar tarjeta")
+  const destinationAccounts = nonCards.filter((a) => a.name !== effectiveFrom);
+  const effectiveTo = destinationAccounts.some((a) => a.name === toAccount) ? toAccount : destinationAccounts[0]?.name || "";
 
   // Cargar cuentas activas
   const loadAccounts = async () => {
@@ -97,6 +109,18 @@ export default function QuickTransactionModal({
   const handleTypeChange = (newType: TransactionType) => {
     setType(newType);
     setErrorMessage(null);
+    const validSources = newType === "income" || newType === "card_payment" ? nonCards : accounts;
+    if (validSources.length > 0 && !validSources.some((a) => a.name === fromAccount)) {
+      setFromAccount(validSources[0].name);
+    }
+    if (newType === "card_payment") {
+      const card = cards.find((c) => c.name === cardAccount) || cards[0];
+      if (card) {
+        setCardAccount(card.name);
+        if (!amount && card.balance > 0) setAmount(String(card.balance));
+      }
+      return;
+    }
     if (newType === "expense") {
       setCategory(EXPENSE_CATEGORIES[0]);
     } else if (newType === "income") {
@@ -105,7 +129,7 @@ export default function QuickTransactionModal({
       setCategory(isEn ? "Account Transfer" : "Transferencia entre Cuentas");
       // Asegurar que toAccount sea diferente a fromAccount
       if (accounts.length > 1 && (!toAccount || toAccount === fromAccount)) {
-        const alt = accounts.find((a) => a.name !== fromAccount);
+        const alt = nonCards.find((a) => a.name !== fromAccount);
         if (alt) setToAccount(alt.name);
       }
     }
@@ -159,6 +183,47 @@ export default function QuickTransactionModal({
     }
 
     const cleanDesc = description.trim();
+    if (type === "card_payment") {
+      const card = cards.find((c) => c.name === cardAccount);
+      const source = nonCards.find((a) => a.name === effectiveFrom);
+      if (!card) {
+        setErrorMessage(isEn ? "Select the credit card to pay." : "Selecciona la tarjeta que vas a pagar.");
+        return;
+      }
+      if (!source) {
+        setErrorMessage(isEn ? "Select the account you pay from." : "Selecciona la cuenta desde la que pagas.");
+        return;
+      }
+      if (parsedAmount > card.balance) {
+        setErrorMessage(
+          isEn
+            ? `The payment exceeds the card's pending balance (${formatMoney(card.balance, card.currency)}).`
+            : `El pago supera lo pendiente de la tarjeta (${formatMoney(card.balance, card.currency)}).`
+        );
+        return;
+      }
+      setIsSubmitting(true);
+      try {
+        await payCreditCardApi(card.id, {
+          fromAccountId: source.id,
+          amount: parsedAmount,
+          date,
+          description: cleanDesc || undefined,
+        });
+        window.dispatchEvent(new Event("fydry_storage_updated"));
+        window.dispatchEvent(new CustomEvent("fydry_refresh_data"));
+        setSuccessMessage(isEn ? "Card payment registered!" : "¡Pago de tarjeta registrado!");
+        setTimeout(() => {
+          setIsSubmitting(false);
+          resetForm();
+          onClose();
+        }, 500);
+      } catch (err) {
+        setErrorMessage(err instanceof Error ? err.message : isEn ? "Could not register the payment." : "No se pudo registrar el pago.");
+        setIsSubmitting(false);
+      }
+      return;
+    }
     if (!cleanDesc) {
       setErrorMessage(
         isEn
@@ -187,8 +252,7 @@ export default function QuickTransactionModal({
       return;
     }
 
-    const currentFromAccount =
-      fromAccount || (accounts.length > 0 ? accounts[0].name : "Efectivo Principal");
+    const currentFromAccount = effectiveFrom || "Efectivo Principal";
 
     const fromAccObj = accounts.find((a) => a.name === currentFromAccount);
     if (fromAccObj) {
@@ -208,11 +272,7 @@ export default function QuickTransactionModal({
     let toAccObj: AccountItem | undefined = undefined;
 
     if (type === "transfer") {
-      targetToAccount =
-        toAccount ||
-        (accounts.length > 1
-          ? accounts.find((a) => a.name !== currentFromAccount)?.name || ""
-          : "");
+      targetToAccount = effectiveTo;
 
       if (!targetToAccount) {
         setErrorMessage(
@@ -301,18 +361,15 @@ export default function QuickTransactionModal({
   const parsedTaxPreview = parseAmount(taxAmount) || 0;
   const totalDebitedPreview = parsedAmountPreview + parsedTaxPreview;
 
-  const currentFromAccountName =
-    fromAccount || (accounts.length > 0 ? accounts[0].name : "");
-  const currentToAccountName =
-    toAccount ||
-    (accounts.length > 1
-      ? accounts.find((a) => a.name !== currentFromAccountName)?.name || ""
-      : "");
+  const currentFromAccountName = effectiveFrom;
+  const currentToAccountName = effectiveTo;
 
   const transferFromAcc = accounts.find((a) => a.name === currentFromAccountName);
   const transferToAcc = accounts.find((a) => a.name === currentToAccountName);
 
-  const quickCurrency = transferFromAcc?.currency || accounts[0]?.currency || "DOP";
+  const selectedCard = cards.find((c) => c.name === cardAccount);
+  const quickCurrency =
+    (type === "card_payment" ? selectedCard?.currency : transferFromAcc?.currency) || accounts[0]?.currency || "DOP";
 
   // Tarjeta de crédito: el saldo es lo consumido; salir de ella lo AUMENTA y recibir lo REDUCE.
   const fromIsCard = !!transferFromAcc && isLiability(transferFromAcc);
@@ -358,8 +415,8 @@ export default function QuickTransactionModal({
                   </h3>
                   <p className="text-[11px] text-zinc-400">
                     {isEn
-                      ? "Add an expense, income, or transfer in seconds"
-                      : "Añade un gasto, ingreso o transferencia al instante"}
+                      ? "Add an expense, income, transfer or card payment"
+                      : "Añade un gasto, ingreso, transferencia o pago de tarjeta"}
                   </p>
                 </div>
               </div>
@@ -376,7 +433,7 @@ export default function QuickTransactionModal({
             </div>
 
             {/* Type Selector (3 Tabs) */}
-            <div className="grid grid-cols-3 gap-1.5 p-1 bg-zinc-100/90 rounded-2xl border border-zinc-200/70">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1 bg-zinc-100/90 rounded-2xl border border-zinc-200/70">
               {/* Tab Gasto */}
               <button
                 type="button"
@@ -418,6 +475,22 @@ export default function QuickTransactionModal({
                 <ArrowLeftRight className="w-4 h-4 shrink-0 text-zinc-800" />
                 <span className="truncate">{isEn ? "Transfer" : "Transferir"}</span>
               </button>
+
+              {/* Tab Pagar tarjeta */}
+              <button
+                type="button"
+                onClick={() => handleTypeChange("card_payment")}
+                disabled={cards.length === 0}
+                title={cards.length === 0 ? (isEn ? "You have no credit cards" : "No tienes tarjetas de crédito") : undefined}
+                className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-semibold transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                  type === "card_payment"
+                    ? "bg-white text-sky-700 shadow-xs border border-sky-200/70"
+                    : "text-zinc-500 hover:text-zinc-900"
+                }`}
+              >
+                <CreditCard className="w-4 h-4 shrink-0 text-sky-600" />
+                <span className="truncate">{isEn ? "Pay card" : "Pagar TC"}</span>
+              </button>
             </div>
 
             {/* Messages */}
@@ -456,7 +529,7 @@ export default function QuickTransactionModal({
                       value={amount}
                       onChange={(e) => setAmount(e.target.value)}
                       placeholder="0.00"
-                      className="w-full pl-7 pr-3 py-2 rounded-xl border border-zinc-200 bg-white text-zinc-950 font-bold text-sm placeholder:text-zinc-300 focus:outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 transition-colors shadow-2xs"
+                      className="w-full pl-11 pr-3 py-2 rounded-xl border border-zinc-200 bg-white text-zinc-950 font-bold text-sm placeholder:text-zinc-300 focus:outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 transition-colors shadow-2xs"
                       autoFocus
                     />
                   </div>
@@ -483,11 +556,15 @@ export default function QuickTransactionModal({
               <div>
                 <label className="block text-xs font-semibold text-zinc-800 mb-1">
                   {isEn ? "Description / Concept" : "Descripción / Concepto"}{" "}
-                  <span className="text-rose-500">*</span>
+                  {type === "card_payment" ? (
+                    <span className="text-[10px] text-zinc-400 font-normal">{isEn ? "Optional" : "Opcional"}</span>
+                  ) : (
+                    <span className="text-rose-500">*</span>
+                  )}
                 </label>
                 <input
                   type="text"
-                  required
+                  required={type !== "card_payment"}
                   maxLength={255}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
@@ -500,16 +577,20 @@ export default function QuickTransactionModal({
                       ? isEn
                         ? "e.g. Monthly salary, Freelance project, Bonus..."
                         : "Ej. Salario quincenal, Proyecto freelance, Comisión..."
+                      : type === "card_payment"
+                      ? isEn
+                        ? "Credit card payment"
+                        : "Pago de tarjeta"
                       : isEn
-                      ? "e.g. Savings transfer, Credit card payment..."
-                      : "Ej. Ahorro para emergencias, Abono a tarjeta..."
+                      ? "e.g. Savings transfer..."
+                      : "Ej. Ahorro para emergencias..."
                   }
                   className="w-full px-3 py-2 rounded-xl border border-zinc-200 bg-white text-zinc-900 text-xs placeholder:text-zinc-400 focus:outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 transition-colors shadow-2xs"
                 />
               </div>
 
               {/* Categoría (solo si gasto o ingreso) */}
-              {type !== "transfer" ? (
+              {type === "expense" || type === "income" ? (
                 <div>
                   <label className="block text-xs font-semibold text-zinc-800 mb-1">
                     {isEn ? "Category" : "Categoría"}
@@ -533,9 +614,30 @@ export default function QuickTransactionModal({
               {/* Cuentas */}
               <div
                 className={`grid gap-3 ${
-                  type === "transfer" ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1"
+                  type === "transfer" || type === "card_payment" ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1"
                 }`}
               >
+                {/* Tarjeta a pagar */}
+                {type === "card_payment" && (
+                  <div>
+                    <label htmlFor="quick-card" className="block text-xs font-semibold text-zinc-800 mb-1">
+                      {isEn ? "Card to pay" : "Tarjeta a pagar"}
+                    </label>
+                    <select
+                      id="quick-card"
+                      value={cardAccount}
+                      onChange={(e) => setCardAccount(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl border border-zinc-200 bg-white text-zinc-900 text-xs focus:outline-none focus:border-zinc-900 transition-colors shadow-2xs cursor-pointer"
+                    >
+                      {cards.map((c) => (
+                        <option key={c.id} value={c.name}>
+                          {c.name} ({isEn ? "owes" : "debe"} {formatMoney(Number(c.balance), c.currency)})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
                 {/* Cuenta Origen */}
                 <div>
                   <label className="block text-xs font-semibold text-zinc-800 mb-1">
@@ -543,6 +645,10 @@ export default function QuickTransactionModal({
                       ? isEn
                         ? "From Account (Source)"
                         : "Cuenta Origen"
+                      : type === "card_payment"
+                      ? isEn
+                        ? "Pay from"
+                        : "Pagar desde"
                       : type === "expense"
                       ? isEn
                         ? "Paid From (Account)"
@@ -552,13 +658,13 @@ export default function QuickTransactionModal({
                       : "Cuenta de Destino"}
                   </label>
                   <select
-                    value={fromAccount}
+                    value={effectiveFrom}
                     onChange={(e) => setFromAccount(e.target.value)}
                     disabled={isLoadingAccounts || accounts.length === 0}
                     className="w-full px-3 py-2 rounded-xl border border-zinc-200 bg-white text-zinc-900 text-xs focus:outline-none focus:border-zinc-900 transition-colors shadow-2xs cursor-pointer"
                   >
-                    {accounts.length > 0 ? (
-                      accounts.map((a) => (
+                    {sourceAccounts.length > 0 ? (
+                      sourceAccounts.map((a) => (
                         <option key={a.id} value={a.name}>
                           {a.name} ({formatMoney(Number(a.balance), a.currency)})
                         </option>
@@ -576,19 +682,18 @@ export default function QuickTransactionModal({
                       {isEn ? "To Account (Destination)" : "Cuenta Destino"}
                     </label>
                     <select
-                      value={toAccount}
+                      value={effectiveTo}
                       onChange={(e) => setToAccount(e.target.value)}
                       disabled={isLoadingAccounts || accounts.length < 2}
                       className="w-full px-3 py-2 rounded-xl border border-zinc-200 bg-white text-zinc-900 text-xs focus:outline-none focus:border-zinc-900 transition-colors shadow-2xs cursor-pointer"
                     >
-                      {accounts
-                        .filter((a) => a.name !== fromAccount)
+                      {destinationAccounts
                         .map((a) => (
                           <option key={a.id} value={a.name}>
                             {a.name} ({formatMoney(Number(a.balance), a.currency)})
                           </option>
                         ))}
-                      {accounts.filter((a) => a.name !== fromAccount).length === 0 && (
+                      {destinationAccounts.length === 0 && (
                         <option value="">
                           {isEn ? "No other account available" : "No hay otra cuenta disponible"}
                         </option>
@@ -597,6 +702,32 @@ export default function QuickTransactionModal({
                   </div>
                 )}
               </div>
+
+              {type === "card_payment" && selectedCard && (
+                <div className="p-3 bg-sky-50/60 rounded-2xl border border-sky-200/60 text-xs space-y-1.5">
+                  <div className="flex justify-between text-zinc-700">
+                    <span>{isEn ? "Pending balance" : "Pendiente por pagar"}</span>
+                    <span className="font-bold">{formatMoney(selectedCard.balance, selectedCard.currency)}</span>
+                  </div>
+                  {parsedAmountPreview > 0 && (
+                    <div className="flex justify-between text-zinc-500 text-[11px]">
+                      <span>{isEn ? "Pending after payment" : "Quedará pendiente"}</span>
+                      <span className="font-semibold">
+                        {formatMoney(Math.max(0, selectedCard.balance - parsedAmountPreview), selectedCard.currency)}
+                      </span>
+                    </div>
+                  )}
+                  {selectedCard.balance > 0 && parsedAmountPreview !== selectedCard.balance && (
+                    <button
+                      type="button"
+                      onClick={() => setAmount(String(selectedCard.balance))}
+                      className="text-[11px] font-semibold text-sky-700 underline cursor-pointer"
+                    >
+                      {isEn ? "Pay full balance" : "Pagar el total pendiente"}
+                    </button>
+                  )}
+                </div>
+              )}
 
               {/* Comisión / Impuesto bancario (solo para transferencias) */}
               {type === "transfer" && (
@@ -622,7 +753,7 @@ export default function QuickTransactionModal({
                           ? "0.00 (Optional, e.g. 0.15% DGII or interbank fee)"
                           : "0.00 (Opcional, ej. 0.15% DGII o comisión interbancaria)"
                       }
-                      className="w-full pl-7 pr-3 py-2 rounded-xl border border-zinc-200 bg-white text-zinc-900 text-xs placeholder:text-zinc-400 focus:outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 transition-colors shadow-2xs"
+                      className="w-full pl-11 pr-3 py-2 rounded-xl border border-zinc-200 bg-white text-zinc-900 text-xs placeholder:text-zinc-400 focus:outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 transition-colors shadow-2xs"
                     />
                   </div>
                 </div>
@@ -721,6 +852,8 @@ export default function QuickTransactionModal({
                       ? "bg-rose-600 hover:bg-rose-700"
                       : type === "income"
                       ? "bg-emerald-600 hover:bg-emerald-700"
+                      : type === "card_payment"
+                      ? "bg-sky-700 hover:bg-sky-800"
                       : "bg-zinc-950 hover:bg-zinc-800 text-white"
                   }`}
                 >
@@ -739,6 +872,10 @@ export default function QuickTransactionModal({
                         ? isEn
                           ? "Record Income"
                           : "Registrar Ingreso"
+                        : type === "card_payment"
+                        ? isEn
+                          ? "Pay Card"
+                          : "Pagar Tarjeta"
                         : isEn
                         ? "Confirm Transfer"
                         : "Realizar Traspaso"}

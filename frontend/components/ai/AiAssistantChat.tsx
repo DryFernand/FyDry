@@ -33,11 +33,12 @@ import {
   createBudgetApi,
   createDebtApi,
   payDebtApi,
+  payCreditCardApi,
   fetchDebtsApi,
   fetchAccountsApi,
 } from "@/lib/api";
 import { AccountItem } from "@/components/dashboard/types";
-import { formatMoney, currencySymbol, todayISO } from "@/lib/money";
+import { formatMoney, currencySymbol, todayISO, isLiability } from "@/lib/money";
 
 export interface PendingAction {
   id: string;
@@ -106,6 +107,7 @@ const ALLOWED_TOOLS = new Set([
   "create_budget",
   "create_debt",
   "pay_debt",
+  "pay_credit_card",
   "request_missing_details",
 ]);
 
@@ -494,6 +496,16 @@ function ActionCard({ action, accounts, onConfirm, onCancel }: ActionCardProps) 
       const amt = Number(args.amount) || 0;
       details.push({ label: "Monto Abono", value: money(amt, args.from_account) });
       details.push({ label: "Cuenta Origen", value: args.from_account || "Cuenta" });
+      break;
+    }
+    case "pay_credit_card": {
+      title = "Pago de Tarjeta";
+      badge = "Tarjeta";
+      icon = <CreditCard className="w-4 h-4 text-sky-600" />;
+      details.push({ label: "Tarjeta", value: args.card || "Tarjeta" });
+      details.push({ label: "Monto", value: money(Number(args.amount) || 0, args.card) });
+      details.push({ label: "Pagar desde", value: args.from_account || "Cuenta" });
+      if (args.date) details.push({ label: "Fecha", value: args.date });
       break;
     }
     default:
@@ -1377,6 +1389,14 @@ export default function AiAssistantChat() {
           description: `Abono a deuda ${found.creditor || debtRef}`,
         });
         confirmNote = `Listo, registré el abono de ${formatMoney(amount, currencyFor(fromAccount, accountsList))} a ${found.creditor} desde ${fromAccount}.`;
+      } else if (name === "pay_credit_card") {
+        const card = findMatchingAccount(String(args.card || ""), accountsList.filter((a) => isLiability(a)));
+        if (!card) throw new Error(`No encontré una tarjeta de crédito llamada "${args.card}".`);
+        const source = findMatchingAccount(String(args.from_account || ""), accountsList.filter((a) => !isLiability(a)));
+        if (!source) throw new Error(`La cuenta "${args.from_account}" no existe o es una tarjeta; elige una cuenta de banco, efectivo o ahorro.`);
+        const amount = parseStrictAmount(args.amount);
+        await payCreditCardApi(card.id, { fromAccountId: source.id, amount, date: sanitizeDate(args.date) });
+        confirmNote = `Listo, registré el pago de ${formatMoney(amount, card.currency)} a ${card.name} desde ${source.name}.`;
       } else {
         throw new Error(`Acción desconocida: ${name}`);
       }

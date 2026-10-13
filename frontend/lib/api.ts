@@ -231,6 +231,19 @@ export async function deleteAccountApi(id: string): Promise<void> {
   await send(`/accounts/${id}`, "DELETE");
 }
 
+/** Paga una tarjeta de crédito desde una cuenta propia (única forma de reducir su consumo). */
+export async function payCreditCardApi(
+  cardId: string,
+  payment: { fromAccountId: string; amount: number; date?: string; description?: string }
+): Promise<MovementItem> {
+  return toMovement(await send(`/accounts/${cardId}/pay`, "POST", {
+    from_account_id: payment.fromAccountId,
+    amount: payment.amount,
+    date: payment.date,
+    description: payment.description,
+  }));
+}
+
 // ==========================================
 // EXPENSES & INCOMES API
 // ==========================================

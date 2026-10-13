@@ -100,6 +100,7 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
   const { t, language } = useLanguage();
   const [incomes, setIncomes] = useState<TransactionItem[]>([]);
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
+  const incomeAccounts = accounts.filter((a) => !isLiability(a));
   const [budgetResetDay, setBudgetResetDay] = useState<number>(1);
   const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
   const [scope, setScope] = useState<"cycle" | "all">("cycle");
@@ -131,7 +132,7 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
       setBudgetResetDay(settingsData.budget_reset_day);
     }
     if (accData.length > 0 && !selectedAccountId) {
-      setSelectedAccountId(accData[0].name);
+      setSelectedAccountId((accData.find((a) => !isLiability(a)) || accData[0]).name);
     }
   };
 
@@ -280,7 +281,7 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
     setDesc("");
     setAmount("");
     setCat(INCOME_CATEGORIES[0]);
-    setSelectedAccountId(accounts.length > 0 ? accounts[0].name : "Efectivo");
+    setSelectedAccountId(incomeAccounts[0]?.name || "Efectivo");
     setIncomeDate(todayISO());
     setFormError(null);
     setIsModalOpen(true);
@@ -307,7 +308,9 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
     // Blindar contra NaN, Infinity y valores menores o iguales a cero
     if (isNaN(parsedAmount) || !isFinite(parsedAmount) || parsedAmount <= 0) return;
 
-    const accountName = selectedAccountId || (accounts.length > 0 ? accounts[0].name : "Efectivo");
+    const accountName = incomeAccounts.some((a) => a.name === selectedAccountId)
+      ? selectedAccountId
+      : incomeAccounts[0]?.name || "Efectivo";
     setFormError(null);
 
     try {
@@ -370,7 +373,7 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
   };
 
   // Simulador contable de saldo resultante en el modal
-  const selectedAcc = accounts.find((a) => a.name === selectedAccountId || a.id === selectedAccountId) || accounts[0];
+  const selectedAcc = incomeAccounts.find((a) => a.name === selectedAccountId || a.id === selectedAccountId) || incomeAccounts[0];
   const numAmountPreview = parseAmount(amount) || 0;
   // Tarjeta de crédito: el saldo es lo consumido, así que el ingreso (pago) lo REDUCE.
   const selectedIsCard = !!selectedAcc && isLiability(selectedAcc);
@@ -820,8 +823,8 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
                       onChange={(e) => setSelectedAccountId(e.target.value)}
                       className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 bg-white text-zinc-900 text-xs focus:outline-none focus:border-zinc-900 transition-colors shadow-2xs cursor-pointer truncate"
                     >
-                      {accounts.length > 0 ? (
-                        accounts.map((a) => (
+                      {incomeAccounts.length > 0 ? (
+                        incomeAccounts.map((a) => (
                           <option key={a.id} value={a.name}>
                             {a.name} ({formatMoney(a.balance, a.currency)} {a.type})
                           </option>

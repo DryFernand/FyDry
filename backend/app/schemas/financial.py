@@ -209,6 +209,15 @@ class MovementResponse(ORMModel):
     created_at: Optional[datetime] = None
 
 
+class CardPaymentRequest(BaseModel):
+    """Pago a una tarjeta de crédito desde otra cuenta (única forma de reducir su consumo)."""
+    from_account_id: Optional[str] = Field(None, max_length=36)
+    from_account_name: Optional[str] = Field(None, max_length=255)
+    amount: PositiveAmount
+    date: Optional[FlexDate] = None
+    description: Optional[str] = Field(None, max_length=255)
+
+
 # ==========================================
 # BUDGETS
 # ==========================================

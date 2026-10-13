@@ -10,7 +10,7 @@ from app.api.deps import get_current_user
 from app.models.user import User
 from app.models.financial import Account, Expense, Income, Movement, Budget, Debt, PendingNotification
 from app.models.planning import RecurringTransaction, SavingsGoal
-from app.services.ledger import money, get_account, apply_delta, ensure_funds
+from app.services.ledger import money, get_account, apply_delta, ensure_funds, ensure_can_receive, LIABILITY_TYPES
 from app.schemas.financial import (
     AccountCreate,
     AccountUpdate,
@@ -31,6 +31,7 @@ from app.schemas.financial import (
     DebtUpdate,
     DebtResponse,
     DebtPaymentRequest,
+    CardPaymentRequest,
 )
 
 router = APIRouter()
@@ -129,6 +130,55 @@ def delete_account(
     return {"status": "success", "message": "Cuenta eliminada exitosamente."}
 
 
+@router.post("/accounts/{card_id}/pay", response_model=MovementResponse, status_code=status.HTTP_201_CREATED)
+def pay_credit_card(
+    card_id: str,
+    pay_in: CardPaymentRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Paga una tarjeta de crédito desde una cuenta propia. Se registra como traspaso para conservar el historial."""
+    card = get_account(db, current_user.id, card_id)
+    if not card or card.type not in LIABILITY_TYPES:
+        raise HTTPException(status_code=404, detail="Tarjeta de crédito no encontrada.")
+
+    source = get_account(db, current_user.id, pay_in.from_account_id, pay_in.from_account_name)
+    if not source:
+        raise HTTPException(status_code=400, detail="Selecciona la cuenta desde la que pagas la tarjeta.")
+    if source.type in LIABILITY_TYPES:
+        raise HTTPException(status_code=400, detail="No puedes pagar una tarjeta con otra tarjeta de crédito.")
+    if source.currency != card.currency:
+        raise HTTPException(
+            status_code=400,
+            detail=f"La tarjeta está en {card.currency} y la cuenta en {source.currency}. Paga desde una cuenta en {card.currency}.",
+        )
+
+    amount = money(pay_in.amount)
+    owed = money(card.balance)
+    if owed <= 0:
+        raise HTTPException(status_code=400, detail=f"La tarjeta '{card.name}' no tiene saldo pendiente.")
+    if amount > owed:
+        raise HTTPException(
+            status_code=400,
+            detail=f"El pago ({amount:,.2f}) supera el saldo pendiente de la tarjeta ({owed:,.2f}).",
+        )
+
+    mov = Movement(
+        user_id=current_user.id,
+        from_account_name=source.name,
+        to_account_name=card.name,
+        amount=amount,
+        tax_amount=Decimal("0"),
+        description=pay_in.description or f"Pago de tarjeta {card.name}",
+        date=pay_in.date or date.today(),
+    )
+    _apply_movement(db, current_user.id, mov, source, card)
+    db.add(mov)
+    db.commit()
+    db.refresh(mov)
+    return mov
+
+
 # ==========================================
 # EXPENSES (Gastos) CRUD
 # ==========================================
@@ -186,6 +236,7 @@ def record_expense(db: Session, user_id: str, account_id, account_name, category
 def record_income(db: Session, user_id: str, account_id, account_name, category, description, amount: Decimal, when: date) -> Income:
     """Crea un ingreso aplicando su efecto en la cuenta (sin commit). Reutilizado por recurrentes."""
     account = get_account(db, user_id, account_id, account_name)
+    ensure_can_receive(account)
     if account:
         apply_delta(account, amount)
     income = Income(
@@ -354,6 +405,8 @@ def update_income(
             setattr(income, field, data[field])
 
     new_account = get_account(db, current_user.id, data.get("account_id"), data.get("account_name")) if account_changed else old_account
+    if account_changed:
+        ensure_can_receive(new_account)
     if new_account:
         apply_delta(new_account, money(income.amount))
         income.account_id = new_account.id
@@ -475,6 +528,7 @@ def create_movement(
     """Create a movement/transfer between two accounts with optional tax and currency conversion."""
     from_acc = get_account(db, current_user.id, mov_in.from_account_id, mov_in.from_account_name)
     to_acc = get_account(db, current_user.id, mov_in.to_account_id, mov_in.to_account_name)
+    ensure_can_receive(to_acc, "traspasos")
     from_name = from_acc.name if from_acc else (mov_in.from_account_name or "Cuenta Origen")
     to_name = to_acc.name if to_acc else (mov_in.to_account_name or "Cuenta Destino")
 
@@ -522,6 +576,9 @@ def update_movement(
         return get_account(db, current_user.id, current_id) if current_id else None
 
     from_acc, to_acc = resolve("from"), resolve("to")
+    # Cambiar el destino a una tarjeta no está permitido (los pagos de tarjeta ya existentes sí se pueden editar)
+    if ("to_account_id" in data or "to_account_name" in data) and to_acc and to_acc.id != mov.to_account_id:
+        ensure_can_receive(to_acc, "traspasos")
 
     _revert_movement(db, current_user.id, mov)
     for field in ("amount", "to_amount", "tax_amount", "description", "date"):

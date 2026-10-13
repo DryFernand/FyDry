@@ -84,7 +84,7 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
     }
     if (accData.length >= 2) {
       setFromAccount((prev) => prev || accData[0].name);
-      setToAccount((prev) => prev || accData[1].name);
+      setToAccount((prev) => prev || (accData.filter((a) => !isLiability(a))[1] || accData[1]).name);
     } else if (accData.length === 1) {
       setFromAccount((prev) => prev || accData[0].name);
       setToAccount((prev) => prev || accData[0].name);
@@ -142,7 +142,7 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
     setFormError("");
     if (accounts.length >= 2) {
       setFromAccount(accounts[0].name);
-      setToAccount(accounts[1].name);
+      setToAccount((accounts.filter((a) => !isLiability(a))[1] || accounts[1]).name);
     } else if (accounts.length === 1) {
       setFromAccount(accounts[0].name);
       setToAccount(accounts[0].name);
@@ -619,7 +619,7 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
                     onChange={(e) => setToAccount(e.target.value)}
                     className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 bg-white text-zinc-900 text-xs focus:outline-none focus:border-zinc-900 transition-colors shadow-2xs cursor-pointer"
                   >
-                    {accounts.map((a) => (
+                    {accounts.filter((a) => !isLiability(a)).map((a) => (
                       <option key={a.id} value={a.name}>
                         {a.name} ({a.type} - Saldo: {formatMoney(a.balance, a.currency)})
                       </option>
