@@ -1,4 +1,4 @@
-from datetime import date as Date
+from datetime import date as Date, datetime
 from typing import List, Literal, Optional
 from pydantic import BaseModel, Field
 
@@ -112,3 +112,26 @@ class InsightsResponse(BaseModel):
     peace_score: int
     small_expenses: SmallExpenses
     subscriptions: List[SubscriptionItem]
+
+
+# ==========================================
+# CALCULADORA DE QUINCENA (historial)
+# ==========================================
+MAX_PLAN_BYTES = 100_000
+
+
+class PlannerSave(BaseModel):
+    name: str = Field(..., min_length=1, max_length=120)
+    data: dict
+
+
+class PlannerSummary(BaseModel):
+    id: str
+    name: str
+    summary: dict
+    created_at: datetime
+    updated_at: datetime
+
+
+class PlannerResponse(PlannerSummary):
+    data: dict

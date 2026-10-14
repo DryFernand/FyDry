@@ -22,6 +22,7 @@ import {
   Sparkles,
   Calendar,
   RotateCcw,
+  Percent,
 } from "lucide-react";
 import { apiForgotPassword, apiVerifyResetOtp, apiResetPassword } from "@/lib/auth";
 import {
@@ -49,6 +50,7 @@ type SettingsTab =
   | "email_sync"
   | "security"
   | "languages"
+  | "taxes"
   | "notifications"
   | "support"
   | "danger";
@@ -105,6 +107,11 @@ export default function SettingsModal({
   const [isSendingSupport, setIsSendingSupport] = useState(false);
   const [supportSuccess, setSupportSuccess] = useState(false);
 
+  // Impuesto DGII a transferencias (en %)
+  const [taxRatePct, setTaxRatePct] = useState("0.15");
+  const [taxMsg, setTaxMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [isSavingTax, setIsSavingTax] = useState(false);
+
   // Danger / Reset Data State
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
   const [isResettingData, setIsResettingData] = useState(false);
@@ -131,6 +138,9 @@ export default function SettingsModal({
           }
           if (settings.budget_reset_day !== undefined && settings.budget_reset_day !== null) {
             setBudgetResetDay(settings.budget_reset_day);
+          }
+          if (typeof settings.transfer_tax_rate === "number") {
+            setTaxRatePct(String(Math.round(settings.transfer_tax_rate * 100000) / 1000));
           }
           if (settings.email_notifications !== undefined) setEmailAlerts(settings.email_notifications);
           if (settings.budget_alerts !== undefined) setBudgetWarnings(settings.budget_alerts);
@@ -234,6 +244,23 @@ export default function SettingsModal({
     await updateUserSettingsApi({ budget_reset_day: val });
     if (typeof window !== "undefined") {
       window.dispatchEvent(new Event("fydry_storage_updated"));
+    }
+  };
+
+  const handleSaveTaxRate = async (pctText: string = taxRatePct) => {
+    const pct = parseFloat(pctText.replace(",", "."));
+    if (!Number.isFinite(pct) || pct < 0 || pct > 5) {
+      setTaxMsg({ ok: false, text: "Escribe un porcentaje entre 0 y 5 (ej. 0.15)." });
+      return;
+    }
+    setIsSavingTax(true);
+    const saved = await updateUserSettingsApi({ transfer_tax_rate: Math.round(pct * 1000) / 100000 });
+    setIsSavingTax(false);
+    if (saved) {
+      setTaxRatePct(String(pct));
+      setTaxMsg({ ok: true, text: `Listo. Las transferencias y pagos de tarjeta usarán ${pct}%.` });
+    } else {
+      setTaxMsg({ ok: false, text: "No se pudo guardar. Intenta de nuevo." });
     }
   };
 
@@ -470,6 +497,7 @@ export default function SettingsModal({
     { id: "email_sync", label: "Sincronización Gmail", icon: Mail },
     { id: "security", label: t.settings.tabs.security, icon: Shield },
     { id: "languages", label: t.settings.tabs.languages, icon: Globe },
+    { id: "taxes", label: "Impuestos", icon: Percent },
     { id: "notifications", label: t.settings.tabs.notifications, icon: Bell },
     { id: "support", label: t.settings.tabs.support, icon: HelpCircle },
     { id: "danger", label: t.settings.tabs.danger, icon: AlertTriangle },
@@ -1133,6 +1161,70 @@ export default function SettingsModal({
                         : `Tu presupuesto se reinicia automáticamente cada día ${budgetResetDay} del mes (el ciclo mensual activo corre del día ${budgetResetDay} al día ${budgetResetDay - 1} del mes siguiente).`}
                     </span>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB: IMPUESTOS (DGII) */}
+            {activeTab === "taxes" && (
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-sm font-bold text-zinc-950">Impuesto DGII a transferencias</h3>
+                  <p className="text-xs text-zinc-500 mt-1">
+                    Se aplica al pagar tarjetas de crédito y en las transferencias de la Calculadora. Si la DGII cambia la tasa, actualízala aquí.
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200/80 space-y-3">
+                  <label htmlFor="tax-rate" className="block text-xs font-semibold text-zinc-800">Tasa actual</label>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="relative w-32">
+                      <input
+                        id="tax-rate"
+                        inputMode="decimal"
+                        value={taxRatePct}
+                        onChange={(e) => {
+                          setTaxRatePct(e.target.value);
+                          setTaxMsg(null);
+                        }}
+                        className="w-full pl-3 pr-8 py-2.5 rounded-xl border border-zinc-200 text-sm font-bold text-zinc-900 bg-white focus:outline-none focus:border-zinc-900"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-zinc-400">%</span>
+                    </div>
+                    {["0.15", "0.20"].map((v) => (
+                      <button
+                        key={v}
+                        type="button"
+                        onClick={() => {
+                          setTaxRatePct(v);
+                          handleSaveTaxRate(v);
+                        }}
+                        className={`px-3 py-2 rounded-xl text-xs font-semibold border cursor-pointer transition-colors ${
+                          parseFloat(taxRatePct) === parseFloat(v)
+                            ? "bg-zinc-950 text-white border-zinc-950"
+                            : "bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-100"
+                        }`}
+                      >
+                        {v}%
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => handleSaveTaxRate()}
+                      disabled={isSavingTax}
+                      className="px-4 py-2 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-semibold cursor-pointer disabled:opacity-50"
+                    >
+                      {isSavingTax ? "Guardando..." : "Guardar"}
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-zinc-500">
+                    Ejemplo: transferir RD$ 10,000 cuesta RD$ {(10000 * (parseFloat(taxRatePct) || 0) / 100).toFixed(2)} de impuesto.
+                  </p>
+                  {taxMsg && (
+                    <p role="status" className={`text-[11px] font-medium ${taxMsg.ok ? "text-emerald-700" : "text-rose-600"}`}>
+                      {taxMsg.text}
+                    </p>
+                  )}
                 </div>
               </div>
             )}

@@ -20,6 +20,7 @@ import {
   ArrowLeftRight,
   Plus,
   Target,
+  Calculator,
 } from "lucide-react";
 import { DashboardTab, NotificationItem } from "./types";
 import DashboardHome from "./views/DashboardHome";
@@ -31,6 +32,7 @@ import BudgetView from "./views/BudgetView";
 import DebtsView from "./views/DebtsView";
 import ReportsView from "./views/ReportsView";
 import PlanningView from "./views/PlanningView";
+import CalculatorView from "./views/CalculatorView";
 import SettingsModal from "./SettingsModal";
 import NotificationBell from "./NotificationBell";
 import QuickTransactionModal from "./QuickTransactionModal";
@@ -92,6 +94,13 @@ export default function DashboardLayout() {
         { id: "debts" as DashboardTab, label: t.nav.debts, icon: ShieldAlert },
         { id: "budget" as DashboardTab, label: t.nav.budget, icon: PieChart },
         { id: "reports" as DashboardTab, label: t.nav.reports, icon: FileText },
+      ],
+    },
+    {
+      id: "tools",
+      title: language === "en" ? "TOOLS" : "HERRAMIENTAS",
+      items: [
+        { id: "calculator" as DashboardTab, label: t.nav.calculator, icon: Calculator },
       ],
     },
   ];
@@ -498,6 +507,7 @@ export default function DashboardLayout() {
               {activeTab === "debts" && <DebtsView />}
               {activeTab === "reports" && <ReportsView />}
               {activeTab === "planning" && <PlanningView />}
+              {activeTab === "calculator" && <CalculatorView />}
             </motion.div>
           </AnimatePresence>
         </main>

@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, Boolean, Integer, ForeignKey, JSON
+from sqlalchemy import Column, String, Boolean, Integer, ForeignKey, JSON, Numeric
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 from app.models.base import TimestampMixin
@@ -18,6 +18,8 @@ class UserProfile(Base, TimestampMixin):
     preferred_currency = Column(String(10), default="DOP", nullable=False)
     language = Column(String(10), default="es", nullable=False)
     budget_reset_day = Column(Integer, default=1, nullable=False)  # Día 1 al 31 del mes en que reinicia el presupuesto
+    # Impuesto DGII a transferencias electrónicas (0.0015 = 0.15%). Editable porque la ley puede cambiarlo.
+    transfer_tax_rate = Column(Numeric(6, 5), default=0.0015, nullable=False, server_default="0.0015")
 
     # 2. Preferencias de Notificación
     notifications_enabled = Column(Boolean, default=True, nullable=False)

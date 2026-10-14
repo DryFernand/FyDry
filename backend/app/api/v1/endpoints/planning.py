@@ -1,3 +1,4 @@
+import json
 from collections import Counter
 from datetime import date, timedelta
 from decimal import Decimal
@@ -11,7 +12,7 @@ from app.api.deps import get_current_user
 from app.api.v1.endpoints.financial import record_expense, record_income, _updates
 from app.core.database import get_db
 from app.models.financial import Account, Budget, Expense, Income
-from app.models.planning import RecurringTransaction, SavingsGoal
+from app.models.planning import PlannerSnapshot, RecurringTransaction, SavingsGoal
 from app.models.user import User
 from app.schemas.planning import (
     GoalContribution,
@@ -19,6 +20,10 @@ from app.schemas.planning import (
     GoalResponse,
     GoalUpdate,
     InsightsResponse,
+    MAX_PLAN_BYTES,
+    PlannerResponse,
+    PlannerSave,
+    PlannerSummary,
     PostDueResult,
     RecurringCreate,
     RecurringResponse,
@@ -270,3 +275,71 @@ def get_insights(db: Session = Depends(get_db), current_user: User = Depends(get
         small_expenses=hormiga,
         subscriptions=subscriptions,
     )
+
+
+# ==========================================
+# CALCULADORA DE QUINCENA: historial de planificaciones (no toca datos financieros)
+# ==========================================
+def _plan_out(p: PlannerSnapshot, with_data: bool):
+    data = json.loads(p.data)
+    out = {
+        "id": p.id,
+        "name": p.name,
+        "summary": data.get("summary") or {},
+        "created_at": p.created_at,
+        "updated_at": p.updated_at,
+    }
+    if with_data:
+        out["data"] = data
+    return out
+
+
+def _serialize_plan(plan_in: PlannerSave) -> str:
+    raw = json.dumps(plan_in.data, ensure_ascii=False)
+    if len(raw.encode("utf-8")) > MAX_PLAN_BYTES:
+        raise HTTPException(status_code=413, detail="La planificación es demasiado grande para guardarla.")
+    return raw
+
+
+def _get_plan(db: Session, user_id: str, plan_id: str) -> PlannerSnapshot:
+    plan = db.query(PlannerSnapshot).filter(PlannerSnapshot.id == plan_id, PlannerSnapshot.user_id == user_id).first()
+    if not plan:
+        raise HTTPException(status_code=404, detail="Planificación no encontrada.")
+    return plan
+
+
+@router.get("/planner", response_model=List[PlannerSummary])
+def list_plans(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    plans = db.query(PlannerSnapshot).filter(PlannerSnapshot.user_id == current_user.id).order_by(PlannerSnapshot.created_at.desc()).limit(100).all()
+    return [_plan_out(p, with_data=False) for p in plans]
+
+
+@router.get("/planner/{plan_id}", response_model=PlannerResponse)
+def get_plan(plan_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return _plan_out(_get_plan(db, current_user.id, plan_id), with_data=True)
+
+
+@router.post("/planner", response_model=PlannerResponse, status_code=status.HTTP_201_CREATED)
+def create_plan(plan_in: PlannerSave, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    plan = PlannerSnapshot(user_id=current_user.id, name=plan_in.name.strip(), data=_serialize_plan(plan_in))
+    db.add(plan)
+    db.commit()
+    db.refresh(plan)
+    return _plan_out(plan, with_data=True)
+
+
+@router.put("/planner/{plan_id}", response_model=PlannerResponse)
+def update_plan(plan_id: str, plan_in: PlannerSave, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    plan = _get_plan(db, current_user.id, plan_id)
+    plan.name = plan_in.name.strip()
+    plan.data = _serialize_plan(plan_in)
+    db.commit()
+    db.refresh(plan)
+    return _plan_out(plan, with_data=True)
+
+
+@router.delete("/planner/{plan_id}")
+def delete_plan(plan_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    db.delete(_get_plan(db, current_user.id, plan_id))
+    db.commit()
+    return {"status": "success", "message": "Planificación eliminada."}

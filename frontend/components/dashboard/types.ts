@@ -7,7 +7,8 @@ export type DashboardTab =
   | "budget"
   | "debts"
   | "reports"
-  | "planning";
+  | "planning"
+  | "calculator";
 
 export interface TransactionItem {
   id: string;

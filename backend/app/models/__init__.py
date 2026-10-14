@@ -13,7 +13,7 @@ from app.models.financial import (
     EmailIntegration,
     PendingNotification,
 )
-from app.models.planning import RecurringTransaction, SavingsGoal
+from app.models.planning import RecurringTransaction, SavingsGoal, PlannerSnapshot
 
 __all__ = [
     "Base",
@@ -31,4 +31,5 @@ __all__ = [
     "PendingNotification",
     "RecurringTransaction",
     "SavingsGoal",
+    "PlannerSnapshot",
 ]

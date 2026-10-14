@@ -36,9 +36,10 @@ import {
   payCreditCardApi,
   fetchDebtsApi,
   fetchAccountsApi,
+  fetchUserSettingsApi,
 } from "@/lib/api";
 import { AccountItem } from "@/components/dashboard/types";
-import { formatMoney, currencySymbol, todayISO, isLiability } from "@/lib/money";
+import { formatMoney, currencySymbol, todayISO, isLiability, transferTax, DEFAULT_TRANSFER_TAX_RATE } from "@/lib/money";
 
 export interface PendingAction {
   id: string;
@@ -402,11 +403,12 @@ function splitAssistantResponse(text: string): string[] {
 interface ActionCardProps {
   action: PendingAction;
   accounts: AccountItem[];
+  taxRate: number;
   onConfirm: () => void;
   onCancel: () => void;
 }
 
-function ActionCard({ action, accounts, onConfirm, onCancel }: ActionCardProps) {
+function ActionCard({ action, accounts, taxRate, onConfirm, onCancel }: ActionCardProps) {
   const args = action.arguments || {};
   const money = (n: number, account?: unknown) => formatMoney(n, currencyFor(account, accounts));
   let title = "Operación Financiera";
@@ -507,7 +509,7 @@ function ActionCard({ action, accounts, onConfirm, onCancel }: ActionCardProps) 
       details.push({ label: "Pagar desde", value: args.from_account || "Cuenta" });
       details.push({
         label: "Impuesto",
-        value: money(args.tax_amount !== undefined ? Number(args.tax_amount) || 0 : Math.round((Number(args.amount) || 0) * 0.15) / 100, args.card),
+        value: money(args.tax_amount !== undefined ? Number(args.tax_amount) || 0 : transferTax(Number(args.amount) || 0, taxRate), args.card),
       });
       if (args.date) details.push({ label: "Fecha", value: args.date });
       break;
@@ -1057,14 +1059,16 @@ export default function AiAssistantChat() {
   const [isLoading, setIsLoading] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [accountsList, setAccountsList] = useState<AccountItem[]>([]);
+  const [taxRate, setTaxRate] = useState(DEFAULT_TRANSFER_TAX_RATE);
 
   // Cargar cuentas registradas del usuario
   const loadAccounts = useCallback(async () => {
     try {
-      const data = await fetchAccountsApi();
+      const [data, settings] = await Promise.all([fetchAccountsApi(), fetchUserSettingsApi()]);
       if (Array.isArray(data)) {
         setAccountsList(data);
       }
+      if (typeof settings?.transfer_tax_rate === "number") setTaxRate(settings.transfer_tax_rate);
     } catch (err) {
       console.error("[AiAssistantChat] Error al cargar cuentas:", err);
     }
@@ -1399,10 +1403,10 @@ export default function AiAssistantChat() {
         const source = findMatchingAccount(String(args.from_account || ""), accountsList.filter((a) => !isLiability(a)));
         if (!source) throw new Error(`La cuenta "${args.from_account}" no existe o es una tarjeta; elige una cuenta de banco, efectivo o ahorro.`);
         const amount = parseStrictAmount(args.amount);
-        // 0.15% DGII por defecto si el modelo no indicó el impuesto
+        // Tasa DGII configurada por defecto si el modelo no indicó el impuesto
         const tax = args.tax_amount !== undefined && Number.isFinite(Number(args.tax_amount)) && Number(args.tax_amount) >= 0
           ? Math.round(Number(args.tax_amount) * 100) / 100
-          : Math.round(amount * 0.15) / 100;
+          : transferTax(amount, taxRate);
         await payCreditCardApi(card.id, { fromAccountId: source.id, amount, taxAmount: tax, date: sanitizeDate(args.date) });
         confirmNote = `Listo, registré el pago de ${formatMoney(amount, card.currency)} a ${card.name} desde ${source.name}${tax > 0 ? ` (impuesto ${formatMoney(tax, card.currency)})` : ""}.`;
       } else {
@@ -2250,6 +2254,7 @@ export default function AiAssistantChat() {
                       {msg.pendingAction && (
                         <ActionCard
                           accounts={accountsList}
+                          taxRate={taxRate}
                           action={msg.pendingAction}
                           onConfirm={() => executeAction(msg.pendingAction!, msg.id)}
                           onCancel={() => handleCancelAction(msg.id)}

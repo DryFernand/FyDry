@@ -77,6 +77,14 @@ export function formatMoney(amount: number, currency: string = "DOP"): string {
   return `${amount < 0 ? "-" : ""}${currencySymbol(currency)} ${value}`;
 }
 
+/** Tasa por defecto del impuesto DGII a transferencias (0.15%). La real se configura en Ajustes → Impuestos. */
+export const DEFAULT_TRANSFER_TAX_RATE = 0.0015;
+
+/** Impuesto de una transferencia redondeado a centavos. */
+export function transferTax(amount: number, rate: number = DEFAULT_TRANSFER_TAX_RATE): number {
+  return Math.round(amount * rate * 100) / 100;
+}
+
 /** Mensaje legible de un error del backend (detail string o lista de validación 422). */
 export function apiErrorMessage(data: unknown, status: number): string {
   const detail = (data as { detail?: unknown } | null)?.detail;

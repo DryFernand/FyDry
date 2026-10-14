@@ -87,6 +87,7 @@ class UserSettingsResponse(BaseModel):
     preferred_currency: str = "DOP"
     language: str = "es"
     budget_reset_day: int = 1
+    transfer_tax_rate: float = 0.0015
     notifications_enabled: bool = True
     email_notifications: bool = True
     budget_alerts: bool = True
@@ -100,7 +101,9 @@ class UserSettingsUpdate(BaseModel):
     country: Optional[str] = None
     preferred_currency: Optional[str] = None
     language: Optional[str] = None
-    budget_reset_day: Optional[int] = None
+    budget_reset_day: Optional[int] = Field(None, ge=1, le=31)
+    # Fracción: 0.0015 = 0.15%. Máximo 5% para evitar errores de captura.
+    transfer_tax_rate: Optional[float] = Field(None, ge=0, le=0.05, allow_inf_nan=False)
     notifications_enabled: Optional[bool] = None
     email_notifications: Optional[bool] = None
     budget_alerts: Optional[bool] = None

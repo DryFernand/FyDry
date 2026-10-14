@@ -501,6 +501,42 @@ export async function deleteGoalApi(id: string): Promise<void> {
   await send(`/goals/${id}`, "DELETE");
 }
 
+// ==========================================
+// CALCULADORA DE QUINCENA (historial; no toca datos financieros)
+// ==========================================
+export interface PlannerSummaryItem {
+  id: string;
+  name: string;
+  summary: { total_income?: number; final_total?: number; transferred?: number; taxes?: number };
+  createdAt: string;
+  updatedAt: string;
+}
+
+const toPlanSummary = (d: any): PlannerSummaryItem => ({
+  id: d.id,
+  name: d.name,
+  summary: d.summary || {},
+  createdAt: d.created_at,
+  updatedAt: d.updated_at,
+});
+
+export async function fetchPlansApi(): Promise<PlannerSummaryItem[]> {
+  return (await send<any[]>("/planner")).map(toPlanSummary);
+}
+
+export async function fetchPlanApi(id: string): Promise<PlannerSummaryItem & { data: unknown }> {
+  const d = await send(`/planner/${id}`);
+  return { ...toPlanSummary(d), data: d.data };
+}
+
+export async function savePlanApi(name: string, data: unknown, id?: string): Promise<PlannerSummaryItem> {
+  return toPlanSummary(await send(id ? `/planner/${id}` : "/planner", id ? "PUT" : "POST", { name, data }));
+}
+
+export async function deletePlanApi(id: string): Promise<void> {
+  await send(`/planner/${id}`, "DELETE");
+}
+
 export async function fetchInsightsApi(): Promise<InsightsData | null> {
   try {
     return await send<InsightsData>("/insights");
@@ -533,6 +569,8 @@ export interface UserSettingsData {
   preferred_currency: string;
   language: string;
   budget_reset_day?: number;
+  /** Impuesto DGII a transferencias como fracción (0.0015 = 0.15%) */
+  transfer_tax_rate?: number;
   notifications_enabled: boolean;
   email_notifications: boolean;
   budget_alerts: boolean;

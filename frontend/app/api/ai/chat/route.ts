@@ -435,7 +435,7 @@ const TOOLS = [
           card: { type: "string", description: "Nombre de la tarjeta de crédito a pagar." },
           from_account: { type: "string", description: "Nombre de la cuenta desde la que se paga (no puede ser una tarjeta)." },
           amount: { type: "number", description: "Monto del pago. Si el usuario dice 'todo' o 'el total', usa el consumido actual de la tarjeta." },
-          tax_amount: { type: "number", description: "Impuesto de la transferencia. Por defecto 0.15% del monto (DGII) salvo que el usuario indique otro valor o 0." },
+          tax_amount: { type: "number", description: "Impuesto de la transferencia. Por defecto usa la tasa DGII indicada en el resumen financiero, salvo que el usuario indique otro valor o 0." },
           date: { type: "string", description: "Fecha del pago en formato YYYY-MM-DD (opcional)." },
         },
         required: ["card", "from_account", "amount"],
@@ -567,11 +567,12 @@ export async function POST(req: NextRequest) {
     }
 
     // Datos reales del usuario desde el backend (no se confía en lo que envíe el navegador)
-    const [accountsRes, insightsRes, debtsRes, budgetsRes] = await Promise.all([
+    const [accountsRes, insightsRes, debtsRes, budgetsRes, settingsRes] = await Promise.all([
       backendGet<BackendAccount[]>("/accounts", token),
       backendGet<BackendInsights>("/insights", token),
       backendGet<BackendDebt[]>("/debts", token),
       backendGet<BackendBudget[]>("/budgets", token),
+      backendGet<{ transfer_tax_rate?: number }>("/auth/settings", token),
     ]);
     const validAccounts = (accountsRes.data || []).slice(0, 30).map((a) => ({
       name: oneLine(a.name),
@@ -612,7 +613,8 @@ El usuario no tiene cuentas registradas aún. Si pide registrar un gasto o ingre
     }
 
     const financialContext = buildFinancialContext(accountsRes.data || [], insightsRes.data, debtsRes.data || [], budgetsRes.data || []);
-    const fullSystemPrompt = `${SYSTEM_PROMPT}\n\n${accountsPromptSection}\n\n${financialContext}`;
+    const taxRatePct = Math.round((Number(settingsRes.data?.transfer_tax_rate ?? 0.0015) || 0) * 100000) / 1000;
+    const fullSystemPrompt = `${SYSTEM_PROMPT}\n\n${accountsPromptSection}\n\n${financialContext}\n- Impuesto DGII a transferencias configurado por el usuario: ${taxRatePct}%.`;
 
     // 3. Límites defensivos de payload (Anti-DoS / Token Overflow)
     // Rechazar mensajes desproporcionados (>5,000 caracteres)

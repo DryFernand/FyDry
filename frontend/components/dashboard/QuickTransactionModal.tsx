@@ -21,9 +21,10 @@ import {
   createIncomeApi,
   createTransferApi,
   payCreditCardApi,
+  fetchUserSettingsApi,
 } from "@/lib/api";
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from "@/lib/categories";
-import { availableFunds, currencySymbol, formatMoney, isLiability, parseAmount, todayISO } from "@/lib/money";
+import { availableFunds, currencySymbol, formatMoney, isLiability, parseAmount, todayISO, transferTax, DEFAULT_TRANSFER_TAX_RATE } from "@/lib/money";
 import { useLanguage } from "@/context/LanguageContext";
 
 export type TransactionType = "expense" | "income" | "transfer" | "card_payment";
@@ -51,6 +52,7 @@ export default function QuickTransactionModal({
   const [toAccount, setToAccount] = useState<string>("");
   const [cardAccount, setCardAccount] = useState<string>("");
   const [taxTouched, setTaxTouched] = useState(false);
+  const [taxRate, setTaxRate] = useState(DEFAULT_TRANSFER_TAX_RATE);
   const [date, setDate] = useState<string>(todayISO());
 
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
@@ -59,8 +61,8 @@ export default function QuickTransactionModal({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Pago de tarjeta: 0.15% (impuesto DGII a transferencias) calculado mientras el usuario no lo edite
-  const autoCardTax = Math.round((parseAmount(amount) || 0) * 0.15) / 100;
+  // Pago de tarjeta: impuesto DGII (tasa de Ajustes → Impuestos) calculado mientras el usuario no lo edite
+  const autoCardTax = transferTax(parseAmount(amount) || 0, taxRate);
   const effectiveTaxText = type === "card_payment" && !taxTouched ? (autoCardTax > 0 ? autoCardTax.toFixed(2) : "") : taxAmount;
   const cards = accounts.filter((a) => isLiability(a));
   const nonCards = accounts.filter((a) => !isLiability(a));
@@ -82,8 +84,9 @@ export default function QuickTransactionModal({
   const loadAccounts = async () => {
     setIsLoadingAccounts(true);
     try {
-      const data = await fetchAccountsApi();
+      const [data, settings] = await Promise.all([fetchAccountsApi(), fetchUserSettingsApi()]);
       setAccounts(data);
+      if (typeof settings?.transfer_tax_rate === "number") setTaxRate(settings.transfer_tax_rate);
       if (data.length > 0) {
         if (!fromAccount || !data.some((a) => a.name === fromAccount)) {
           setFromAccount(data[0].name);
@@ -761,7 +764,7 @@ export default function QuickTransactionModal({
                     </span>
                     <span className="text-[10px] text-zinc-400 font-normal">
                       {type === "card_payment" && !taxTouched
-                        ? isEn ? "0.15% DGII, editable" : "0.15% DGII, editable"
+                        ? `${Math.round(taxRate * 100000) / 1000}% DGII, editable`
                         : isEn ? "Optional" : "Opcional"}
                     </span>
                   </label>
