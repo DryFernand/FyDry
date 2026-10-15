@@ -46,6 +46,7 @@ import {
 import { getCycleRange, isTransactionInPeriod, formatCycleLabel } from "@/lib/cycle";
 import { currencySymbol, formatMoney, isLiability, parseAmount, todayISO } from "@/lib/money";
 import ConfirmDialog, { useEscapeKey } from "../ConfirmDialog";
+import MoneyInput from "@/components/ui/MoneyInput";
 
 export function getIncomeCategoryIcon(category: string) {
   switch (category) {
@@ -764,11 +765,7 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
                     <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
                       {t.incomes.amount.replace("$", currencySymbol(selectedAcc?.currency || mainCurrency))}
                     </label>
-                    <input
-                      type="number"
-                      min="0.01"
-                      step="0.01"
-                      inputMode="decimal"
+                    <MoneyInput
                       required
                       value={amount}
                       onChange={(e) => setAmount(e.target.value)}

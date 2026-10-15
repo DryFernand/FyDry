@@ -38,6 +38,20 @@ export function parseAmount(input: string | number): number {
   return Number.isFinite(n) ? n : NaN;
 }
 
+/**
+ * Da formato de miles mientras se escribe: "1500000.5" → "1,500,000.5".
+ * El punto es el separador decimal (máx. 2 decimales); las comas las pone el campo.
+ */
+export function formatAmountInput(raw: string, allowNegative = false): string {
+  let s = raw.replace(/[^\d.-]/g, "");
+  const negative = allowNegative && s.trimStart().startsWith("-");
+  s = s.replace(/-/g, "");
+  const [intPart, ...rest] = s.split(".");
+  const decimals = rest.length > 0 ? `.${rest.join("").slice(0, 2)}` : "";
+  const grouped = intPart.replace(/^0+(?=\d)/, "").replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return `${negative ? "-" : ""}${grouped || (decimals ? "0" : "")}${decimals}`;
+}
+
 /** Cuánto se puede gastar desde la cuenta. Tarjeta sin límite configurado -> Infinity. */
 export function availableFunds(acc: AccountItem): number {
   const overdraft = Number(acc.overdraftLimit) || 0;

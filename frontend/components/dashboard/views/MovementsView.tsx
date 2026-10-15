@@ -29,6 +29,7 @@ import {
 import { getCycleRange, isTransactionInPeriod, formatCycleLabel } from "@/lib/cycle";
 import { availableFunds, currencySymbol, formatMoney, isLiability, parseAmount, todayISO } from "@/lib/money";
 import ConfirmDialog, { useEscapeKey } from "../ConfirmDialog";
+import MoneyInput from "@/components/ui/MoneyInput";
 
 type MovementFilterType = "all" | "savings" | "standard";
 
@@ -633,9 +634,7 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
                     <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
                       Monto a Transferir ({currencySymbol(fromCur)})
                     </label>
-                    <input
-                      type="number"
-                      step="0.01"
+                    <MoneyInput
                       required
                       value={amount}
                       onChange={(e) => setAmount(e.target.value)}
@@ -649,9 +648,7 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
                       <span>Impuesto / Comisión ({currencySymbol(fromCur)})</span>
                       <span className="text-[10px] text-zinc-400 font-normal">Opcional</span>
                     </label>
-                    <input
-                      type="number"
-                      step="0.01"
+                    <MoneyInput
                       value={taxAmount}
                       onChange={(e) => setTaxAmount(e.target.value)}
                       placeholder="0.00"
@@ -665,9 +662,7 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
                     <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
                       Monto recibido en destino ({toAccObj?.currency})
                     </label>
-                    <input
-                      type="number"
-                      step="0.01"
+                    <MoneyInput
                       required
                       value={toAmount}
                       onChange={(e) => setToAmount(e.target.value)}

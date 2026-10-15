@@ -1,6 +1,6 @@
 // Self-check (Node 22.6+): node lib/money.check.mjs
 import assert from "node:assert/strict";
-import { parseAmount, availableFunds, netWorthByCurrency, todayISO, formatMoney } from "./money.ts";
+import { parseAmount, availableFunds, netWorthByCurrency, todayISO, formatMoney, formatAmountInput } from "./money.ts";
 
 assert.equal(parseAmount("1,500"), 1500);
 assert.equal(parseAmount("1,500.50"), 1500.5);
@@ -23,5 +23,16 @@ assert.deepEqual(netWorthByCurrency([bank, card, usd]), { DOP: -200, USD: 20 });
 // 23:30 hora local nunca salta al día siguiente
 assert.equal(todayISO(new Date(2026, 9, 12, 23, 30)), "2026-10-12");
 assert.equal(formatMoney(-1500, "DOP"), "-RD$ 1,500.00");
+
+// Formato de miles al escribir; parseAmount lo lee de vuelta igual
+assert.equal(formatAmountInput("1500000"), "1,500,000");
+assert.equal(formatAmountInput("1,500,0001"), "15,000,001");
+assert.equal(formatAmountInput("1500.567"), "1,500.56");
+assert.equal(formatAmountInput("0005"), "5");
+assert.equal(formatAmountInput(".5"), "0.5");
+assert.equal(formatAmountInput("-2500", true), "-2,500");
+assert.equal(formatAmountInput("-2500"), "2,500");
+assert.equal(formatAmountInput("RD$ 30000"), "30,000");
+for (const v of ["1,500,000", "1,500.56", "30,000", "999"]) assert.equal(parseAmount(formatAmountInput(v)), Number(v.replace(/,/g, "")));
 
 console.log("OK: money helpers");

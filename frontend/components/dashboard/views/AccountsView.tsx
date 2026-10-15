@@ -27,6 +27,7 @@ import {
 } from "@/lib/api";
 import { currencySymbol, formatMoney, parseAmount } from "@/lib/money";
 import ConfirmDialog, { useEscapeKey } from "../ConfirmDialog";
+import MoneyInput from "@/components/ui/MoneyInput";
 
 type AccountType = "bank" | "credit_card" | "debit_card" | "card" | "wallet" | "cash" | "savings";
 
@@ -619,9 +620,7 @@ export default function AccountsView() {
                         ? "Saldo Actual Disponible"
                         : t.accounts.initialBalance}
                     </label>
-                    <input
-                      type="number"
-                      step="0.01"
+                    <MoneyInput allowNegative
                       value={balance}
                       onChange={(e) => setBalance(e.target.value)}
                       placeholder="0.00"
@@ -658,9 +657,7 @@ export default function AccountsView() {
                     </span>
                     <span className="text-[10px] text-zinc-400 font-normal">Para alertas automáticas</span>
                   </label>
-                  <input
-                    type="number"
-                    step="0.01"
+                  <MoneyInput
                     value={minBalance}
                     onChange={(e) => setMinBalance(e.target.value)}
                     placeholder="Ej. 100.00 (Opcional)"
@@ -723,9 +720,7 @@ export default function AccountsView() {
                       <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
                         Límite de la Tarjeta ({currencySymbol(currency)}) *
                       </label>
-                      <input
-                        type="number"
-                        step="0.01"
+                      <MoneyInput
                         required
                         value={creditLimit}
                         onChange={(e) => setCreditLimit(e.target.value)}
@@ -775,9 +770,7 @@ export default function AccountsView() {
                       <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
                         Monto de Sobregiro Permitido ({currencySymbol(currency)})
                       </label>
-                      <input
-                        type="number"
-                        step="0.01"
+                      <MoneyInput
                         value={overdraftLimit}
                         onChange={(e) => setOverdraftLimit(e.target.value)}
                         placeholder="Ej. 500.00 (Opcional)"

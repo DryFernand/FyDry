@@ -26,6 +26,7 @@ import {
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from "@/lib/categories";
 import { availableFunds, currencySymbol, formatMoney, isLiability, parseAmount, todayISO, transferTax, DEFAULT_TRANSFER_TAX_RATE } from "@/lib/money";
 import { useLanguage } from "@/context/LanguageContext";
+import MoneyInput from "@/components/ui/MoneyInput";
 
 export type TransactionType = "expense" | "income" | "transfer" | "card_payment";
 
@@ -541,10 +542,7 @@ export default function QuickTransactionModal({
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 font-bold text-xs pointer-events-none">
                       {currencySymbol(quickCurrency)}
                     </span>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0.01"
+                    <MoneyInput
                       required
                       value={amount}
                       onChange={(e) => setAmount(e.target.value)}
@@ -772,10 +770,7 @@ export default function QuickTransactionModal({
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 font-bold text-xs pointer-events-none">
                       {currencySymbol(quickCurrency)}
                     </span>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
+                    <MoneyInput
                       value={effectiveTaxText}
                       onChange={(e) => {
                         setTaxTouched(true);

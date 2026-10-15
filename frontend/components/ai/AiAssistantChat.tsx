@@ -39,7 +39,8 @@ import {
   fetchUserSettingsApi,
 } from "@/lib/api";
 import { AccountItem } from "@/components/dashboard/types";
-import { formatMoney, currencySymbol, todayISO, isLiability, transferTax, DEFAULT_TRANSFER_TAX_RATE } from "@/lib/money";
+import { formatMoney, currencySymbol, todayISO, isLiability, transferTax, DEFAULT_TRANSFER_TAX_RATE, parseAmount } from "@/lib/money";
+import MoneyInput from "@/components/ui/MoneyInput";
 
 export interface PendingAction {
   id: string;
@@ -122,7 +123,7 @@ const ALLOWED_ACCOUNT_TYPES = new Set([
 ]);
 
 function parseStrictAmount(val: any): number {
-  const num = typeof val === "number" ? val : parseFloat(String(val));
+  const num = typeof val === "number" ? val : parseAmount(String(val));
   if (!Number.isFinite(num) || num <= 0) {
     throw new Error("El monto debe ser un número válido y estrictamente mayor a 0.");
   }
@@ -130,7 +131,7 @@ function parseStrictAmount(val: any): number {
 }
 
 function parseInitialBalance(val: any): number {
-  const num = typeof val === "number" ? val : parseFloat(String(val || 0));
+  const num = typeof val === "number" ? val : parseAmount(String(val || 0));
   if (!Number.isFinite(num) || num < 0) {
     throw new Error("El balance inicial debe ser un número válido mayor o igual a 0.");
   }
@@ -958,11 +959,8 @@ function MissingDetailsForm({
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 font-bold text-xs pointer-events-none">
                     {currencySymbol(currencyFor(formValues.account || formValues.from_account, accountsList))}
                   </span>
-                  <input
+                  <MoneyInput
                     id={`field-${messageId}-${field.id}`}
-                    type="number"
-                    step="0.01"
-                    min="0.01"
                     required
                     value={currentVal}
                     disabled={isSubmitted}

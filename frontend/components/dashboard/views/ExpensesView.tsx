@@ -58,6 +58,7 @@ import {
 import { getCycleRange, isTransactionInPeriod, formatCycleLabel } from "@/lib/cycle";
 import { availableFunds, currencySymbol, formatMoney, isLiability, parseAmount, todayISO } from "@/lib/money";
 import ConfirmDialog, { useEscapeKey } from "../ConfirmDialog";
+import MoneyInput from "@/components/ui/MoneyInput";
 
 export function getCategoryIcon(category: string): LucideIcon {
   const norm = (category || "").toLowerCase().trim();
@@ -887,10 +888,7 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
                     <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
                       {t.expenses.amount.replace("$", currencySymbol(selectedModalAccount?.currency || mainCurrency))}
                     </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0.01"
+                    <MoneyInput
                       required
                       value={amount}
                       onChange={(e) => {

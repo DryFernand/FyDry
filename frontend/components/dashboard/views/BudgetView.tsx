@@ -58,6 +58,7 @@ import {
 } from "@/lib/api";
 import { currencySymbol, formatMoney, parseAmount } from "@/lib/money";
 import ConfirmDialog, { useEscapeKey } from "../ConfirmDialog";
+import MoneyInput from "@/components/ui/MoneyInput";
 
 const MONTH_NAMES_ES = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -1160,10 +1161,7 @@ export default function BudgetView() {
                   <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
                     Límite Mensual ({currencySymbol(budgetCurrency)}) *
                   </label>
-                  <input
-                    type="number"
-                    min="0.01"
-                    step="0.01"
+                  <MoneyInput
                     required
                     value={newAllocated}
                     onChange={(e) => setNewAllocated(e.target.value)}

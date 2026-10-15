@@ -35,6 +35,7 @@ import {
 } from "@/lib/api";
 import { availableFunds, currencySymbol, formatMoney, parseAmount, todayISO } from "@/lib/money";
 import ConfirmDialog, { useEscapeKey } from "../ConfirmDialog";
+import MoneyInput from "@/components/ui/MoneyInput";
 
 type DebtFilter = "all" | "active" | "liquidated";
 
@@ -710,12 +711,8 @@ export default function DebtsView() {
                   <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
                     Monto a Pagar ({currencySymbol(payAccountCurrency)}) *
                   </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0.01"
+                  <MoneyInput
                     required
-                    max={payingDebt.remainingAmount}
                     value={payAmount}
                     onChange={(e) => setPayAmount(e.target.value)}
                     placeholder="0.00"
@@ -846,10 +843,7 @@ export default function DebtsView() {
                     <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
                       {t.debts.totalOriginal.replace("$", currencySymbol(mainCurrency))}
                     </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0.01"
+                    <MoneyInput
                       value={total}
                       onChange={(e) => setTotal(e.target.value)}
                       placeholder="0.00"
@@ -863,10 +857,7 @@ export default function DebtsView() {
                     <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
                       {t.debts.pendingBalance.replace("$", currencySymbol(mainCurrency))}
                     </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0.01"
+                    <MoneyInput
                       required
                       value={remaining}
                       onChange={(e) => setRemaining(e.target.value)}
@@ -879,10 +870,7 @@ export default function DebtsView() {
                     <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
                       {t.debts.monthlyPaymentInput.replace("$", currencySymbol(mainCurrency))}
                     </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0.01"
+                    <MoneyInput
                       value={monthly}
                       onChange={(e) => setMonthly(e.target.value)}
                       placeholder="0.00"

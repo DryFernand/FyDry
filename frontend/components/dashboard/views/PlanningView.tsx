@@ -18,6 +18,7 @@ import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from "@/lib/categories";
 import { formatMoney, parseAmount, todayISO } from "@/lib/money";
 import { useLanguage } from "@/context/LanguageContext";
 import type { AccountItem, GoalItem, InsightsData, RecurringFrequency, RecurringItem } from "../types";
+import MoneyInput from "@/components/ui/MoneyInput";
 
 const card = "bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs";
 const input = "w-full px-3 py-2 rounded-xl border border-zinc-200 text-xs text-zinc-900 bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900/10";
@@ -324,7 +325,7 @@ export default function PlanningView() {
             </label>
             <label className="text-[11px] text-zinc-500 space-y-1">
               <span>{tr("Monto", "Amount")}</span>
-              <input className={input} inputMode="decimal" value={recForm.amount} onChange={(e) => setRecForm({ ...recForm, amount: e.target.value })} placeholder="0.00" required />
+              <MoneyInput className={input} value={recForm.amount} onChange={(e) => setRecForm({ ...recForm, amount: e.target.value })} placeholder="0.00" required />
             </label>
             <label className="text-[11px] text-zinc-500 space-y-1">
               <span>{tr("Categoría", "Category")}</span>
@@ -419,7 +420,7 @@ export default function PlanningView() {
             </label>
             <label className="text-[11px] text-zinc-500 space-y-1">
               <span>{tr("Monto objetivo", "Target amount")}</span>
-              <input className={input} inputMode="decimal" value={goalForm.target} onChange={(e) => setGoalForm({ ...goalForm, target: e.target.value })} placeholder="0.00" required />
+              <MoneyInput className={input} value={goalForm.target} onChange={(e) => setGoalForm({ ...goalForm, target: e.target.value })} placeholder="0.00" required />
             </label>
             <label className="text-[11px] text-zinc-500 space-y-1">
               <span>{tr("Fecha objetivo (opcional)", "Target date (optional)")}</span>
@@ -455,9 +456,8 @@ export default function PlanningView() {
                     <div className={`h-full ${g.color || "bg-emerald-500"}`} style={{ width: `${pct}%` }} />
                   </div>
                   <div className="flex gap-2">
-                    <input
+                    <MoneyInput
                       className={input}
-                      inputMode="decimal"
                       placeholder={tr("Monto", "Amount")}
                       aria-label={tr(`Monto para ${g.name}`, `Amount for ${g.name}`)}
                       value={contribution[g.id] || ""}

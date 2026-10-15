@@ -40,6 +40,7 @@ import {
   type AccountResult,
 } from "@/lib/planner";
 import ConfirmDialog, { useEscapeKey } from "../ConfirmDialog";
+import MoneyInput from "@/components/ui/MoneyInput";
 
 const DRAFT_KEY = "fydry_planner_draft_v1";
 const CURRENCY = "DOP";
@@ -372,7 +373,7 @@ export default function CalculatorView() {
               {plan.incomes.map((inc) => (
                 <div key={inc.id} className="grid grid-cols-12 gap-2 items-center">
                   <input className={`${input} col-span-12 sm:col-span-4`} value={inc.label} placeholder="Quincena, freelance…" aria-label="Concepto del ingreso" onChange={(e) => setIncome(inc.id, { label: e.target.value })} />
-                  <input className={`${input} col-span-5 sm:col-span-3 font-bold`} inputMode="decimal" value={inc.amount} placeholder="30,000" aria-label="Monto del ingreso" onChange={(e) => setIncome(inc.id, { amount: e.target.value })} />
+                  <MoneyInput className={`${input} col-span-5 sm:col-span-3 font-bold`} value={inc.amount} placeholder="30,000" aria-label="Monto del ingreso" onChange={(e) => setIncome(inc.id, { amount: e.target.value })} />
                   <select className={`${input} col-span-6 sm:col-span-4`} value={inc.accountId} aria-label="Cuenta donde entra" onChange={(e) => setIncome(inc.id, { accountId: e.target.value })}>
                     <option value="">Entra a…</option>
                     {realAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
@@ -422,7 +423,7 @@ export default function CalculatorView() {
                       <div className="flex items-end gap-2">
                         <label className="text-[10px] text-zinc-500 space-y-1 w-32">
                           <span>Saldo de partida</span>
-                          <input className={input} inputMode="decimal" value={acc.startBalance} onChange={(e) => setAccount(acc.id, { startBalance: e.target.value })} />
+                          <MoneyInput allowNegative className={input} value={acc.startBalance} onChange={(e) => setAccount(acc.id, { startBalance: e.target.value })} />
                         </label>
                         {changed && (
                           <button type="button" title="Volver al saldo real" aria-label="Volver al saldo real" className="p-2 rounded-lg text-zinc-500 hover:bg-zinc-100 cursor-pointer" onClick={() => setAccount(acc.id, { startBalance: String(acc.realBalance) })}>
@@ -431,7 +432,7 @@ export default function CalculatorView() {
                         )}
                         <label className="text-[10px] text-zinc-500 space-y-1 w-28">
                           <span>Dejar mínimo</span>
-                          <input className={input} inputMode="decimal" value={acc.keep} onChange={(e) => setAccount(acc.id, { keep: e.target.value })} />
+                          <MoneyInput className={input} value={acc.keep} onChange={(e) => setAccount(acc.id, { keep: e.target.value })} />
                         </label>
                         <button type="button" className="p-2 rounded-lg text-zinc-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer" aria-label={`Quitar ${acc.name} del plan`} onClick={() => removeAccount(acc.id)}>
                           <X className="w-4 h-4" />
@@ -454,7 +455,7 @@ export default function CalculatorView() {
                         return (
                           <div key={e.id} className="grid grid-cols-12 gap-2 items-center">
                             <input className={`${input} col-span-12 sm:col-span-4`} value={e.label} placeholder="ITLA, pasaje, tarjeta…" aria-label="Concepto del gasto" onChange={(ev) => setExpense(e.id, { label: ev.target.value })} />
-                            <input className={`${input} col-span-4 sm:col-span-2`} inputMode="decimal" value={e.amount} placeholder="0.00" aria-label="Monto del gasto" onChange={(ev) => setExpense(e.id, { amount: ev.target.value })} />
+                            <MoneyInput className={`${input} col-span-4 sm:col-span-2`} value={e.amount} placeholder="0.00" aria-label="Monto del gasto" onChange={(ev) => setExpense(e.id, { amount: ev.target.value })} />
                             <select className={`${input} col-span-4 sm:col-span-2`} value={e.kind} aria-label="Tipo" onChange={(ev) => setExpense(e.id, { kind: ev.target.value as PlanExpense["kind"] })}>
                               <option value="gasto">Gasto</option>
                               <option value="ahorro">Ahorro</option>
@@ -504,7 +505,7 @@ export default function CalculatorView() {
                               <option value="fixed">Monto fijo</option>
                             </select>
                             {t.mode === "fixed" ? (
-                              <input className={`${input} col-span-4 sm:col-span-2 font-bold`} inputMode="decimal" value={t.amount} placeholder="0.00" aria-label="Monto a transferir" onChange={(ev) => setTransfer(t.id, { amount: ev.target.value })} />
+                              <MoneyInput className={`${input} col-span-4 sm:col-span-2 font-bold`} value={t.amount} placeholder="0.00" aria-label="Monto a transferir" onChange={(ev) => setTransfer(t.id, { amount: ev.target.value })} />
                             ) : (
                               <div className="col-span-4 sm:col-span-2 px-3 py-2 rounded-xl bg-zinc-50 border border-zinc-200 text-xs font-bold text-zinc-900" aria-label="Monto calculado">
                                 {money(tr?.amount || 0)}
