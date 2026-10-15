@@ -342,7 +342,7 @@ export default function DebtsView() {
         <button
           type="button"
           onClick={openCreateModal}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-zinc-950 text-white hover:bg-zinc-800 transition-all font-semibold text-xs shadow-xs cursor-pointer"
+          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-emerald-700 text-white hover:bg-emerald-800 transition-all font-semibold text-xs shadow-xs cursor-pointer"
         >
           <Plus className="w-4 h-4" />
           <span>{t.debts.addDebt}</span>
@@ -388,7 +388,7 @@ export default function DebtsView() {
           </div>
           <div className="w-full bg-zinc-100 rounded-full h-2 overflow-hidden mt-2">
             <motion.div
-              className={`${liquidationPercent === 100 ? "bg-green-600" : "bg-zinc-950"} h-2 rounded-full`}
+              className={`${liquidationPercent === 100 ? "bg-green-600" : "bg-emerald-700"} h-2 rounded-full`}
               initial={{ width: "0%" }}
               animate={{ width: `${liquidationPercent}%` }}
               transition={{ duration: 0.8, ease: "easeOut" }}
@@ -541,7 +541,7 @@ export default function DebtsView() {
                     <button
                       type="button"
                       onClick={(e) => openPayModal(e, d)}
-                      className="flex items-center gap-1.5 py-2 px-3.5 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-semibold shadow-2xs transition-all cursor-pointer shrink-0"
+                      className="flex items-center gap-1.5 py-2 px-3.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold shadow-2xs transition-all cursor-pointer shrink-0"
                     >
                       <DollarSign className="w-3.5 h-3.5 text-zinc-300" />
                       <span>Pagar / Abonar</span>
@@ -558,7 +558,7 @@ export default function DebtsView() {
                 </div>
                 <div className="w-full bg-zinc-100 rounded-full h-2 overflow-hidden">
                   <motion.div
-                    className={`${isLiquidated ? "bg-green-600" : "bg-zinc-950"} h-2 rounded-full`}
+                    className={`${isLiquidated ? "bg-green-600" : "bg-emerald-700"} h-2 rounded-full`}
                     initial={{ width: "0%" }}
                     animate={{ width: `${percentPaid}%` }}
                     transition={{ duration: 0.6, ease: "easeOut" }}
@@ -582,7 +582,7 @@ export default function DebtsView() {
             <button
               type="button"
               onClick={openCreateModal}
-              className="inline-flex items-center gap-1.5 py-2.5 px-4 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer mt-2"
+              className="inline-flex items-center gap-1.5 py-2.5 px-4 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer mt-2"
             >
               <Plus className="w-4 h-4" />
               <span>{t.debts.addDebt}</span>
@@ -766,7 +766,7 @@ export default function DebtsView() {
                   <button
                     type="submit"
                     disabled={isPaying}
-                    className="py-2.5 px-4 rounded-xl bg-zinc-950 text-xs font-semibold text-white hover:bg-zinc-800 transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                    className="py-2.5 px-4 rounded-xl bg-emerald-700 text-xs font-semibold text-white hover:bg-emerald-800 transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
                   >
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
                     <span>{isPaying ? "Procesando..." : "Confirmar Pago"}</span>
@@ -924,7 +924,7 @@ export default function DebtsView() {
                     </button>
                     <button
                       type="submit"
-                      className="py-2.5 px-4 rounded-xl bg-zinc-950 text-xs font-semibold text-white hover:bg-zinc-800 cursor-pointer"
+                      className="py-2.5 px-4 rounded-xl bg-emerald-700 text-xs font-semibold text-white hover:bg-emerald-800 cursor-pointer"
                     >
                       {editingDebt ? "Guardar Cambios" : t.debts.saveDebt}
                     </button>

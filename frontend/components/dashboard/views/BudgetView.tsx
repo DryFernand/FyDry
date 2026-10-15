@@ -738,7 +738,7 @@ export default function BudgetView() {
           <button
             type="button"
             onClick={openCreateModal}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-zinc-950 text-white hover:bg-zinc-800 transition-all font-semibold text-xs shadow-xs cursor-pointer"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-emerald-700 text-white hover:bg-emerald-800 transition-all font-semibold text-xs shadow-xs cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>{t.budget.adjustLimit || "Nuevo Presupuesto"}</span>
@@ -761,7 +761,7 @@ export default function BudgetView() {
                 onClick={() => setSelectedFortnight(1)}
                 className={`py-1.5 px-3.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                   selectedFortnight === 1
-                    ? "bg-zinc-950 text-white shadow-2xs"
+                    ? "bg-emerald-700 text-white shadow-2xs"
                     : "bg-white border border-zinc-200 text-zinc-600 hover:text-zinc-950"
                 }`}
               >
@@ -772,7 +772,7 @@ export default function BudgetView() {
                 onClick={() => setSelectedFortnight(2)}
                 className={`py-1.5 px-3.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                   selectedFortnight === 2
-                    ? "bg-zinc-950 text-white shadow-2xs"
+                    ? "bg-emerald-700 text-white shadow-2xs"
                     : "bg-white border border-zinc-200 text-zinc-600 hover:text-zinc-950"
                 }`}
               >
@@ -797,7 +797,7 @@ export default function BudgetView() {
                   onClick={() => setSelectedWeek(w.id)}
                   className={`py-1.5 px-3 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                     selectedWeek === w.id
-                      ? "bg-zinc-950 text-white shadow-2xs"
+                      ? "bg-emerald-700 text-white shadow-2xs"
                       : "bg-white border border-zinc-200 text-zinc-600 hover:text-zinc-950"
                   }`}
                 >
@@ -868,7 +868,7 @@ export default function BudgetView() {
                   ? "bg-rose-600"
                   : overallPercentage > 80
                   ? "bg-amber-500"
-                  : "bg-zinc-950"
+                  : "bg-emerald-700"
               }`}
             />
           </div>
@@ -1012,7 +1012,7 @@ export default function BudgetView() {
                     animate={{ width: `${Math.min(percentage, 100)}%` }}
                     transition={{ duration: 0.8, ease: "easeOut" }}
                     className={`h-full rounded-full ${
-                      isOver ? "bg-rose-600" : percentage > 80 ? "bg-amber-500" : "bg-zinc-950"
+                      isOver ? "bg-rose-600" : percentage > 80 ? "bg-amber-500" : "bg-emerald-700"
                     }`}
                   />
                 </div>
@@ -1095,7 +1095,7 @@ export default function BudgetView() {
             <button
               type="button"
               onClick={openCreateModal}
-              className="py-2 px-4 rounded-xl bg-zinc-950 text-white text-xs font-semibold hover:bg-zinc-800 transition-all cursor-pointer"
+              className="py-2 px-4 rounded-xl bg-emerald-700 text-white text-xs font-semibold hover:bg-emerald-800 transition-all cursor-pointer"
             >
               Crear primer presupuesto
             </button>
@@ -1222,7 +1222,7 @@ export default function BudgetView() {
                     </button>
                     <button
                       type="submit"
-                      className="py-2.5 px-4 rounded-xl bg-zinc-950 text-xs font-semibold text-white hover:bg-zinc-800 cursor-pointer"
+                      className="py-2.5 px-4 rounded-xl bg-emerald-700 text-xs font-semibold text-white hover:bg-emerald-800 cursor-pointer"
                     >
                       {editingBudget ? "Guardar Cambios" : t.budget.saveLimit || "Guardar Presupuesto"}
                     </button>

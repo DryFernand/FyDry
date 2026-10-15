@@ -53,7 +53,7 @@ export default function StatsBar() {
                 whileHover={{ y: -4 }}
                 className="group flex flex-col items-center text-center p-4 rounded-xl bg-white border border-zinc-200/70 shadow-xs hover:border-emerald-200 hover:shadow-lg hover:shadow-emerald-900/5 transition-[box-shadow,border-color]"
               >
-                <div className="w-8 h-8 rounded-lg bg-zinc-100 flex items-center justify-center text-zinc-900 mb-2 transition-colors group-hover:bg-zinc-950 group-hover:text-emerald-400">
+                <div className="w-8 h-8 rounded-lg bg-zinc-100 flex items-center justify-center text-zinc-900 mb-2 transition-colors group-hover:bg-emerald-700 group-hover:text-emerald-400">
                   <Icon className="w-4 h-4" />
                 </div>
                 <div className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-900">

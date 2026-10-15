@@ -104,7 +104,7 @@ export default function ComparisonSection() {
             <div className="p-6 sm:p-8 bg-white relative">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-full bg-zinc-950 flex items-center justify-center text-white">
+                  <div className="w-6 h-6 rounded-full bg-emerald-700 flex items-center justify-center text-white">
                     <Check className="w-3.5 h-3.5" />
                   </div>
                   <h3 className="text-sm font-bold text-zinc-900 uppercase tracking-wider">

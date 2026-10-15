@@ -57,7 +57,7 @@ export default function StepReferral({
               onClick={() => updateData({ referral_source: opt.id })}
               className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between text-xs font-medium ${
                 isSelected
-                  ? "border-zinc-950 bg-zinc-950 text-white shadow-xs"
+                  ? "border-zinc-950 bg-emerald-700 text-white shadow-xs"
                   : "border-zinc-200 bg-white hover:border-zinc-300 text-zinc-800"
               }`}
             >
@@ -110,7 +110,7 @@ export default function StepReferral({
           whileTap={{ scale: 0.99 }}
           type="submit"
           disabled={!formData.referral_source || isLoading}
-          className="flex-1 py-2.5 px-4 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-semibold shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+          className="flex-1 py-2.5 px-4 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
         >
           {isLoading ? (
             <Loader2 className="w-4 h-4 animate-spin text-white" />

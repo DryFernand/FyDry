@@ -131,7 +131,7 @@ export default function Hero() {
               whileHover={{ scale: 1.03, y: -1 }}
               whileTap={{ scale: 0.97 }}
               href="/register"
-              className="group relative w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl bg-zinc-950 text-white font-semibold text-sm shadow-[0_8px_24px_-6px_rgba(16,185,129,0.45)] overflow-hidden"
+              className="group relative w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl bg-emerald-700 text-white font-semibold text-sm shadow-[0_8px_24px_-6px_rgba(16,185,129,0.45)] overflow-hidden"
             >
               <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" aria-hidden="true" />
               <span>Comenzar gratis hoy</span>
@@ -184,7 +184,7 @@ export default function Hero() {
           </FloatingCard>
 
           <FloatingCard className="hidden lg:flex bottom-16 left-6" delay={0.9} float={10}>
-            <div className="w-9 h-9 rounded-xl bg-zinc-950 flex items-center justify-center text-white shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-emerald-700 flex items-center justify-center text-white shrink-0">
               <BellRing className="w-4 h-4" aria-hidden="true" />
             </div>
             <div>

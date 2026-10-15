@@ -18,7 +18,7 @@ export default function Navbar() {
         <Link href="/" className="flex items-center gap-2.5 group">
           <div className="relative w-8 h-8 transition-transform duration-200 group-hover:scale-105 shrink-0 flex items-center justify-center">
             <Image
-              src="/logo_negro.png"
+              src="/logo_vino.png"
               alt="FyDry Logo"
               fill
               sizes="32px"
@@ -77,7 +77,7 @@ export default function Navbar() {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             href="#empezar"
-            className="inline-flex items-center gap-1.5 text-sm font-medium bg-zinc-900 hover:bg-zinc-800 text-white px-4 py-2 rounded-lg shadow-sm transition-all duration-200"
+            className="inline-flex items-center gap-1.5 text-sm font-medium bg-zinc-900 hover:bg-emerald-800 text-white px-4 py-2 rounded-lg shadow-sm transition-all duration-200"
           >
             <span>Probar Gratis</span>
             <ArrowRight className="w-4 h-4" />

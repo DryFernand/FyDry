@@ -51,7 +51,7 @@ const input =
 const ghostBtn =
   "inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-zinc-200 bg-white text-xs font-semibold text-zinc-700 hover:bg-zinc-50 cursor-pointer disabled:opacity-50";
 const primaryBtn =
-  "inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-semibold cursor-pointer disabled:opacity-50";
+  "inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold cursor-pointer disabled:opacity-50";
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 const money = (n: number) => formatMoney(n, CURRENCY);
@@ -87,7 +87,7 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: 
       aria-checked={checked}
       aria-label={label}
       onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-5 w-9 shrink-0 rounded-full transition-colors cursor-pointer ${checked ? "bg-zinc-950" : "bg-zinc-300"}`}
+      className={`relative inline-flex h-5 w-9 shrink-0 rounded-full transition-colors cursor-pointer ${checked ? "bg-emerald-700" : "bg-zinc-300"}`}
     >
       <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${checked ? "translate-x-4" : "translate-x-0.5"}`} />
     </button>

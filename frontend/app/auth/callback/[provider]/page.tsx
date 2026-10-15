@@ -88,7 +88,7 @@ export default function AuthCallbackPage({ params }: CallbackProps) {
         className="w-full max-w-sm bg-white rounded-3xl border border-zinc-200/80 p-8 shadow-sm text-center"
       >
         <div className="flex justify-center mb-4">
-          <div className="w-10 h-10 rounded-xl bg-zinc-950 text-white flex items-center justify-center font-bold text-sm">
+          <div className="w-10 h-10 rounded-xl bg-emerald-700 text-white flex items-center justify-center font-bold text-sm">
             FD
           </div>
         </div>
@@ -128,7 +128,7 @@ export default function AuthCallbackPage({ params }: CallbackProps) {
               <button
                 type="button"
                 onClick={() => router.push("/login")}
-                className="w-full py-2.5 px-4 rounded-xl bg-zinc-950 text-white text-xs font-semibold hover:bg-zinc-800 transition-colors"
+                className="w-full py-2.5 px-4 rounded-xl bg-emerald-700 text-white text-xs font-semibold hover:bg-emerald-800 transition-colors"
               >
                 Volver al Login
               </button>

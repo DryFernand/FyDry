@@ -115,7 +115,7 @@ export default function StepFinancial({
                 onClick={() => updateData({ monthly_income_range: range.id })}
                 className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between text-xs font-medium ${
                   isSelected
-                    ? "border-zinc-950 bg-zinc-950 text-white shadow-xs"
+                    ? "border-zinc-950 bg-emerald-700 text-white shadow-xs"
                     : "border-zinc-200 bg-white hover:border-zinc-300 text-zinc-800"
                 }`}
               >
@@ -149,7 +149,7 @@ export default function StepFinancial({
                 <div
                   className={`w-4 h-4 rounded-md border flex items-center justify-center ${
                     isSelected
-                      ? "bg-zinc-950 border-zinc-950 text-white"
+                      ? "bg-emerald-700 border-zinc-950 text-white"
                       : "border-zinc-300 bg-white"
                   }`}
                 >
@@ -176,7 +176,7 @@ export default function StepFinancial({
                 onClick={() => updateData({ income_frequency: freq.id })}
                 className={`p-2.5 rounded-xl border text-center text-xs font-medium transition-all cursor-pointer ${
                   isSelected
-                    ? "border-zinc-950 bg-zinc-950 text-white"
+                    ? "border-zinc-950 bg-emerald-700 text-white"
                     : "border-zinc-200 bg-white hover:border-zinc-300 text-zinc-700"
                 }`}
               >
@@ -201,7 +201,7 @@ export default function StepFinancial({
           whileTap={{ scale: 0.99 }}
           type="submit"
           disabled={!formData.monthly_income_range}
-          className="flex-1 py-2.5 px-4 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-semibold shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+          className="flex-1 py-2.5 px-4 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
         >
           <span>Continuar</span>
           <span>&rarr;</span>

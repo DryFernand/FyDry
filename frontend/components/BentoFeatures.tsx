@@ -150,7 +150,7 @@ export default function BentoFeatures() {
               >
                 <div>
                   <div className="flex items-center justify-between mb-4">
-                    <div className="w-10 h-10 rounded-xl bg-zinc-100 flex items-center justify-center text-zinc-900 transition-all duration-300 group-hover:bg-zinc-950 group-hover:text-emerald-400 group-hover:rotate-6 group-hover:scale-110">
+                    <div className="w-10 h-10 rounded-xl bg-zinc-100 flex items-center justify-center text-zinc-900 transition-all duration-300 group-hover:bg-emerald-700 group-hover:text-emerald-400 group-hover:rotate-6 group-hover:scale-110">
                       <Icon className="w-5 h-5" />
                     </div>
                     <span className="text-[11px] font-semibold text-zinc-600 bg-zinc-100/80 px-2.5 py-1 rounded-full">

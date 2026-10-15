@@ -22,7 +22,7 @@ import MoneyInput from "@/components/ui/MoneyInput";
 
 const card = "bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs";
 const input = "w-full px-3 py-2 rounded-xl border border-zinc-200 text-xs text-zinc-900 bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900/10";
-const primaryBtn = "flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-zinc-950 text-white hover:bg-zinc-800 transition-all font-semibold text-xs cursor-pointer disabled:opacity-50";
+const primaryBtn = "flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-700 text-white hover:bg-emerald-800 transition-all font-semibold text-xs cursor-pointer disabled:opacity-50";
 
 const FREQUENCIES: { id: RecurringFrequency; es: string; en: string }[] = [
   { id: "weekly", es: "Semanal", en: "Weekly" },

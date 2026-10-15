@@ -125,7 +125,7 @@ export default function InteractiveCalculator() {
           </div>
 
           {/* Results Card Side */}
-          <div className="lg:col-span-5 bg-zinc-950 text-white rounded-xl p-6 sm:p-7 flex flex-col justify-between shadow-md">
+          <div className="lg:col-span-5 bg-emerald-700 text-white rounded-xl p-6 sm:p-7 flex flex-col justify-between shadow-md">
             <div>
               <div className="text-xs uppercase tracking-wider text-zinc-400 font-semibold mb-1">
                 Proyección con FyDry

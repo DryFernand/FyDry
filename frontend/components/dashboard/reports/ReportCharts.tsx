@@ -92,7 +92,7 @@ export function TrendChart({ data, currency, language }: { data: TrendPoint[]; c
         </svg>
         {active && hover !== null && (
           <div
-            className="absolute top-0 pointer-events-none rounded-xl bg-zinc-950 text-white text-[11px] px-3 py-2 shadow-lg space-y-0.5 -translate-x-1/2 whitespace-nowrap"
+            className="absolute top-0 pointer-events-none rounded-xl bg-emerald-700 text-white text-[11px] px-3 py-2 shadow-lg space-y-0.5 -translate-x-1/2 whitespace-nowrap"
             style={{ left: `${((hover + 0.5) / data.length) * 100}%` }}
           >
             <div className="font-semibold">{active.label}</div>

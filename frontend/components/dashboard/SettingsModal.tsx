@@ -518,7 +518,7 @@ export default function SettingsModal({
         <div className="w-full md:w-60 bg-zinc-50 border-b md:border-b-0 md:border-r border-zinc-200/80 p-2.5 md:p-4 shrink-0 flex flex-col justify-between">
           <div className="space-y-0 md:space-y-4">
             <div className="hidden md:flex items-center gap-2 px-2 pt-1">
-              <div className="w-7 h-7 rounded-lg bg-zinc-950 text-white flex items-center justify-center font-bold text-xs">
+              <div className="w-7 h-7 rounded-lg bg-emerald-700 text-white flex items-center justify-center font-bold text-xs">
                 FD
               </div>
               <span className="font-bold text-sm text-zinc-950">{t.settings.title}</span>
@@ -538,7 +538,7 @@ export default function SettingsModal({
                       isActive
                         ? isDanger
                           ? "bg-rose-50 text-rose-700 border border-rose-200/80 font-bold shadow-2xs"
-                          : "bg-zinc-950 text-white"
+                          : "bg-emerald-700 text-white"
                         : isDanger
                         ? "text-rose-600 hover:bg-rose-50"
                         : "text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100"
@@ -648,7 +648,7 @@ export default function SettingsModal({
                 <div className="pt-3">
                   <button
                     type="submit"
-                    className="py-2.5 px-4 rounded-xl bg-zinc-950 text-white text-xs font-semibold hover:bg-zinc-800 transition-all flex items-center gap-2 cursor-pointer"
+                    className="py-2.5 px-4 rounded-xl bg-emerald-700 text-white text-xs font-semibold hover:bg-emerald-800 transition-all flex items-center gap-2 cursor-pointer"
                   >
                     {isSavedProfile ? (
                       <>
@@ -725,7 +725,7 @@ export default function SettingsModal({
                         type="button"
                         onClick={handleRunEmailScan}
                         disabled={isScanningEmails}
-                        className="py-2.5 px-4 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-semibold flex items-center gap-2 shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+                        className="py-2.5 px-4 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold flex items-center gap-2 shadow-xs transition-colors cursor-pointer disabled:opacity-50"
                       >
                         {isScanningEmails ? (
                           <>
@@ -770,7 +770,7 @@ export default function SettingsModal({
                     <button
                       type="submit"
                       disabled={isConnectingEmail}
-                      className="py-2.5 px-4 rounded-xl bg-zinc-950 text-white text-xs font-semibold hover:bg-zinc-800 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                      className="py-2.5 px-4 rounded-xl bg-emerald-700 text-white text-xs font-semibold hover:bg-emerald-800 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
                     >
                       {isConnectingEmail ? (
                         <>
@@ -808,7 +808,7 @@ export default function SettingsModal({
                       type="button"
                       onClick={handleRequestPasswordOtp}
                       disabled={isSendingOtp}
-                      className="py-2.5 px-4 rounded-xl bg-zinc-950 text-white text-xs font-semibold hover:bg-zinc-800 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                      className="py-2.5 px-4 rounded-xl bg-emerald-700 text-white text-xs font-semibold hover:bg-emerald-800 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
                     >
                       {isSendingOtp ? (
                         <Loader2 className="w-4 h-4 animate-spin text-white" />
@@ -854,7 +854,7 @@ export default function SettingsModal({
                       <button
                         type="submit"
                         disabled={isVerifyingOtp}
-                        className="flex-1 py-2 px-4 rounded-xl bg-zinc-950 text-white text-xs font-semibold hover:bg-zinc-800 flex items-center justify-center gap-1.5"
+                        className="flex-1 py-2 px-4 rounded-xl bg-emerald-700 text-white text-xs font-semibold hover:bg-emerald-800 flex items-center justify-center gap-1.5"
                       >
                         {isVerifyingOtp ? (
                           <Loader2 className="w-4 h-4 animate-spin" />
@@ -981,7 +981,7 @@ export default function SettingsModal({
                     <button
                       type="submit"
                       disabled={isVerifyingOtp || !hasMinLength || !hasNumber || !passwordsMatch}
-                      className="w-full py-2.5 px-4 rounded-xl bg-zinc-950 text-white text-xs font-semibold hover:bg-zinc-800 flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
+                      className="w-full py-2.5 px-4 rounded-xl bg-emerald-700 text-white text-xs font-semibold hover:bg-emerald-800 flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
                     >
                       {isVerifyingOtp ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -1017,7 +1017,7 @@ export default function SettingsModal({
                       onClick={() => handleLanguageChange("es")}
                       className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between ${
                         language === "es"
-                          ? "border-zinc-950 bg-zinc-950 text-white shadow-xs"
+                          ? "border-zinc-950 bg-emerald-700 text-white shadow-xs"
                           : "border-zinc-200 bg-white hover:border-zinc-300 text-zinc-800"
                       }`}
                     >
@@ -1035,7 +1035,7 @@ export default function SettingsModal({
                       onClick={() => handleLanguageChange("en")}
                       className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between ${
                         language === "en"
-                          ? "border-zinc-950 bg-zinc-950 text-white shadow-xs"
+                          ? "border-zinc-950 bg-emerald-700 text-white shadow-xs"
                           : "border-zinc-200 bg-white hover:border-zinc-300 text-zinc-800"
                       }`}
                     >
@@ -1066,7 +1066,7 @@ export default function SettingsModal({
                           onClick={() => handleCurrencyChange(item.code)}
                           className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
                             isSelected
-                              ? "border-zinc-950 bg-zinc-950 text-white shadow-xs"
+                              ? "border-zinc-950 bg-emerald-700 text-white shadow-xs"
                               : "border-zinc-200 bg-white hover:border-zinc-300 text-zinc-800"
                           }`}
                         >
@@ -1143,7 +1143,7 @@ export default function SettingsModal({
                           onClick={() => handleBudgetResetDayChange(d)}
                           className={`flex-1 py-2 text-[11px] font-semibold rounded-xl border transition-all cursor-pointer ${
                             budgetResetDay === d
-                              ? "bg-zinc-950 text-white border-zinc-950 shadow-2xs"
+                              ? "bg-emerald-700 text-white border-zinc-950 shadow-2xs"
                               : "bg-zinc-50 text-zinc-600 border-zinc-200 hover:bg-zinc-100"
                           }`}
                         >
@@ -1201,7 +1201,7 @@ export default function SettingsModal({
                         }}
                         className={`px-3 py-2 rounded-xl text-xs font-semibold border cursor-pointer transition-colors ${
                           parseFloat(taxRatePct) === parseFloat(v)
-                            ? "bg-zinc-950 text-white border-zinc-950"
+                            ? "bg-emerald-700 text-white border-zinc-950"
                             : "bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-100"
                         }`}
                       >
@@ -1212,7 +1212,7 @@ export default function SettingsModal({
                       type="button"
                       onClick={() => handleSaveTaxRate()}
                       disabled={isSavingTax}
-                      className="px-4 py-2 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-semibold cursor-pointer disabled:opacity-50"
+                      className="px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold cursor-pointer disabled:opacity-50"
                     >
                       {isSavingTax ? "Guardando..." : "Guardar"}
                     </button>
@@ -1250,7 +1250,7 @@ export default function SettingsModal({
                   <button
                     type="button"
                     onClick={handleRequestBrowserPermission}
-                    className="py-1.5 px-3 rounded-xl bg-zinc-950 text-white text-xs font-semibold hover:bg-zinc-800 cursor-pointer"
+                    className="py-1.5 px-3 rounded-xl bg-emerald-700 text-white text-xs font-semibold hover:bg-emerald-800 cursor-pointer"
                   >
                     {browserNotifications ? t.settings.notifications.activeStatus : t.settings.notifications.requestBtn}
                   </button>
@@ -1384,7 +1384,7 @@ export default function SettingsModal({
                   <button
                     type="submit"
                     disabled={isSendingSupport}
-                    className="py-2 px-4 rounded-xl bg-zinc-950 text-white text-xs font-semibold hover:bg-zinc-800 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    className="py-2 px-4 rounded-xl bg-emerald-700 text-white text-xs font-semibold hover:bg-emerald-800 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                   >
                     {isSendingSupport ? (
                       <Loader2 className="w-4 h-4 animate-spin text-white" />

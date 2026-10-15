@@ -95,7 +95,7 @@ export default function LockedAccountNotice({
             animate={{ opacity: 1, scale: 1 }}
             type="button"
             onClick={onUnlock}
-            className="w-full py-2.5 px-4 rounded-xl bg-zinc-950 text-white text-xs font-semibold hover:bg-zinc-800 transition-colors flex items-center justify-center gap-2 cursor-pointer"
+            className="w-full py-2.5 px-4 rounded-xl bg-emerald-700 text-white text-xs font-semibold hover:bg-emerald-800 transition-colors flex items-center justify-center gap-2 cursor-pointer"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             <span>Reintentar ahora</span>

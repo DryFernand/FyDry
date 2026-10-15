@@ -347,7 +347,7 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
         <button
           type="button"
           onClick={openCreateModal}
-          className="flex items-center gap-2 py-2 px-4 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer self-start sm:self-auto"
+          className="flex items-center gap-2 py-2 px-4 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer self-start sm:self-auto"
         >
           <ArrowLeftRight className="w-3.5 h-3.5" />
           <span>Nuevo Traspaso</span>
@@ -414,7 +414,7 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
             onClick={() => setMovementFilter("all")}
             className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
               movementFilter === "all"
-                ? "bg-zinc-950 text-white shadow-xs"
+                ? "bg-emerald-700 text-white shadow-xs"
                 : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200/70"
             }`}
           >
@@ -437,7 +437,7 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
             onClick={() => setMovementFilter("standard")}
             className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
               movementFilter === "standard"
-                ? "bg-zinc-950 text-white shadow-xs"
+                ? "bg-emerald-700 text-white shadow-xs"
                 : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200/70"
             }`}
           >
@@ -763,7 +763,7 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
                     </button>
                     <button
                       type="submit"
-                      className="py-2.5 px-4 rounded-xl bg-zinc-950 text-xs font-semibold text-white hover:bg-zinc-800 cursor-pointer"
+                      className="py-2.5 px-4 rounded-xl bg-emerald-700 text-xs font-semibold text-white hover:bg-emerald-800 cursor-pointer"
                     >
                       {editingMovement ? "Actualizar Traspaso" : "Confirmar Traspaso"}
                     </button>

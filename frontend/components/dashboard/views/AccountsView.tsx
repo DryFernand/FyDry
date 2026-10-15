@@ -267,7 +267,7 @@ export default function AccountsView() {
         <button
           type="button"
           onClick={openCreateModal}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-zinc-950 text-white hover:bg-zinc-800 transition-all font-semibold text-xs shadow-xs cursor-pointer"
+          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-emerald-700 text-white hover:bg-emerald-800 transition-all font-semibold text-xs shadow-xs cursor-pointer"
         >
           <Plus className="w-4 h-4" />
           <span>{t.accounts.addAccount}</span>
@@ -401,7 +401,7 @@ export default function AccountsView() {
                         <div className="w-full h-1.5 rounded-full bg-zinc-100 overflow-hidden">
                           <div
                             className={`h-full rounded-full transition-all duration-300 ${
-                              isOverdrawnOrHigh ? "bg-rose-500" : "bg-zinc-950"
+                              isOverdrawnOrHigh ? "bg-rose-500" : "bg-emerald-700"
                             }`}
                             style={{ width: `${usedPercent}%` }}
                           />
@@ -511,7 +511,7 @@ export default function AccountsView() {
             <button
               type="button"
               onClick={openCreateModal}
-              className="py-2 px-4 rounded-xl bg-zinc-950 text-white text-xs font-semibold hover:bg-zinc-800 transition-all cursor-pointer"
+              className="py-2 px-4 rounded-xl bg-emerald-700 text-white text-xs font-semibold hover:bg-emerald-800 transition-all cursor-pointer"
             >
               {t.accounts.addAccount}
             </button>
@@ -820,7 +820,7 @@ export default function AccountsView() {
                     </button>
                     <button
                       type="submit"
-                      className="py-2.5 px-4 rounded-xl bg-zinc-950 text-xs font-semibold text-white hover:bg-zinc-800 cursor-pointer"
+                      className="py-2.5 px-4 rounded-xl bg-emerald-700 text-xs font-semibold text-white hover:bg-emerald-800 cursor-pointer"
                     >
                       {editingAccount ? "Guardar Cambios" : t.accounts.saveAccount}
                     </button>

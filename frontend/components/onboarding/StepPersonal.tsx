@@ -127,7 +127,7 @@ export default function StepPersonal({
                 onClick={() => updateData({ preferred_currency: curr.code })}
                 className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
                   isSelected
-                    ? "border-zinc-950 bg-zinc-950 text-white shadow-sm"
+                    ? "border-zinc-950 bg-emerald-700 text-white shadow-sm"
                     : "border-zinc-200 bg-white hover:border-zinc-300 text-zinc-800"
                 }`}
               >
@@ -152,7 +152,7 @@ export default function StepPersonal({
           whileHover={{ scale: 1.01 }}
           whileTap={{ scale: 0.99 }}
           type="submit"
-          className="w-full py-2.5 px-4 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-semibold shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
+          className="w-full py-2.5 px-4 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
         >
           <span>Continuar</span>
           <span>&rarr;</span>

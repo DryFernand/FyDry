@@ -188,7 +188,7 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className="relative overflow-hidden rounded-3xl bg-zinc-950 p-6 sm:p-8 text-white border border-zinc-800 shadow-xl"
+        className="relative overflow-hidden rounded-3xl bg-emerald-700 p-6 sm:p-8 text-white border border-zinc-800 shadow-xl"
       >
         {/* Luces difusas decorativas de fondo */}
         <div className="absolute -top-24 -right-24 h-72 w-72 rounded-full bg-emerald-500/15 blur-3xl pointer-events-none" />
@@ -655,7 +655,7 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
                 <button
                   type="button"
                   onClick={() => onNavigate("expenses")}
-                  className="mt-2 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-semibold cursor-pointer transition-all"
+                  className="mt-2 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold cursor-pointer transition-all"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>{t.home.addExpense}</span>

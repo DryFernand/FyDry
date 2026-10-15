@@ -171,7 +171,7 @@ export default function NotificationBell({
       >
         <Bell className="w-4 h-4" />
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-zinc-950 text-[9px] font-bold text-white shadow-xs ring-2 ring-white">
+          <span className="absolute -top-1 -right-1 flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-emerald-700 text-[9px] font-bold text-white shadow-xs ring-2 ring-white">
             {unreadCount}
           </span>
         )}
@@ -237,7 +237,7 @@ export default function NotificationBell({
                             item.title.toLowerCase().includes("alerta") ||
                             isCriticalAlert(item)
                               ? "bg-rose-500"
-                              : "bg-zinc-950"
+                              : "bg-emerald-700"
                           }`}
                         />
                       )}

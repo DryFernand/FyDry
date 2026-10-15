@@ -16,7 +16,7 @@ const items = [
 /** Cinta infinita de funciones. Se pausa al pasar el cursor y con "reducir movimiento". */
 export default function Marquee() {
   return (
-    <section aria-label="Funciones de FyDry" className="relative py-6 bg-zinc-950 overflow-hidden marquee-mask">
+    <section aria-label="Funciones de FyDry" className="relative py-6 bg-emerald-700 overflow-hidden marquee-mask">
       <div className="marquee-track flex w-max gap-3">
         {[...items, ...items].map((item, i) => (
           <span

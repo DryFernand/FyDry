@@ -78,7 +78,7 @@ export default function StepWork({
               onClick={() => updateData({ employment_type: item.id })}
               className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-start gap-3.5 ${
                 isSelected
-                  ? "border-zinc-950 bg-zinc-950 text-white shadow-xs"
+                  ? "border-zinc-950 bg-emerald-700 text-white shadow-xs"
                   : "border-zinc-200/90 bg-white hover:border-zinc-300 text-zinc-900"
               }`}
             >
@@ -132,7 +132,7 @@ export default function StepWork({
           whileTap={{ scale: 0.99 }}
           type="submit"
           disabled={!formData.employment_type}
-          className="flex-1 py-2.5 px-4 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-semibold shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+          className="flex-1 py-2.5 px-4 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
         >
           <span>Continuar</span>
           <span>&rarr;</span>

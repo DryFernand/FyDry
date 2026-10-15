@@ -238,7 +238,7 @@ export default function DashboardLayout() {
     return (
       <div className="min-h-screen bg-zinc-50 flex flex-col items-center justify-center p-4">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-zinc-950 text-white flex items-center justify-center font-bold text-sm shadow-md">
+          <div className="w-10 h-10 rounded-2xl bg-emerald-700 text-white flex items-center justify-center font-bold text-sm shadow-md">
             FD
           </div>
           <div className="flex items-center gap-2 text-zinc-500 text-xs font-medium">
@@ -260,7 +260,7 @@ export default function DashboardLayout() {
           <div className="flex items-center gap-3 px-2 py-3 mb-3">
             <div className="relative w-9 h-9 shrink-0 flex items-center justify-center">
               <Image
-                src="/logo_negro.png"
+                src="/logo_vino.png"
                 alt="FyDry Logo"
                 fill
                 sizes="36px"
@@ -303,7 +303,7 @@ export default function DashboardLayout() {
                         }}
                         className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-xs font-semibold transition-all group cursor-pointer ${
                           isActive
-                            ? "bg-zinc-950 text-white shadow-xs"
+                            ? "bg-emerald-700 text-white shadow-xs"
                             : "text-zinc-500 hover:text-zinc-950 hover:bg-zinc-100/70"
                         }`}
                       >
@@ -367,7 +367,7 @@ export default function DashboardLayout() {
         <div className="flex items-center gap-2.5">
           <div className="relative w-7 h-7 shrink-0 flex items-center justify-center">
             <Image
-              src="/logo_negro.png"
+              src="/logo_vino.png"
               alt="FyDry Logo"
               fill
               sizes="28px"
@@ -395,7 +395,7 @@ export default function DashboardLayout() {
           <button
             type="button"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="p-2.5 rounded-2xl bg-zinc-950 text-white cursor-pointer"
+            className="p-2.5 rounded-2xl bg-emerald-700 text-white cursor-pointer"
           >
             {isMobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
           </button>
@@ -436,7 +436,7 @@ export default function DashboardLayout() {
                           }}
                           className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                             isActive
-                              ? "bg-zinc-950 text-white shadow-xs"
+                              ? "bg-emerald-700 text-white shadow-xs"
                               : "text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100"
                           }`}
                         >
@@ -559,7 +559,7 @@ export default function DashboardLayout() {
             onClick={() => setIsQuickModalOpen(true)}
             title={language === "en" ? "Record Transaction" : "Registrar Transacción"}
             aria-label={language === "en" ? "Record Transaction" : "Registrar Transacción"}
-            className="w-11 h-11 rounded-full bg-zinc-950 text-white flex items-center justify-center shadow-md -mt-4 active:scale-95 transition-transform hover:bg-zinc-800 cursor-pointer shrink-0"
+            className="w-11 h-11 rounded-full bg-emerald-700 text-white flex items-center justify-center shadow-md -mt-4 active:scale-95 transition-transform hover:bg-emerald-800 cursor-pointer shrink-0"
           >
             <Plus className="w-5 h-5" />
           </button>

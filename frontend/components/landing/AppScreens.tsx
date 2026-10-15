@@ -29,7 +29,7 @@ function TabBar({ active }: { active: number }) {
   return (
     <div className="mt-auto mx-3 mb-3 flex items-center justify-around rounded-2xl bg-white border border-zinc-200 py-2.5 shadow-sm">
       {tabs.map((Icon, i) => (
-        <span key={i} className={`w-8 h-8 rounded-xl flex items-center justify-center ${i === active ? "bg-zinc-950 text-emerald-400" : "text-zinc-400"}`}>
+        <span key={i} className={`w-8 h-8 rounded-xl flex items-center justify-center ${i === active ? "bg-emerald-700 text-emerald-400" : "text-zinc-400"}`}>
           <Icon className="w-4 h-4" aria-hidden="true" />
         </span>
       ))}
@@ -45,7 +45,7 @@ export function PlanScreen() {
       <div className="px-4 pt-4 space-y-2.5">
         <motion.div {...reveal(0)} className="text-[11px] font-bold">Plan y Metas</motion.div>
 
-        <motion.div {...reveal(1)} className="rounded-2xl bg-zinc-950 text-white p-3.5">
+        <motion.div {...reveal(1)} className="rounded-2xl bg-emerald-700 text-white p-3.5">
           <div className="flex items-center justify-between text-[9px] text-zinc-400">
             <span>Disponible hoy</span>
             <Wallet className="w-3 h-3" aria-hidden="true" />
@@ -132,7 +132,7 @@ export function ChatScreen() {
     <div className="h-full flex flex-col text-zinc-900">
       <StatusBar />
       <div className="px-4 pt-4 flex items-center gap-2">
-        <div className="w-6 h-6 rounded-full bg-zinc-950 text-white flex items-center justify-center">
+        <div className="w-6 h-6 rounded-full bg-emerald-700 text-white flex items-center justify-center">
           <Bot className="w-3.5 h-3.5" aria-hidden="true" />
         </div>
         <div>
@@ -146,7 +146,7 @@ export function ChatScreen() {
           ¿Qué registramos hoy?
         </div>
         {typed > 0 && (
-          <div className="ml-auto max-w-[85%] rounded-2xl rounded-tr-sm bg-zinc-950 text-white px-3 py-2 text-[9px]">
+          <div className="ml-auto max-w-[85%] rounded-2xl rounded-tr-sm bg-emerald-700 text-white px-3 py-2 text-[9px]">
             {CHAT_TEXT.slice(0, typed)}
             {!done && <span className="inline-block w-[1px] h-2.5 bg-white ml-0.5 animate-pulse align-middle" />}
           </div>
@@ -165,7 +165,7 @@ export function ChatScreen() {
               <span className="text-zinc-400">Categoría</span><span className="font-semibold">Restaurantes</span>
             </div>
             <div className="flex gap-1.5 pt-1">
-              <span className="flex-1 text-center rounded-lg bg-zinc-950 text-white text-[8px] py-1.5 inline-flex items-center justify-center gap-1">
+              <span className="flex-1 text-center rounded-lg bg-emerald-700 text-white text-[8px] py-1.5 inline-flex items-center justify-center gap-1">
                 <Check className="w-2.5 h-2.5" aria-hidden="true" /> Confirmar
               </span>
               <span className="flex-1 text-center rounded-lg border border-zinc-200 text-[8px] py-1.5">Editar</span>
@@ -175,7 +175,7 @@ export function ChatScreen() {
       </div>
       <div className="m-3 flex items-center gap-2 rounded-2xl bg-white border border-zinc-200 pl-3 pr-1.5 py-1.5 shadow-sm">
         <span className="flex-1 text-[9px] text-zinc-400">Escribe un gasto o pregunta…</span>
-        <span className="w-7 h-7 rounded-xl bg-zinc-950 text-white flex items-center justify-center">
+        <span className="w-7 h-7 rounded-xl bg-emerald-700 text-white flex items-center justify-center">
           <ArrowUp className="w-3.5 h-3.5" aria-hidden="true" />
         </span>
       </div>

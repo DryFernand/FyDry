@@ -45,9 +45,9 @@ export function CountUp({
 export function PhoneFrame({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
     <div
-      className={`relative w-[260px] sm:w-[280px] aspect-[9/19] rounded-[2.6rem] bg-zinc-950 p-[10px] shadow-[0_30px_80px_-20px_rgba(0,0,0,0.45)] ring-1 ring-zinc-800 ${className}`}
+      className={`relative w-[260px] sm:w-[280px] aspect-[9/19] rounded-[2.6rem] bg-emerald-700 p-[10px] shadow-[0_30px_80px_-20px_rgba(0,0,0,0.45)] ring-1 ring-zinc-800 ${className}`}
     >
-      <div className="absolute top-[18px] left-1/2 -translate-x-1/2 w-20 h-5 rounded-full bg-zinc-950 z-20" aria-hidden="true" />
+      <div className="absolute top-[18px] left-1/2 -translate-x-1/2 w-20 h-5 rounded-full bg-emerald-700 z-20" aria-hidden="true" />
       <div className="relative h-full w-full overflow-hidden rounded-[2rem] bg-zinc-50">{children}</div>
     </div>
   );

@@ -554,7 +554,7 @@ function ActionCard({ action, accounts, taxRate, onConfirm, onCancel }: ActionCa
           <button
             type="button"
             onClick={onConfirm}
-            className="flex-1 flex items-center justify-center gap-1.5 bg-zinc-950 hover:bg-zinc-800 text-white font-medium py-1.5 px-3 rounded-xl text-xs transition-colors cursor-pointer"
+            className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-medium py-1.5 px-3 rounded-xl text-xs transition-colors cursor-pointer"
           >
             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
             <span>Confirmar</span>
@@ -801,7 +801,7 @@ function MissingDetailsForm({
       {/* Header estilo modal con Icono y Badge */}
       <div className="flex items-center justify-between gap-2 border-b border-zinc-100 pb-2.5">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-xl bg-zinc-950 text-white flex items-center justify-center shrink-0 shadow-xs">
+          <div className="w-7 h-7 rounded-xl bg-emerald-700 text-white flex items-center justify-center shrink-0 shadow-xs">
             {getActionIcon(action_type)}
           </div>
           <div>
@@ -876,7 +876,7 @@ function MissingDetailsForm({
                             onClick={() => handleChange(field.id, acc.name)}
                             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
                               isSelected
-                                ? "bg-zinc-950 text-white shadow-xs font-semibold ring-1 ring-zinc-950 scale-[1.02]"
+                                ? "bg-emerald-700 text-white shadow-xs font-semibold ring-1 ring-zinc-950 scale-[1.02]"
                                 : "bg-zinc-100 hover:bg-zinc-200 text-zinc-700 border border-zinc-200/70"
                             } disabled:opacity-60 disabled:cursor-not-allowed`}
                           >
@@ -1028,7 +1028,7 @@ function MissingDetailsForm({
         <button
           type="submit"
           disabled={isSubmitted || hasEmptyField}
-          className="w-full flex items-center justify-center gap-2 bg-zinc-950 hover:bg-zinc-800 text-white font-semibold py-2.5 px-4 rounded-xl text-xs transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-xs"
+          className="w-full flex items-center justify-center gap-2 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold py-2.5 px-4 rounded-xl text-xs transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-xs"
         >
           {isSubmitted ? (
             <>
@@ -1949,7 +1949,7 @@ export default function AiAssistantChat() {
             onClick={() => setIsOpen(true)}
             title="Asistente de Bienestar Financiero"
             aria-label="Abrir asistente de IA"
-            className="fixed bottom-20 md:bottom-6 right-5 md:right-6 z-40 bg-zinc-950 text-white hover:bg-zinc-800 shadow-xl rounded-2xl w-13 h-13 min-w-[52px] min-h-[52px] flex items-center justify-center transition-all cursor-pointer group"
+            className="fixed bottom-20 md:bottom-6 right-5 md:right-6 z-40 bg-emerald-700 text-white hover:bg-emerald-800 shadow-xl rounded-2xl w-13 h-13 min-w-[52px] min-h-[52px] flex items-center justify-center transition-all cursor-pointer group"
           >
             <Bot className="w-6 h-6 text-white group-hover:scale-110 transition-transform duration-200" />
             <span className="absolute -top-1 -right-1 flex h-3 w-3">
@@ -2051,7 +2051,7 @@ export default function AiAssistantChat() {
 
               {/* Centro: Identidad del Asistente */}
               <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-xl bg-zinc-950 text-white flex items-center justify-center shadow-xs shrink-0">
+                <div className="w-7 h-7 rounded-xl bg-emerald-700 text-white flex items-center justify-center shadow-xs shrink-0">
                   <Bot className="w-4 h-4" />
                 </div>
                 <div className="flex flex-col">
@@ -2137,7 +2137,7 @@ export default function AiAssistantChat() {
                         aria-checked={requireConfirmation}
                         onClick={() => handleToggleConfirmation(!requireConfirmation)}
                         className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
-                          requireConfirmation ? "bg-zinc-950" : "bg-zinc-300"
+                          requireConfirmation ? "bg-emerald-700" : "bg-zinc-300"
                         }`}
                       >
                         <span
@@ -2153,7 +2153,7 @@ export default function AiAssistantChat() {
                     <button
                       type="button"
                       onClick={() => setIsSettingsOpen(false)}
-                      className="px-4 py-2 bg-zinc-950 hover:bg-zinc-800 text-white rounded-xl text-xs font-medium transition-colors cursor-pointer"
+                      className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-medium transition-colors cursor-pointer"
                     >
                       Guardar y volver
                     </button>
@@ -2183,7 +2183,7 @@ export default function AiAssistantChat() {
                         msg.missingDetails ? "w-full max-w-[95%] sm:max-w-[90%]" : "max-w-[85%]"
                       } rounded-2xl px-3.5 py-2.5 shadow-2xs whitespace-pre-line ${
                         isUser
-                          ? "bg-zinc-950 text-white rounded-br-xs"
+                          ? "bg-emerald-700 text-white rounded-br-xs"
                           : "bg-zinc-100 text-zinc-800 rounded-bl-xs border border-zinc-200/50"
                       }`}
                     >
@@ -2210,7 +2210,7 @@ export default function AiAssistantChat() {
                                       `Usar cuenta ${stripAsterisks(acc.name)}`
                                     )
                                   }
-                                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-zinc-950 hover:text-white text-zinc-800 border border-zinc-200 shadow-2xs text-xs font-medium transition-all cursor-pointer group"
+                                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-emerald-700 hover:text-white text-zinc-800 border border-zinc-200 shadow-2xs text-xs font-medium transition-all cursor-pointer group"
                                 >
                                   <Wallet className="w-3.5 h-3.5 text-zinc-400 group-hover:text-emerald-400 shrink-0" />
                                   <span>{stripAsterisks(acc.name)}</span>
@@ -2241,7 +2241,7 @@ export default function AiAssistantChat() {
                             handleSendMessage(undefined, msg.retryText);
                           }}
                           disabled={isLoading || isTyping}
-                          className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-zinc-200 text-[11px] font-semibold text-zinc-800 hover:bg-zinc-950 hover:text-white transition-colors cursor-pointer disabled:opacity-50"
+                          className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-zinc-200 text-[11px] font-semibold text-zinc-800 hover:bg-emerald-700 hover:text-white transition-colors cursor-pointer disabled:opacity-50"
                         >
                           <RotateCcw className="w-3 h-3" aria-hidden="true" />
                           Reintentar
@@ -2318,7 +2318,7 @@ export default function AiAssistantChat() {
                 disabled={!inputMessage.trim() || isLoading || isTyping}
                 title="Enviar mensaje"
                 aria-label="Enviar mensaje"
-                className="p-2.5 rounded-xl bg-zinc-950 text-white hover:bg-zinc-800 active:scale-95 transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
+                className="p-2.5 rounded-xl bg-emerald-700 text-white hover:bg-emerald-800 active:scale-95 transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
               >
                 <Send className="w-4 h-4" />
               </button>

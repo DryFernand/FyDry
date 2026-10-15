@@ -427,7 +427,7 @@ export default function QuickTransactionModal({
             {/* Modal Header */}
             <div className="flex items-center justify-between pb-1 border-b border-zinc-100">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-zinc-950 text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                <div className="w-8 h-8 rounded-xl bg-emerald-700 text-white flex items-center justify-center font-bold text-xs shadow-xs">
                   FD
                 </div>
                 <div>
@@ -882,7 +882,7 @@ export default function QuickTransactionModal({
                       ? "bg-green-600 hover:bg-green-700"
                       : type === "card_payment"
                       ? "bg-sky-700 hover:bg-sky-800"
-                      : "bg-zinc-950 hover:bg-zinc-800 text-white"
+                      : "bg-emerald-700 hover:bg-emerald-800 text-white"
                   }`}
                 >
                   {isSubmitting ? (

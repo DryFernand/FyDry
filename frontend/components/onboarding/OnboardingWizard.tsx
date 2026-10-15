@@ -131,7 +131,7 @@ export default function OnboardingWizard() {
           <button
             type="button"
             onClick={() => router.push("/dashboard")}
-            className="w-full py-3 rounded-xl bg-zinc-950 text-white text-xs font-semibold hover:bg-zinc-800 transition-all cursor-pointer shadow-xs"
+            className="w-full py-3 rounded-xl bg-emerald-700 text-white text-xs font-semibold hover:bg-emerald-800 transition-all cursor-pointer shadow-xs"
           >
             Ir a mi Dashboard
           </button>
@@ -156,7 +156,7 @@ export default function OnboardingWizard() {
           <div className="flex items-center gap-2.5">
             <div className="relative w-7 h-7 shrink-0 flex items-center justify-center">
               <Image
-                src="/logo_negro.png"
+                src="/logo_vino.png"
                 alt="FyDry Logo"
                 fill
                 sizes="28px"
@@ -177,7 +177,7 @@ export default function OnboardingWizard() {
         <div className="mb-6">
           <div className="w-full bg-zinc-100 rounded-full h-1.5 overflow-hidden">
             <motion.div
-              className="bg-zinc-950 h-1.5 rounded-full"
+              className="bg-emerald-700 h-1.5 rounded-full"
               initial={{ width: "0%" }}
               animate={{ width: `${Math.max(progressPercentage, 10)}%` }}
               transition={{ duration: 0.3, ease: "easeOut" }}
@@ -204,7 +204,7 @@ export default function OnboardingWizard() {
                   <div
                     className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] ${
                       isActive
-                        ? "bg-zinc-950 text-white"
+                        ? "bg-emerald-700 text-white"
                         : isCompleted
                         ? "bg-zinc-200 text-zinc-700"
                         : "bg-zinc-100 text-zinc-400"

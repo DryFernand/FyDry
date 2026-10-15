@@ -198,7 +198,7 @@ export default function VerifyOtpView({
           whileTap={{ scale: 0.99 }}
           type="submit"
           disabled={isLoading || isSuccess}
-          className="w-full py-2.5 px-4 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-semibold shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70"
+          className="w-full py-2.5 px-4 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70"
         >
           {isLoading ? (
             <Loader2 className="w-4 h-4 animate-spin text-white" />

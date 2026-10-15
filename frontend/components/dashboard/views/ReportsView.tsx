@@ -470,7 +470,7 @@ export default function ReportsView() {
             type="button"
             onClick={handleExportPDF}
             disabled={isExporting}
-            className="flex items-center gap-2 py-2 px-4 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-semibold shadow-xs transition-all cursor-pointer disabled:opacity-50"
+            className="flex items-center gap-2 py-2 px-4 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold shadow-xs transition-all cursor-pointer disabled:opacity-50"
           >
             <Printer className="w-4 h-4" />
             <span>{t.reports.exportPdf}</span>
@@ -492,7 +492,7 @@ export default function ReportsView() {
         <div className="report-section avoid-break flex flex-col sm:flex-row sm:items-start justify-between gap-4 pb-6 border-b-2 border-zinc-900">
           <div className="space-y-1">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-zinc-950 text-white flex items-center justify-center font-bold text-xs">
+              <div className="w-8 h-8 rounded-xl bg-emerald-700 text-white flex items-center justify-center font-bold text-xs">
                 FD
               </div>
               <span className="font-extrabold text-xl tracking-tight text-zinc-950">
@@ -787,7 +787,7 @@ export default function ReportsView() {
           </div>
 
           {/* Badge o cápsula destacada del Score de Salud Financiera */}
-          <div className="p-4 sm:p-5 rounded-2xl bg-zinc-950 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-zinc-900 shadow-xs">
+          <div className="p-4 sm:p-5 rounded-2xl bg-emerald-700 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-zinc-900 shadow-xs">
             <div className="flex items-center gap-3.5">
               <div className="w-10 h-10 rounded-xl bg-white/10 text-white flex items-center justify-center font-black text-sm tracking-tight border border-white/15 shrink-0">
                 {healthTier}
@@ -818,7 +818,7 @@ export default function ReportsView() {
           {/* Tres bullets de recomendación financiera personalizados y analíticos */}
           <div className="recommendations-box p-4 sm:p-5 rounded-2xl bg-zinc-50 border border-zinc-200/80 space-y-3.5 text-xs text-zinc-700">
             <div className="flex items-start gap-3">
-              <span className="w-1.5 h-1.5 rounded-full bg-zinc-950 mt-1.5 shrink-0" />
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-700 mt-1.5 shrink-0" />
               <div className="space-y-0.5">
                 <div className="font-bold text-zinc-950">
                   {language === "es" ? "1. Flujo de caja y cobertura mensual" : "1. Cash flow & monthly coverage"}
@@ -830,7 +830,7 @@ export default function ReportsView() {
             </div>
 
             <div className="flex items-start gap-3">
-              <span className="w-1.5 h-1.5 rounded-full bg-zinc-950 mt-1.5 shrink-0" />
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-700 mt-1.5 shrink-0" />
               <div className="space-y-0.5">
                 <div className="font-bold text-zinc-950">
                   {language === "es" ? "2. Tasa de ahorro y proyección del fondo de tranquilidad" : "2. Savings rate & emergency reserve projection"}
@@ -842,7 +842,7 @@ export default function ReportsView() {
             </div>
 
             <div className="flex items-start gap-3">
-              <span className="w-1.5 h-1.5 rounded-full bg-zinc-950 mt-1.5 shrink-0" />
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-700 mt-1.5 shrink-0" />
               <div className="space-y-0.5">
                 <div className="font-bold text-zinc-950">
                   {language === "es" ? "3. Nivel de endeudamiento y solvencia" : "3. Debt burden & solvency"}
