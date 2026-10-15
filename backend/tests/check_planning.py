@@ -79,6 +79,14 @@ with TestClient(app) as c:
     assert ins["available_to_spend"] <= 7000 - 360 and ins["daily_allowance"] >= 0
     assert 0 <= ins["peace_score"] <= 100
 
+    # Ahorro = lo enviado a cuentas de tipo Ahorro: traspasar el 20% del ingreso suma los 35 puntos de ahorro
+    call("POST", "/incomes", {"account_id": bank["id"], "category": "Salario / Nómina Principal", "description": "Quincena", "amount": 10000, "date": "hoy"}, 201)
+    savings_acc = call("POST", "/accounts", {"name": "Ahorro", "type": "savings", "balance": 0}, 201)
+    before = call("GET", "/insights")["peace_score"]
+    call("POST", "/movements", {"from_account_id": bank["id"], "to_account_id": savings_acc["id"], "amount": 2000, "date": "hoy"}, 201)
+    after = call("GET", "/insights")["peace_score"]
+    assert after - before >= 30, (before, after)
+
     # Reset borra también recurrentes y metas
     call("POST", "/reset-data")
     assert call("GET", "/recurring") == [] and call("GET", "/goals") == []

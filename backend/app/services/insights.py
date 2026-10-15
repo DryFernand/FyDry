@@ -90,15 +90,35 @@ def detect_subscriptions(expenses: Iterable[Tx], known: Set[str]) -> List[dict]:
     return found
 
 
+# Categorías de gasto que en realidad son ahorro (igual que en el frontend)
+SAVINGS_CATEGORIES = {"Ahorro Programado", "Inversiones"}
+# Ahorrar este porcentaje de los ingresos da la puntuación completa de ahorro
+SAVINGS_TARGET = Decimal("0.20")
+
+
+def period_savings(movements, savings_ids: Set[str], expenses) -> Decimal:
+    """Ahorro neto: traspasos hacia cuentas de ahorro − retiros de ellas + gastos de ahorro/inversión."""
+    total = Decimal("0")
+    for m in movements:
+        to_savings = m.to_account_id in savings_ids
+        from_savings = m.from_account_id in savings_ids
+        if to_savings and not from_savings:
+            total += money(m.amount)
+        elif from_savings and not to_savings:
+            total -= money(m.amount)
+    total += sum((money(e.amount) for e in expenses if e.category in SAVINGS_CATEGORIES), Decimal("0"))
+    return total
+
+
 def peace_score(
     income: Decimal,
-    expenses: Decimal,
+    saved: Decimal,
     budget_usage: List[Decimal],
     card_usage: List[Decimal],
     daily_allowance: Decimal,
 ) -> int:
-    """0-100. Pondera ahorro del periodo, presupuestos sin exceder, uso de tarjetas y colchón diario."""
-    savings = max(Decimal("0"), min(Decimal("1"), (income - expenses) / income)) if income > 0 else Decimal("0")
+    """0-100. Pondera ahorro del periodo (lo enviado a cuentas de ahorro), presupuestos, uso de tarjetas y colchón diario."""
+    savings = max(Decimal("0"), min(Decimal("1"), (saved / income) / SAVINGS_TARGET)) if income > 0 else Decimal("0")
     budgets = (Decimal(sum(1 for u in budget_usage if u <= 1)) / len(budget_usage)) if budget_usage else Decimal("1")
     cards = (1 - min(Decimal("1"), sum(card_usage) / len(card_usage))) if card_usage else Decimal("1")
     buffer = Decimal("1") if daily_allowance > 0 else Decimal("0")

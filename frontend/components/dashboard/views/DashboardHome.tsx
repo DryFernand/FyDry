@@ -18,7 +18,7 @@ import {
   CreditCard,
   Banknote,
 } from "lucide-react";
-import { DashboardTab, TransactionItem, AccountItem, BudgetItem, InsightsData } from "../types";
+import { DashboardTab, TransactionItem, AccountItem, BudgetItem, InsightsData, MovementItem } from "../types";
 import { useLanguage } from "@/context/LanguageContext";
 import {
   fetchAccountsApi,
@@ -26,7 +26,9 @@ import {
   fetchUserSettingsApi,
   fetchBudgetsApi,
   fetchInsightsApi,
+  fetchMovementsApi,
 } from "@/lib/api";
+import { periodSavings, savingsRatePct } from "@/lib/savings";
 import {
   getCycleRange,
   isTransactionInPeriod,
@@ -101,16 +103,19 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
   const [budgets, setBudgets] = useState<BudgetItem[]>([]);
   const [budgetResetDay, setBudgetResetDay] = useState<number>(1);
   const [insights, setInsights] = useState<InsightsData | null>(null);
+  const [movements, setMovements] = useState<MovementItem[]>([]);
 
   const loadData = async () => {
-    const [accData, txData, settingsData, budgetsData, insightsData] = await Promise.all([
+    const [accData, txData, settingsData, budgetsData, insightsData, movData] = await Promise.all([
       fetchAccountsApi(),
       fetchTransactionsApi(),
       fetchUserSettingsApi(),
       fetchBudgetsApi(),
       fetchInsightsApi(),
+      fetchMovementsApi(),
     ]);
     setInsights(insightsData);
+    setMovements(movData);
     setAccounts(accData);
     setTransactions(txData);
     setBudgets(budgetsData);
@@ -156,9 +161,12 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
   const totalIncomes = incomeTransactions.reduce((acc, curr) => acc + curr.amount, 0);
   const totalExpenses = expenseTransactions.reduce((acc, curr) => acc + curr.amount, 0);
 
-  const netSavings = Math.max(totalIncomes - totalExpenses, 0);
+  // Ahorro = lo enviado a cuentas de tipo Ahorro (menos retiros) + gastos de ahorro/inversión
+  const inCycle = (date: string) => isTransactionInPeriod({ date } as TransactionItem, cycleRange.startDate, cycleRange.endDate);
+  const savings = periodSavings(movements, accounts, expenseTransactions, inCycle);
+  const netSavings = savings.net;
   const netFlow = totalIncomes - totalExpenses;
-  const savingsRate = totalIncomes > 0 ? Math.round((netSavings / totalIncomes) * 100) : 0;
+  const savingsRate = savingsRatePct(netSavings, totalIncomes);
   const expenseRatio = totalIncomes > 0 ? Math.round((totalExpenses / totalIncomes) * 100) : 0;
 
   const totalBudgetAllocated = budgets.reduce((acc, b) => acc + (b.allocated || 0), 0);
@@ -514,6 +522,10 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
           </div>
           <div className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-950">
             {formatMoney(netSavings, mainCurrency)}
+          </div>
+          <div className="text-[10px] text-zinc-400">
+            {language === "en" ? "Sent to savings accounts this cycle" : "Enviado a tus cuentas de ahorro este ciclo"}
+            {savings.withdrawn > 0 && ` · ${language === "en" ? "withdrawn" : "retirado"} ${formatMoney(savings.withdrawn, mainCurrency)}`}
           </div>
           <div className="text-[11px] text-zinc-400 flex items-center justify-between">
             <span>{t.home.savingsRate}:</span>

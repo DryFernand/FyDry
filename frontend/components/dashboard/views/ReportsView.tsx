@@ -13,14 +13,16 @@ import {
   TrendingUp,
   Receipt,
 } from "lucide-react";
-import { AccountItem, TransactionItem, DebtItem } from "../types";
+import { AccountItem, TransactionItem, DebtItem, MovementItem } from "../types";
 import { useLanguage } from "@/context/LanguageContext";
 import {
   fetchAccountsApi,
   fetchTransactionsApi,
   fetchDebtsApi,
   fetchUserSettingsApi,
+  fetchMovementsApi,
 } from "@/lib/api";
+import { periodSavings, savingsRatePct } from "@/lib/savings";
 import { getCycleRange, isTransactionInPeriod, formatCycleLabel } from "@/lib/cycle";
 import { isLiability, formatMoney, netWorthByCurrency } from "@/lib/money";
 import { TrendChart, CategoryBars, DeltaBadge, type TrendPoint } from "../reports/ReportCharts";
@@ -42,6 +44,7 @@ export default function ReportsView() {
   const [expenses, setExpenses] = useState<TransactionItem[]>([]);
   const [incomes, setIncomes] = useState<TransactionItem[]>([]);
   const [debts, setDebts] = useState<DebtItem[]>([]);
+  const [movements, setMovements] = useState<MovementItem[]>([]);
   const [budgetResetDay, setBudgetResetDay] = useState<number>(1);
   const [reportScope, setReportScope] = useState<"current_cycle" | "all_time">("current_cycle");
   const [selectedDate, setSelectedDate] = useState(() => new Date());
@@ -71,13 +74,15 @@ export default function ReportsView() {
   }, []);
 
   const loadData = async () => {
-    const [accData, expData, incData, debData, settingsData] = await Promise.all([
+    const [accData, expData, incData, debData, settingsData, movData] = await Promise.all([
       fetchAccountsApi(),
       fetchTransactionsApi("expense"),
       fetchTransactionsApi("income"),
       fetchDebtsApi(),
       fetchUserSettingsApi(),
+      fetchMovementsApi(),
     ]);
+    setMovements(movData);
     setAccounts(accData);
     setExpenses(expData);
     setIncomes(incData);
@@ -159,7 +164,14 @@ export default function ReportsView() {
   const totalIncomes = filteredIncomes.reduce((acc, curr) => acc + curr.amount, 0);
   const totalExpenses = filteredExpenses.reduce((acc, curr) => acc + curr.amount, 0);
   const netFlow = totalIncomes - totalExpenses;
-  const savingsRate = totalIncomes > 0 ? Math.round((Math.max(netFlow, 0) / totalIncomes) * 100) : 0;
+  // Ahorro = lo enviado a cuentas de tipo Ahorro (menos retiros) + gastos de ahorro/inversión
+  const inScope = (date: string) =>
+    reportScope !== "current_cycle" || isTransactionInPeriod({ date } as TransactionItem, cycleRange.startDate, cycleRange.endDate);
+  const scopedMovements = movements.filter(
+    (m) => accountFilter === "all" || m.fromAccount === accountFilter || m.toAccount === accountFilter
+  );
+  const savings = periodSavings(scopedMovements, accounts, filteredExpenses, inScope);
+  const savingsRate = savingsRatePct(savings.net, totalIncomes);
 
   // Métricas Patrimoniales y de Solvencia (Fase 2)
   const totalDebts = debts.reduce((acc, curr) => acc + curr.remainingAmount, 0);
@@ -561,8 +573,8 @@ export default function ReportsView() {
             <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200/80 space-y-1">
               <span className="text-[11px] font-semibold text-zinc-500">{t.reports.savingsRate}</span>
               <div className="text-lg font-bold text-zinc-950">{savingsRate}%</div>
-              <div className="text-[10px] text-zinc-500 font-medium">
-                {language === "es" ? "Margen neto" : "Net margin"}
+              <div className="text-[10px] text-zinc-500">
+                {money(savings.net)} {language === "es" ? "a cuentas de ahorro" : "to savings accounts"}
               </div>
             </div>
 

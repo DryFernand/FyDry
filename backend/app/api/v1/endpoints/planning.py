@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user
 from app.api.v1.endpoints.financial import record_expense, record_income, _updates
 from app.core.database import get_db
-from app.models.financial import Account, Budget, Expense, Income
+from app.models.financial import Account, Budget, Expense, Income, Movement
 from app.models.planning import PlannerSnapshot, RecurringTransaction, SavingsGoal
 from app.models.user import User
 from app.schemas.planning import (
@@ -37,6 +37,7 @@ from app.services.insights import (
     next_occurrence,
     occurrences_until,
     peace_score,
+    period_savings,
     small_expenses,
 )
 from app.services.ledger import LIABILITY_TYPES, budget_period, get_account, money
@@ -243,7 +244,12 @@ def get_insights(db: Session = Depends(get_db), current_user: User = Depends(get
         max(Decimal("0"), money(a.balance)) / money(a.credit_limit)
         for a in accounts if a.type in LIABILITY_TYPES and money(a.credit_limit) > 0
     ]
-    score = peace_score(income, expenses, budget_usage, card_usage, daily)
+    savings_ids = {a.id for a in accounts if a.type == "savings"}
+    period_movements = db.query(Movement).filter(
+        Movement.user_id == current_user.id, Movement.date.between(start, end)
+    ).all()
+    saved = period_savings(period_movements, savings_ids, period_expenses.all())
+    score = peace_score(income, saved, budget_usage, card_usage, daily)
 
     # Gastos hormiga (últimos 30 días) y suscripciones (recurrentes + detectadas en 120 días)
     recent = [
