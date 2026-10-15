@@ -45,6 +45,22 @@ export default function DashboardLayout() {
   const router = useRouter();
   const { t, language } = useLanguage();
   const [activeTab, setActiveTab] = useState<DashboardTab>("home");
+  const [hideBottomBar, setHideBottomBar] = useState(false);
+
+  // Oculta el nav inferior y el botón del asistente al bajar; los muestra al subir.
+  useEffect(() => {
+    let lastY = window.scrollY;
+    const isMobile = () => window.matchMedia("(max-width: 767px)").matches;
+    const onScroll = () => {
+      const y = window.scrollY;
+      if (Math.abs(y - lastY) < 8) return;
+      const hide = isMobile() && y > lastY && y > 80;
+      lastY = y;
+      setHideBottomBar(hide);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isQuickModalOpen, setIsQuickModalOpen] = useState(false);
@@ -516,7 +532,7 @@ export default function DashboardLayout() {
       {/* Mobile Bottom Navigation Dock */}
       <nav
         aria-label="Navegación inferior móvil"
-        className="md:hidden fixed bottom-0 inset-x-0 bg-white/90 backdrop-blur-md border-t border-zinc-200/80 z-30 pb-[env(safe-area-inset-bottom)] px-3 py-1.5 print:hidden"
+        className={`md:hidden fixed bottom-0 inset-x-0 bg-white/90 backdrop-blur-md border-t border-zinc-200/80 z-30 pb-[env(safe-area-inset-bottom)] px-3 py-1.5 print:hidden transition-transform duration-300 ${hideBottomBar ? "translate-y-full" : "translate-y-0"}`}
       >
         <div className="flex items-center justify-around max-w-md mx-auto">
           {/* 1. Inicio */}
@@ -613,7 +629,7 @@ export default function DashboardLayout() {
       />
 
       {/* Asistente Flotante de IA */}
-      <AiAssistantChat />
+      <AiAssistantChat hidden={hideBottomBar} />
     </div>
   );
 }

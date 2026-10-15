@@ -573,7 +573,7 @@ export default function QuickTransactionModal({
               {/* Descripción */}
               <div>
                 <label className="block text-xs font-semibold text-zinc-800 mb-1">
-                  {isEn ? "Description / Concept" : "Descripción / Concepto"}{" "}
+                  {isEn ? "Description" : "Descripción"}{" "}
                   {type === "card_payment" ? (
                     <span className="text-[10px] text-zinc-400 font-normal">{isEn ? "Optional" : "Opcional"}</span>
                   ) : (
@@ -649,7 +649,7 @@ export default function QuickTransactionModal({
                     >
                       {cards.map((c) => (
                         <option key={c.id} value={c.name}>
-                          {c.name} ({isEn ? "owes" : "debe"} {formatMoney(Number(c.balance), c.currency)})
+                          {c.name} · {formatMoney(Number(c.balance), c.currency)}
                         </option>
                       ))}
                     </select>
@@ -684,7 +684,7 @@ export default function QuickTransactionModal({
                     {sourceAccounts.length > 0 ? (
                       sourceAccounts.map((a) => (
                         <option key={a.id} value={a.name}>
-                          {a.name} ({formatMoney(Number(a.balance), a.currency)})
+                          {a.name} · {formatMoney(Number(a.balance), a.currency)}
                         </option>
                       ))
                     ) : (
@@ -708,7 +708,7 @@ export default function QuickTransactionModal({
                       {destinationAccounts
                         .map((a) => (
                           <option key={a.id} value={a.name}>
-                            {a.name} ({formatMoney(Number(a.balance), a.currency)})
+                            {a.name} · {formatMoney(Number(a.balance), a.currency)}
                           </option>
                         ))}
                       {destinationAccounts.length === 0 && (
@@ -758,7 +758,7 @@ export default function QuickTransactionModal({
                 <div>
                   <label className="block text-xs font-semibold text-zinc-800 mb-1 flex items-center justify-between">
                     <span>
-                      {isEn ? "Bank Fee / Tax" : "Comisión / Impuesto bancario"} ({currencySymbol(quickCurrency)})
+                      {isEn ? "Bank Fee" : "Comisión"} ({currencySymbol(quickCurrency)})
                     </span>
                     <span className="text-[10px] text-zinc-400 font-normal">
                       {type === "card_payment" && !taxTouched

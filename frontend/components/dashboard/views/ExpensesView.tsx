@@ -180,6 +180,13 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
     budgetResetDay,
     (language as "es" | "en") || "es"
   );
+  // Etiqueta de mes: solo el mes; agrega el año si es distinto al actual.
+  const cycleYear = cycleRange.startDate.getFullYear();
+  const monthLabel =
+    cycleRange.startDate
+      .toLocaleDateString(language === "en" ? "en-US" : "es-DO", { month: "long" })
+      .replace(/^./, (c) => c.toUpperCase()) +
+    (cycleYear !== new Date().getFullYear() ? ` ${cycleYear}` : "");
 
   const isCurrentCycle = () => {
     const cur = getCycleRange(new Date(), budgetResetDay);
@@ -505,7 +512,7 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
             </h1>
             <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-zinc-100 text-zinc-700 border border-zinc-200/60 flex items-center gap-1.5">
               <Calendar className="w-3 h-3 text-zinc-500" />
-              <span>Ciclo: {cycleLabel}</span>
+              <span>{monthLabel}</span>
               <span className="text-zinc-400">·</span>
               <span className="text-zinc-500 font-normal">Reinicio día {budgetResetDay}</span>
             </span>
@@ -955,7 +962,7 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
                       {accounts.length > 0 ? (
                         accounts.map((a) => (
                           <option key={a.id} value={a.name}>
-                            {a.name} ({formatMoney(a.balance, a.currency)} {a.type})
+                            {a.name} · {formatMoney(a.balance, a.currency)}
                           </option>
                         ))
                       ) : (
@@ -1036,7 +1043,7 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
                       className="flex items-center gap-1 py-2.5 px-3 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs font-semibold transition-colors cursor-pointer"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
-                      <span>Eliminar</span>
+                      <span>Revertir</span>
                     </button>
                   ) : (
                     <div />
@@ -1054,7 +1061,7 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
                       type="submit"
                       className="py-2.5 px-4 rounded-xl bg-emerald-700 text-xs font-semibold text-white hover:bg-emerald-800 cursor-pointer"
                     >
-                      {editingExpense ? "Guardar Cambios" : t.expenses.saveExpense}
+                      {editingExpense ? "Actualizar" : "Guardar"}
                     </button>
                   </div>
                 </div>
@@ -1067,6 +1074,7 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
       <ConfirmDialog
         open={pendingDeleteId !== null}
         message="¿Deseas eliminar este gasto?"
+        confirmLabel="Revertir"
         onCancel={() => setPendingDeleteId(null)}
         onConfirm={() => {
           const id = pendingDeleteId;

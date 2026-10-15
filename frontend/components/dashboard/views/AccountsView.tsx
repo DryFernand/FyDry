@@ -463,7 +463,7 @@ export default function AccountsView() {
                 {type === "bank" && (
                   <div>
                     <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
-                      Número de Cuenta / IBAN / Clave Interbancaria (Opcional)
+                      Número de Cuenta (Opcional)
                     </label>
                     <input
                       type="text"
@@ -595,7 +595,7 @@ export default function AccountsView() {
                       className="flex items-center gap-1 py-2.5 px-3 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs font-semibold transition-colors cursor-pointer"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
-                      <span>Eliminar</span>
+                      <span>Revertir</span>
                     </button>
                   ) : (
                     <div />
@@ -613,7 +613,7 @@ export default function AccountsView() {
                       type="submit"
                       className="py-2.5 px-4 rounded-xl bg-emerald-700 text-xs font-semibold text-white hover:bg-emerald-800 cursor-pointer"
                     >
-                      {editingAccount ? "Guardar Cambios" : t.accounts.saveAccount}
+                      {editingAccount ? "Actualizar" : "Guardar"}
                     </button>
                   </div>
                 </div>
@@ -626,6 +626,7 @@ export default function AccountsView() {
       <ConfirmDialog
         open={pendingDeleteId !== null}
         message="¿Estás seguro de eliminar esta cuenta? Los registros asociados no se perderán."
+        confirmLabel="Revertir"
         onCancel={() => setPendingDeleteId(null)}
         onConfirm={() => {
           const id = pendingDeleteId;

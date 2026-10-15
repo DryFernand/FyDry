@@ -335,7 +335,7 @@ export default function CalculatorView() {
               <Copy className="w-3.5 h-3.5" aria-hidden="true" /> Copiar resumen
             </button>
             <button type="button" className={primaryBtn} onClick={save} disabled={saving}>
-              <Save className="w-3.5 h-3.5" aria-hidden="true" /> {saving ? "Guardando…" : planId ? "Guardar cambios" : "Guardar"}
+              <Save className="w-3.5 h-3.5" aria-hidden="true" /> {saving ? "Guardando…" : planId ? "Actualizar" : "Guardar"}
             </button>
           </div>
         </div>
@@ -674,7 +674,7 @@ export default function CalculatorView() {
         open={!!pendingDelete}
         title="Eliminar planificación"
         message={`¿Eliminar "${pendingDelete?.name}" del historial? No afecta tus cuentas.`}
-        confirmLabel="Eliminar"
+        confirmLabel="Revertir"
         onConfirm={confirmDelete}
         onCancel={() => setPendingDelete(null)}
       />

@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Wallet, HeartPulse, Coffee, Repeat, Target, Plus, Trash2, Pause, Play, Loader2 } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+import { Wallet, HeartPulse, Coffee, Repeat, Target, Plus, Trash2, Pause, Play, Loader2, X } from "lucide-react";
 import {
   fetchInsightsApi,
   fetchRecurringApi,
@@ -18,6 +19,7 @@ import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from "@/lib/categories";
 import { formatMoney, parseAmount, todayISO } from "@/lib/money";
 import { useLanguage } from "@/context/LanguageContext";
 import type { AccountItem, GoalItem, InsightsData, RecurringFrequency, RecurringItem } from "../types";
+import { useEscapeKey } from "../ConfirmDialog";
 import MoneyInput from "@/components/ui/MoneyInput";
 
 const card = "bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs";
@@ -59,6 +61,9 @@ export default function PlanningView() {
   const [showGoalForm, setShowGoalForm] = useState(false);
   const [contribution, setContribution] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
+
+  useEscapeKey(showRecForm, () => setShowRecForm(false));
+  useEscapeKey(showGoalForm, () => setShowGoalForm(false));
 
   const load = useCallback(async () => {
     const [ins, rec, gls, accs] = await Promise.all([fetchInsightsApi(), fetchRecurringApi(), fetchGoalsApi(), fetchAccountsApi()]);
@@ -297,64 +302,11 @@ export default function PlanningView() {
       <section className={`${card} space-y-4`} aria-labelledby="rec-title">
         <div className="flex items-center justify-between">
           <h2 id="rec-title" className="text-sm font-bold text-zinc-950">{tr("Gastos e ingresos recurrentes", "Recurring expenses & income")}</h2>
-          <button type="button" className={primaryBtn} onClick={() => setShowRecForm((v) => !v)} aria-expanded={showRecForm}>
+          <button type="button" className={primaryBtn} onClick={() => setShowRecForm(true)}>
             <Plus className="w-3.5 h-3.5" aria-hidden="true" />
-            {tr("Agregar", "Add")}
+            {tr("Programar", "Schedule")}
           </button>
         </div>
-
-        {showRecForm && (
-          <form onSubmit={submitRecurring} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 p-4 rounded-2xl bg-zinc-50 border border-zinc-200/60">
-            <label className="text-[11px] text-zinc-500 space-y-1">
-              <span>{tr("Tipo", "Type")}</span>
-              <select
-                className={input}
-                value={recForm.kind}
-                onChange={(e) => {
-                  const kind = e.target.value as "expense" | "income";
-                  setRecForm({ ...recForm, kind, category: (kind === "expense" ? EXPENSE_CATEGORIES : INCOME_CATEGORIES)[0] });
-                }}
-              >
-                <option value="expense">{tr("Gasto", "Expense")}</option>
-                <option value="income">{tr("Ingreso", "Income")}</option>
-              </select>
-            </label>
-            <label className="text-[11px] text-zinc-500 space-y-1">
-              <span>{tr("Descripción", "Description")}</span>
-              <input className={input} value={recForm.description} maxLength={255} onChange={(e) => setRecForm({ ...recForm, description: e.target.value })} placeholder={tr("Ej. Alquiler, Netflix", "e.g. Rent, Netflix")} required />
-            </label>
-            <label className="text-[11px] text-zinc-500 space-y-1">
-              <span>{tr("Monto", "Amount")}</span>
-              <MoneyInput className={input} value={recForm.amount} onChange={(e) => setRecForm({ ...recForm, amount: e.target.value })} placeholder="0.00" required />
-            </label>
-            <label className="text-[11px] text-zinc-500 space-y-1">
-              <span>{tr("Categoría", "Category")}</span>
-              <select className={input} value={recForm.category} onChange={(e) => setRecForm({ ...recForm, category: e.target.value })}>
-                {categories.map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </label>
-            <label className="text-[11px] text-zinc-500 space-y-1">
-              <span>{tr("Cuenta", "Account")}</span>
-              <select className={input} value={recForm.account} onChange={(e) => setRecForm({ ...recForm, account: e.target.value })}>
-                <option value="">{tr("Sin cuenta", "No account")}</option>
-                {accounts.map((a) => <option key={a.id} value={a.name}>{a.name} ({a.currency})</option>)}
-              </select>
-            </label>
-            <label className="text-[11px] text-zinc-500 space-y-1">
-              <span>{tr("Frecuencia", "Frequency")}</span>
-              <select className={input} value={recForm.frequency} onChange={(e) => setRecForm({ ...recForm, frequency: e.target.value as RecurringFrequency })}>
-                {FREQUENCIES.map((f) => <option key={f.id} value={f.id}>{en ? f.en : f.es}</option>)}
-              </select>
-            </label>
-            <label className="text-[11px] text-zinc-500 space-y-1">
-              <span>{tr("Próxima fecha", "Next date")}</span>
-              <input type="date" className={input} value={recForm.nextDate} onChange={(e) => setRecForm({ ...recForm, nextDate: e.target.value })} required />
-            </label>
-            <div className="flex items-end">
-              <button type="submit" className={`${primaryBtn} w-full`} disabled={busy}>{tr("Guardar", "Save")}</button>
-            </div>
-          </form>
-        )}
 
         {recurring.length === 0 ? (
           <p className="text-xs text-zinc-400">
@@ -406,31 +358,11 @@ export default function PlanningView() {
             <Target className="w-4 h-4" aria-hidden="true" />
             {tr("Metas de ahorro", "Savings goals")}
           </h2>
-          <button type="button" className={primaryBtn} onClick={() => setShowGoalForm((v) => !v)} aria-expanded={showGoalForm}>
+          <button type="button" className={primaryBtn} onClick={() => setShowGoalForm(true)}>
             <Plus className="w-3.5 h-3.5" aria-hidden="true" />
             {tr("Nueva meta", "New goal")}
           </button>
         </div>
-
-        {showGoalForm && (
-          <form onSubmit={submitGoal} className="grid grid-cols-1 sm:grid-cols-4 gap-3 p-4 rounded-2xl bg-zinc-50 border border-zinc-200/60">
-            <label className="text-[11px] text-zinc-500 space-y-1 sm:col-span-2">
-              <span>{tr("Nombre", "Name")}</span>
-              <input className={input} value={goalForm.name} maxLength={255} onChange={(e) => setGoalForm({ ...goalForm, name: e.target.value })} placeholder={tr("Ej. Fondo de emergencia", "e.g. Emergency fund")} required />
-            </label>
-            <label className="text-[11px] text-zinc-500 space-y-1">
-              <span>{tr("Monto objetivo", "Target amount")}</span>
-              <MoneyInput className={input} value={goalForm.target} onChange={(e) => setGoalForm({ ...goalForm, target: e.target.value })} placeholder="0.00" required />
-            </label>
-            <label className="text-[11px] text-zinc-500 space-y-1">
-              <span>{tr("Fecha objetivo (opcional)", "Target date (optional)")}</span>
-              <input type="date" className={input} value={goalForm.date} min={todayISO()} onChange={(e) => setGoalForm({ ...goalForm, date: e.target.value })} />
-            </label>
-            <div className="sm:col-span-4 flex justify-end">
-              <button type="submit" className={primaryBtn} disabled={busy}>{tr("Crear meta", "Create goal")}</button>
-            </div>
-          </form>
-        )}
 
         {goals.length === 0 ? (
           <p className="text-xs text-zinc-400">{tr("Crea tu primera meta: fondo de emergencia, viaje, inicial de vivienda…", "Create your first goal: emergency fund, trip, down payment…")}</p>
@@ -465,7 +397,7 @@ export default function PlanningView() {
                     />
                     <button type="button" className={primaryBtn} onClick={() => contribute(g, 1)} disabled={busy}>{tr("Aportar", "Add")}</button>
                     <button type="button" className="px-3 py-2 rounded-xl border border-zinc-200 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 cursor-pointer disabled:opacity-50" onClick={() => contribute(g, -1)} disabled={busy}>
-                      {tr("Retirar", "Withdraw")}
+                      {tr("Revertir", "Revert")}
                     </button>
                   </div>
                 </div>
@@ -474,6 +406,142 @@ export default function PlanningView() {
           </div>
         )}
       </section>
+
+      <AnimatePresence>
+        {showRecForm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
+            <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="rec-modal-title"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-2xl bg-white rounded-3xl border border-zinc-200 p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex items-center justify-between">
+                <h3 id="rec-modal-title" className="font-bold text-zinc-950 text-base">
+                  {tr("Gastos e ingresos recurrentes", "Recurring expenses & income")}
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setShowRecForm(false)}
+                  className="p-1 rounded-lg text-zinc-400 hover:text-zinc-900 transition-colors cursor-pointer"
+                  aria-label={tr("Cerrar", "Close")}
+                >
+                  <X className="w-5 h-5" aria-hidden="true" />
+                </button>
+              </div>
+
+              <form onSubmit={submitRecurring} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <label className="text-[11px] text-zinc-500 space-y-1">
+                  <span>{tr("Tipo", "Type")}</span>
+                  <select
+                    className={input}
+                    value={recForm.kind}
+                    onChange={(e) => {
+                      const kind = e.target.value as "expense" | "income";
+                      setRecForm({ ...recForm, kind, category: (kind === "expense" ? EXPENSE_CATEGORIES : INCOME_CATEGORIES)[0] });
+                    }}
+                  >
+                    <option value="expense">{tr("Gasto", "Expense")}</option>
+                    <option value="income">{tr("Ingreso", "Income")}</option>
+                  </select>
+                </label>
+                <label className="text-[11px] text-zinc-500 space-y-1">
+                  <span>{tr("Descripción", "Description")}</span>
+                  <input className={input} value={recForm.description} maxLength={255} onChange={(e) => setRecForm({ ...recForm, description: e.target.value })} placeholder={tr("Ej. Alquiler, Netflix", "e.g. Rent, Netflix")} required />
+                </label>
+                <label className="text-[11px] text-zinc-500 space-y-1">
+                  <span>{tr("Monto", "Amount")}</span>
+                  <MoneyInput className={input} value={recForm.amount} onChange={(e) => setRecForm({ ...recForm, amount: e.target.value })} placeholder="0.00" required />
+                </label>
+                <label className="text-[11px] text-zinc-500 space-y-1">
+                  <span>{tr("Categoría", "Category")}</span>
+                  <select className={input} value={recForm.category} onChange={(e) => setRecForm({ ...recForm, category: e.target.value })}>
+                    {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </label>
+                <label className="text-[11px] text-zinc-500 space-y-1">
+                  <span>{tr("Cuenta", "Account")}</span>
+                  <select className={input} value={recForm.account} onChange={(e) => setRecForm({ ...recForm, account: e.target.value })}>
+                    <option value="">{tr("Sin cuenta", "No account")}</option>
+                    {accounts.map((a) => <option key={a.id} value={a.name}>{a.name} ({a.currency})</option>)}
+                  </select>
+                </label>
+                <label className="text-[11px] text-zinc-500 space-y-1">
+                  <span>{tr("Frecuencia", "Frequency")}</span>
+                  <select className={input} value={recForm.frequency} onChange={(e) => setRecForm({ ...recForm, frequency: e.target.value as RecurringFrequency })}>
+                    {FREQUENCIES.map((f) => <option key={f.id} value={f.id}>{en ? f.en : f.es}</option>)}
+                  </select>
+                </label>
+                <label className="text-[11px] text-zinc-500 space-y-1">
+                  <span>{tr("Próxima fecha", "Next date")}</span>
+                  <input type="date" className={input} value={recForm.nextDate} onChange={(e) => setRecForm({ ...recForm, nextDate: e.target.value })} required />
+                </label>
+                <div className="sm:col-span-2 flex items-center justify-end gap-2 pt-2 border-t border-zinc-100">
+                  <button type="button" onClick={() => setShowRecForm(false)} className="px-4 py-2 rounded-xl border border-zinc-200 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 cursor-pointer">
+                    {tr("Cancelar", "Cancel")}
+                  </button>
+                  <button type="submit" className={primaryBtn} disabled={busy}>{tr("Guardar", "Save")}</button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showGoalForm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
+            <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="goal-modal-title"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-lg bg-white rounded-3xl border border-zinc-200 p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex items-center justify-between">
+                <h3 id="goal-modal-title" className="font-bold text-zinc-950 text-base flex items-center gap-2">
+                  <Target className="w-4 h-4" aria-hidden="true" />
+                  {tr("Metas de ahorro", "Savings goals")}
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setShowGoalForm(false)}
+                  className="p-1 rounded-lg text-zinc-400 hover:text-zinc-900 transition-colors cursor-pointer"
+                  aria-label={tr("Cerrar", "Close")}
+                >
+                  <X className="w-5 h-5" aria-hidden="true" />
+                </button>
+              </div>
+
+              <form onSubmit={submitGoal} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <label className="text-[11px] text-zinc-500 space-y-1 sm:col-span-2">
+                  <span>{tr("Nombre", "Name")}</span>
+                  <input className={input} value={goalForm.name} maxLength={255} onChange={(e) => setGoalForm({ ...goalForm, name: e.target.value })} placeholder={tr("Ej. Fondo de emergencia", "e.g. Emergency fund")} required />
+                </label>
+                <label className="text-[11px] text-zinc-500 space-y-1">
+                  <span>{tr("Monto objetivo", "Target amount")}</span>
+                  <MoneyInput className={input} value={goalForm.target} onChange={(e) => setGoalForm({ ...goalForm, target: e.target.value })} placeholder="0.00" required />
+                </label>
+                <label className="text-[11px] text-zinc-500 space-y-1">
+                  <span>{tr("Fecha objetivo (opcional)", "Target date (optional)")}</span>
+                  <input type="date" className={input} value={goalForm.date} min={todayISO()} onChange={(e) => setGoalForm({ ...goalForm, date: e.target.value })} />
+                </label>
+                <div className="sm:col-span-2 flex items-center justify-end gap-2 pt-2 border-t border-zinc-100">
+                  <button type="button" onClick={() => setShowGoalForm(false)} className="px-4 py-2 rounded-xl border border-zinc-200 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 cursor-pointer">
+                    {tr("Cancelar", "Cancel")}
+                  </button>
+                  <button type="submit" className={primaryBtn} disabled={busy}>{tr("Guardar", "Save")}</button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

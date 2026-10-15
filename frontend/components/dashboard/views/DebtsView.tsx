@@ -544,7 +544,7 @@ export default function DebtsView() {
                       className="flex items-center gap-1.5 py-2 px-3.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold shadow-2xs transition-all cursor-pointer shrink-0"
                     >
                       <DollarSign className="w-3.5 h-3.5 text-zinc-300" />
-                      <span>Pagar / Abonar</span>
+                      <span>Pagar</span>
                     </button>
                   )}
                 </div>
@@ -650,7 +650,7 @@ export default function DebtsView() {
                   </div>
                   <div>
                     <h3 id="debt-pay-modal-title" className="font-bold text-zinc-950 text-sm">
-                      Pagar / Abonar a Deuda
+                      Pagar a Deuda
                     </h3>
                     <p className="text-[11px] text-zinc-400">{payingDebt.creditor} ({payingDebt.type})</p>
                   </div>
@@ -732,7 +732,7 @@ export default function DebtsView() {
                   >
                     {accounts.map((acc) => (
                       <option key={acc.id} value={acc.name}>
-                        {acc.name} ({formatMoney(acc.balance, acc.currency)})
+                        {acc.name} · {formatMoney(acc.balance, acc.currency)}
                       </option>
                     ))}
                   </select>
@@ -744,7 +744,7 @@ export default function DebtsView() {
                 {/* Concepto / Nota */}
                 <div>
                   <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
-                    Concepto / Nota (Opcional)
+                    Concepto (Opcional)
                   </label>
                   <input
                     type="text"
@@ -908,7 +908,7 @@ export default function DebtsView() {
                       className="flex items-center gap-1 py-2.5 px-3 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs font-semibold transition-colors cursor-pointer"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
-                      <span>Eliminar</span>
+                      <span>Revertir</span>
                     </button>
                   ) : (
                     <div />
@@ -926,7 +926,7 @@ export default function DebtsView() {
                       type="submit"
                       className="py-2.5 px-4 rounded-xl bg-emerald-700 text-xs font-semibold text-white hover:bg-emerald-800 cursor-pointer"
                     >
-                      {editingDebt ? "Guardar Cambios" : t.debts.saveDebt}
+                      {editingDebt ? "Actualizar" : "Guardar"}
                     </button>
                   </div>
                 </div>
@@ -939,6 +939,7 @@ export default function DebtsView() {
       <ConfirmDialog
         open={pendingDeleteId !== null}
         message="¿Deseas eliminar este registro de deuda?"
+        confirmLabel="Revertir"
         onCancel={() => setPendingDeleteId(null)}
         onConfirm={() => {
           const id = pendingDeleteId;

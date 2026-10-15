@@ -185,7 +185,7 @@ export default function NotificationBell({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.96 }}
             transition={{ duration: 0.15 }}
-            className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-3xl border border-zinc-200 shadow-2xl z-50 overflow-hidden"
+            className="fixed right-3 top-16 w-[calc(100vw-1.5rem)] max-w-sm sm:absolute sm:right-0 sm:top-auto sm:mt-2 sm:w-96 sm:max-w-none bg-white rounded-3xl border border-zinc-200 shadow-2xl z-50 overflow-hidden"
           >
             {/* Header */}
             <div className="p-4 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/50">

@@ -238,10 +238,6 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
 
             {/* Micro indicadores de contexto */}
             <div className="flex flex-wrap items-center gap-3 text-xs text-zinc-400 pt-0.5">
-              <span>
-                {accounts.length} {t.accounts.activeAccounts}
-              </span>
-              <span>•</span>
               <span
                 className={
                   netFlow >= 0
@@ -319,11 +315,6 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
                     : "En Monitoreo"}
                 </span>
               </div>
-              <p className="text-xs text-zinc-400">
-                {language === "en"
-                  ? "Execution of active cycle, savings capacity, and budget limits"
-                  : "Ejecución del ciclo activo, capacidad de ahorro y límites presupuestarios"}
-              </p>
             </div>
           </div>
 
@@ -555,10 +546,7 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
               </div>
             ))}
           </div>
-          <div className="text-[11px] text-zinc-400 flex items-center justify-between">
-            <span>
-              {accounts.length} {t.accounts.activeAccounts}
-            </span>
+          <div className="text-[11px] text-zinc-400 flex items-center justify-end">
             <span className="text-zinc-600 font-medium hover:underline">
               {t.home.manageAccounts}
             </span>
@@ -575,9 +563,6 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
               <h2 className="text-base font-bold text-zinc-950">
                 {t.home.recentMovements}
               </h2>
-              <p className="text-xs text-zinc-400">
-                {t.home.recentSubtitle}
-              </p>
             </div>
             <button
               type="button"
@@ -671,9 +656,6 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
             <div className="flex items-center justify-between pb-1">
               <div>
                 <h2 className="text-base font-bold text-zinc-950">{t.home.myAccounts}</h2>
-                <p className="text-xs text-zinc-400">
-                  {accounts.length} {t.accounts.activeAccounts}
-                </p>
               </div>
               <button
                 type="button"

@@ -1047,7 +1047,7 @@ function MissingDetailsForm({
   );
 }
 
-export default function AiAssistantChat() {
+export default function AiAssistantChat({ hidden = false }: { hidden?: boolean } = {}) {
   const [isOpen, setIsOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -1949,6 +1949,7 @@ export default function AiAssistantChat() {
             onClick={() => setIsOpen(true)}
             title="Asistente de Bienestar Financiero"
             aria-label="Abrir asistente de IA"
+            style={hidden ? { visibility: "hidden", opacity: 0, pointerEvents: "none" } : undefined}
             className="fixed bottom-20 md:bottom-6 right-5 md:right-6 z-40 bg-emerald-700 text-white hover:bg-emerald-800 shadow-xl rounded-2xl w-13 h-13 min-w-[52px] min-h-[52px] flex items-center justify-center transition-all cursor-pointer group"
           >
             <Bot className="w-6 h-6 text-white group-hover:scale-110 transition-transform duration-200" />

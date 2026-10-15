@@ -1206,7 +1206,7 @@ export default function BudgetView() {
                       className="flex items-center gap-1 py-2.5 px-3 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs font-semibold transition-colors cursor-pointer"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
-                      <span>Eliminar</span>
+                      <span>Revertir</span>
                     </button>
                   ) : (
                     <div />
@@ -1224,7 +1224,7 @@ export default function BudgetView() {
                       type="submit"
                       className="py-2.5 px-4 rounded-xl bg-emerald-700 text-xs font-semibold text-white hover:bg-emerald-800 cursor-pointer"
                     >
-                      {editingBudget ? "Guardar Cambios" : t.budget.saveLimit || "Guardar Presupuesto"}
+                      {editingBudget ? "Actualizar" : "Guardar"}
                     </button>
                   </div>
                 </div>
@@ -1237,6 +1237,7 @@ export default function BudgetView() {
       <ConfirmDialog
         open={pendingDeleteId !== null}
         message="¿Estás seguro de eliminar este límite de presupuesto?"
+        confirmLabel="Revertir"
         onCancel={() => setPendingDeleteId(null)}
         onConfirm={() => {
           const id = pendingDeleteId;
