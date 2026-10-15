@@ -6,15 +6,10 @@ import {
   Plus,
   Building2,
   CreditCard,
-  Banknote,
   PiggyBank,
   X,
   Wallet,
   Trash2,
-  Edit3,
-  Calendar,
-  Clock,
-  ShieldAlert,
   ArrowDownCircle,
 } from "lucide-react";
 import { AccountItem } from "../types";
@@ -28,6 +23,8 @@ import {
 import { currencySymbol, formatMoney, parseAmount } from "@/lib/money";
 import ConfirmDialog, { useEscapeKey } from "../ConfirmDialog";
 import MoneyInput from "@/components/ui/MoneyInput";
+import AccountCard from "../AccountCard";
+import AccountDetailModal from "../AccountDetailModal";
 
 type AccountType = "bank" | "credit_card" | "debit_card" | "card" | "wallet" | "cash" | "savings";
 
@@ -36,6 +33,7 @@ export default function AccountsView() {
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<AccountItem | null>(null);
+  const [detailAccount, setDetailAccount] = useState<AccountItem | null>(null);
 
   // Form states
   const [name, setName] = useState("");
@@ -196,61 +194,6 @@ export default function AccountsView() {
     setEditingAccount(null);
   };
 
-  const getAccountIcon = (accType: string) => {
-    switch (accType) {
-      case "bank":
-        return <Building2 className="w-5 h-5 text-zinc-700" />;
-      case "credit_card":
-        return <CreditCard className="w-5 h-5 text-zinc-700" />;
-      case "debit_card":
-      case "card":
-        return <CreditCard className="w-5 h-5 text-zinc-700" />;
-      case "savings":
-        return <PiggyBank className="w-5 h-5 text-zinc-700" />;
-      case "wallet":
-        return <Wallet className="w-5 h-5 text-zinc-700" />;
-      case "cash":
-      default:
-        return <Banknote className="w-5 h-5 text-zinc-700" />;
-    }
-  };
-
-  const getAccountTypeLabel = (accType: string) => {
-    switch (accType) {
-      case "bank":
-        return "Banco";
-      case "credit_card":
-        return "T. Crédito";
-      case "debit_card":
-      case "card":
-        return "T. Débito";
-      case "savings":
-        return "Ahorros";
-      case "wallet":
-        return "Billetera";
-      case "cash":
-      default:
-        return "Efectivo";
-    }
-  };
-
-  const getCurrencySymbol = (curr?: string) => {
-    switch (curr) {
-      case "DOP":
-        return "RD$";
-      case "EUR":
-        return "€";
-      case "USD":
-        return "US$";
-      case "MXN":
-      case "COP":
-      case "ARS":
-      case "CLP":
-      default:
-        return "$";
-    }
-  };
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -335,169 +278,9 @@ export default function AccountsView() {
 
       {/* Account Items List */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {accounts.map((acc) => {
-          const currSymbol = getCurrencySymbol(acc.currency);
-          const creditLimit = Number(acc.creditLimit) || 0;
-          const minBalance = Number(acc.minBalance) || 0;
-          const overdraftLimit = Number(acc.overdraftLimit) || 0;
-          const isCreditCard = acc.type === "credit_card";
-          const isBankOrDebit = acc.type === "bank" || acc.type === "debit_card" || acc.type === "card";
-          const usedPercent = creditLimit > 0 ? Math.min(100, Math.max(0, (acc.balance / creditLimit) * 100)) : 0;
-          const rawPercent = creditLimit > 0 ? Math.round((acc.balance / creditLimit) * 100) : 0;
-          const isOverdrawnOrHigh = isCreditCard && creditLimit > 0 && (acc.balance > creditLimit || (acc.balance / creditLimit) * 100 > 90);
-
-          return (
-            <motion.div
-              key={acc.id}
-              whileHover={{ y: -2 }}
-              onClick={() => openEditModal(acc)}
-              className="bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs flex flex-col justify-between space-y-4 cursor-pointer hover:border-zinc-400 transition-all group"
-            >
-              <div className="space-y-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-zinc-100 text-zinc-900 border border-zinc-200/60 flex items-center justify-center font-bold text-xs">
-                      {getAccountIcon(acc.type)}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <h3 className="text-sm font-bold text-zinc-950 group-hover:text-zinc-700">
-                          {acc.name}
-                        </h3>
-                        <Edit3 className="w-3 h-3 text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </div>
-                      <p className="text-[11px] text-zinc-400">
-                        {acc.type === "credit_card" || acc.type === "debit_card" || acc.type === "card"
-                          ? acc.cardNumber
-                            ? `Tarjeta •••• ${acc.cardNumber.slice(-4)}`
-                            : "Tarjeta"
-                          : acc.type === "bank"
-                          ? acc.accountNumber || "Cuenta Bancaria"
-                          : acc.type === "savings"
-                          ? "Fondo de Ahorro"
-                          : acc.type === "wallet"
-                          ? "Billetera Digital"
-                          : "Efectivo"}
-                      </p>
-                    </div>
-                  </div>
-
-                  <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md bg-zinc-100 text-zinc-700 border border-zinc-200/60">
-                    {getAccountTypeLabel(acc.type)}
-                  </span>
-                </div>
-
-                {/* Métricas y Datos Enriquecidos (Fase 2) */}
-                {/* a. Tarjetas de Crédito */}
-                {isCreditCard && (
-                  <div className="space-y-2.5 pt-1">
-                    {creditLimit > 0 && (
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between text-[11px]">
-                          <span className="text-zinc-500 font-medium">
-                            Consumido: {currSymbol} {acc.balance.toLocaleString("en-US", { minimumFractionDigits: 2 })} / {currSymbol} {creditLimit.toLocaleString("en-US", { minimumFractionDigits: 2 })} ({rawPercent}%)
-                          </span>
-                        </div>
-                        <div className="w-full h-1.5 rounded-full bg-zinc-100 overflow-hidden">
-                          <div
-                            className={`h-full rounded-full transition-all duration-300 ${
-                              isOverdrawnOrHigh ? "bg-rose-500" : "bg-emerald-700"
-                            }`}
-                            style={{ width: `${usedPercent}%` }}
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    {(acc.cutoffDay || overdraftLimit > 0) && (
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {acc.cutoffDay && (
-                          <span className="text-[10px] text-zinc-600 bg-zinc-100 border border-zinc-200/60 rounded px-1.5 py-0.5 font-medium flex items-center gap-1">
-                            <Calendar className="w-3 h-3 text-zinc-400" />
-                            Corte: día {acc.cutoffDay}
-                          </span>
-                        )}
-                        {acc.cutoffDay && acc.graceDays && (
-                          <span className="text-[10px] text-zinc-600 bg-zinc-100 border border-zinc-200/60 rounded px-1.5 py-0.5 font-medium flex items-center gap-1">
-                            <Clock className="w-3 h-3 text-zinc-400" />
-                            Límite pago: +{acc.graceDays} días
-                          </span>
-                        )}
-                        {overdraftLimit > 0 && (
-                          <span className="text-[10px] text-zinc-600 bg-zinc-100 border border-zinc-200/60 rounded px-1.5 py-0.5 font-medium">
-                            Sobregiro: +{currSymbol} {overdraftLimit.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* b. Cuentas Bancarias y Débito: Alerta Saldo Mínimo */}
-                {isBankOrDebit && minBalance > 0 && (
-                  <div className="pt-1">
-                    {acc.balance <= minBalance ? (
-                      <div className="text-[10px] text-rose-600 bg-rose-50 border border-rose-200/60 rounded px-1.5 py-0.5 flex items-center gap-1 font-medium w-fit">
-                        <span>⚠️</span>
-                        <span>Por debajo del saldo mínimo ({currSymbol} {minBalance.toLocaleString("en-US", { minimumFractionDigits: 2 })})</span>
-                      </div>
-                    ) : (
-                      <span className="text-[10px] text-zinc-400 font-medium">
-                        Mínimo: {currSymbol} {minBalance.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                {/* c. Fondos de Ahorro: Micro-etiqueta de Reserva */}
-                {acc.type === "savings" && (
-                  <div className="pt-1">
-                    <span className="text-[10px] text-zinc-500 font-medium inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-100 border border-zinc-200/60">
-                      Fondo protegido / Reserva
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {isCreditCard ? (
-                /* Tarjeta: lo principal es cuánto crédito queda; lo pendiente va en pequeño */
-                <div className="pt-2 border-t border-zinc-100 space-y-1">
-                  <div className="flex items-baseline justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-semibold text-zinc-400">Crédito Disponible</span>
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-600">
-                        {acc.currency || "DOP"}
-                      </span>
-                    </div>
-                    {creditLimit > 0 ? (
-                      <span className={`font-bold tracking-tight text-lg ${creditLimit - acc.balance < 0 ? "text-rose-600" : "text-zinc-950"}`}>
-                        {formatMoney(creditLimit - acc.balance, acc.currency)}
-                      </span>
-                    ) : (
-                      <span className="text-[11px] font-medium text-zinc-400">Define el límite</span>
-                    )}
-                  </div>
-                  <div className="flex items-center justify-between text-[11px]">
-                    <span className="text-zinc-500">Pendiente por pagar</span>
-                    <span className="font-semibold text-zinc-700">{formatMoney(Math.max(0, acc.balance), acc.currency)}</span>
-                  </div>
-                </div>
-              ) : (
-                <div className="pt-2 border-t border-zinc-100 flex items-baseline justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-semibold text-zinc-400">Saldo Disponible</span>
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-600">
-                      {acc.currency || "DOP"}
-                    </span>
-                  </div>
-                  <span className="text-zinc-950 font-bold tracking-tight text-lg">
-                    {formatMoney(acc.balance, acc.currency)}
-                  </span>
-                </div>
-              )}
-            </motion.div>
-          );
-        })}
+        {accounts.map((acc) => (
+          <AccountCard key={acc.id} acc={acc} onClick={() => setDetailAccount(acc)} />
+        ))}
 
         {accounts.length === 0 && (
           <div className="col-span-full bg-white p-12 rounded-3xl border border-zinc-200 text-center space-y-3">
@@ -518,6 +301,14 @@ export default function AccountsView() {
           </div>
         )}
       </div>
+
+      {detailAccount && (
+        <AccountDetailModal
+          acc={detailAccount}
+          onClose={() => setDetailAccount(null)}
+          onEdit={(a) => { setDetailAccount(null); openEditModal(a); }}
+        />
+      )}
 
       {/* Modal Añadir / Editar Cuenta */}
       <AnimatePresence>
