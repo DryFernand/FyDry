@@ -660,32 +660,32 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
                 onClick={() => openEditModal(inc)}
                 className="py-3.5 flex items-center justify-between hover:bg-zinc-50/80 rounded-2xl px-3 -mx-3 transition-colors cursor-pointer group"
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
                   <div className="w-10 h-10 rounded-2xl bg-green-50 text-green-700 border border-green-100 flex items-center justify-center font-bold text-xs group-hover:bg-green-100 transition-colors shrink-0">
                     <CategoryIcon className="w-5 h-5 text-green-700" />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-zinc-950 group-hover:text-zinc-700">
+                      <span className="text-xs font-bold text-zinc-950 group-hover:text-zinc-700 truncate">
                         {inc.description}
                       </span>
-                      <Edit3 className="w-3 h-3 text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <Edit3 className="hidden sm:inline w-3 h-3 text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
                     </div>
                     <div className="text-[11px] text-zinc-400 flex items-center gap-1.5">
-                      <span className="font-medium text-zinc-600">{inc.category}</span>
-                      <span>•</span>
-                      <span>{inc.account}</span>
-                      <span>•</span>
+                      <span className="hidden sm:inline font-medium text-zinc-600">{inc.category}</span>
+                      <span className="hidden sm:inline">•</span>
+                      <span className="hidden sm:inline">{inc.account}</span>
+                      <span className="hidden sm:inline">•</span>
                       <span>{inc.date}</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="text-right">
+                <div className="text-right shrink-0 pl-2">
                   <div className="text-xs font-bold text-green-600">
                     +{formatMoney(inc.amount, accounts.find((a) => a.name === inc.account)?.currency || mainCurrency)}
                   </div>
-                  <span className="text-[10px] px-2 py-0.5 rounded-md bg-green-50 text-green-700 font-semibold">
+                  <span className="hidden sm:inline-block text-[10px] px-2 py-0.5 rounded-md bg-green-50 text-green-700 font-semibold">
                     {t.incomes.credited}
                   </span>
                 </div>

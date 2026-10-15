@@ -774,32 +774,32 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
                 onClick={() => openEditModal(exp)}
                 className="py-3.5 flex items-center justify-between hover:bg-zinc-50/80 rounded-2xl px-3 -mx-3 transition-colors cursor-pointer group"
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
                   <div className="w-10 h-10 rounded-2xl bg-zinc-100 text-zinc-700 border border-zinc-200/60 flex items-center justify-center font-bold text-xs group-hover:bg-zinc-200 transition-colors shrink-0">
                     <CategoryIcon className="w-5 h-5 text-zinc-700" />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-zinc-950 group-hover:text-zinc-700">
+                      <span className="text-xs font-bold text-zinc-950 group-hover:text-zinc-700 truncate">
                         {exp.description}
                       </span>
-                      <Edit3 className="w-3 h-3 text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <Edit3 className="hidden sm:inline w-3 h-3 text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
                     </div>
                     <div className="text-[11px] text-zinc-400 flex items-center gap-1.5">
-                      <span className="font-medium text-zinc-600">{exp.category}</span>
-                      <span>•</span>
-                      <span>{exp.account}</span>
-                      <span>•</span>
+                      <span className="hidden sm:inline font-medium text-zinc-600">{exp.category}</span>
+                      <span className="hidden sm:inline">•</span>
+                      <span className="hidden sm:inline">{exp.account}</span>
+                      <span className="hidden sm:inline">•</span>
                       <span>{exp.date}</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="text-right">
+                <div className="text-right shrink-0 pl-2">
                   <div className="text-xs font-bold text-zinc-950">
                     -{formatMoney(exp.amount, accounts.find((a) => a.name === exp.account)?.currency || mainCurrency)}
                   </div>
-                  <span className="text-[10px] px-2 py-0.5 rounded-md bg-zinc-100 text-zinc-600 font-medium">
+                  <span className="hidden sm:inline-block text-[10px] px-2 py-0.5 rounded-md bg-zinc-100 text-zinc-600 font-medium">
                     {exp.category}
                   </span>
                 </div>

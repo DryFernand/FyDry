@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import {
   Calculator,
   Plus,
@@ -17,6 +18,7 @@ import {
   Check,
   CopyPlus,
   Wallet,
+  Pencil,
 } from "lucide-react";
 import type { AccountItem } from "../types";
 import {
@@ -55,6 +57,25 @@ const primaryBtn =
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 const money = (n: number) => formatMoney(n, CURRENCY);
+const amt = (s: string) => Number(String(s).replace(/,/g, "")) || 0;
+
+type ModalMode =
+  | { entity: "income"; id: string | null }
+  | { entity: "account"; id: string }
+  | { entity: "expense"; accountId: string; id: string | null }
+  | { entity: "transfer"; accountId: string; id: string | null };
+
+const emptyForm = {
+  label: "",
+  amount: "",
+  accountId: "",
+  toId: "",
+  mode: "rest" as PlanTransfer["mode"],
+  kind: "gasto" as PlanExpense["kind"],
+  applyTax: false,
+  startBalance: "",
+  keep: "",
+};
 
 function toPlanAccount(a: AccountItem): PlanAccount {
   return { id: a.id, name: a.name, currency: a.currency || CURRENCY, realBalance: a.balance, startBalance: String(a.balance), keep: "0" };
@@ -109,6 +130,8 @@ export default function CalculatorView() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<PlannerSummaryItem | null>(null);
   const [addAccountId, setAddAccountId] = useState("");
+  const [modal, setModal] = useState<ModalMode | null>(null);
+  const [form, setForm] = useState(emptyForm);
 
   // Carga cuentas reales (solo lectura) y la tasa DGII; restaura el borrador si existe
   useEffect(() => {
@@ -158,6 +181,7 @@ export default function CalculatorView() {
   }, [plan, planName, planId]);
 
   useEscapeKey(historyOpen && !pendingDelete, () => setHistoryOpen(false));
+  useEscapeKey(!!modal, () => setModal(null));
 
   const result = useMemo(() => (plan ? computePlan(plan) : null), [plan]);
 
@@ -200,18 +224,48 @@ export default function CalculatorView() {
     }));
   const setExpense = (id: string, patch: Partial<PlanExpense>) =>
     update((p) => ({ ...p, expenses: p.expenses.map((e) => (e.id === id ? { ...e, ...patch } : e)) }));
-  const addTransfer = (fromId: string) =>
-    update((p) => {
-      const target = p.accounts.find((a) => a.id !== fromId) || realAccounts.find((a) => a.id !== fromId);
-      const hasRest = p.transfers.some((t) => t.fromId === fromId && t.mode === "rest");
-      const t: PlanTransfer = { id: uid(), fromId, toId: target?.id || "", mode: hasRest ? "fixed" : "rest", amount: "", applyTax: true };
-      return withAccount({ ...p, transfers: [...p.transfers, t] }, t.toId, realAccounts);
-    });
   const setTransfer = (id: string, patch: Partial<PlanTransfer>) =>
     update((p) => {
       const next = { ...p, transfers: p.transfers.map((t) => (t.id === id ? { ...t, ...patch } : t)) };
       return patch.toId ? withAccount(next, patch.toId, realAccounts) : next;
     });
+
+  // ---------- modales ----------
+  const openIncome = (inc?: PlanData["incomes"][number]) => {
+    setModal({ entity: "income", id: inc?.id ?? null });
+    setForm({ ...emptyForm, label: inc?.label || "", amount: inc?.amount || "", accountId: inc?.accountId || plan.accounts[0]?.id || "" });
+  };
+  const openAccount = (acc: PlanAccount) => {
+    setModal({ entity: "account", id: acc.id });
+    setForm({ ...emptyForm, startBalance: acc.startBalance, keep: acc.keep });
+  };
+  const openExpense = (accountId: string, e?: PlanExpense) => {
+    setModal({ entity: "expense", accountId, id: e?.id ?? null });
+    setForm({ ...emptyForm, label: e?.label || "", amount: e?.amount || "", applyTax: e?.applyTax || false, kind: e?.kind || "gasto" });
+  };
+  const openTransfer = (accountId: string, t?: PlanTransfer) => {
+    const hasRest = plan.transfers.some((x) => x.fromId === accountId && x.mode === "rest" && x.id !== t?.id);
+    const target = plan.accounts.find((a) => a.id !== accountId) || realAccounts.find((a) => a.id !== accountId);
+    setModal({ entity: "transfer", accountId, id: t?.id ?? null });
+    setForm({ ...emptyForm, toId: t?.toId || target?.id || "", mode: t?.mode || (hasRest ? "fixed" : "rest"), amount: t?.amount || "", applyTax: t?.applyTax ?? true });
+  };
+  const submitModal = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!modal) return;
+    if (modal.entity === "income") {
+      if (modal.id) setIncome(modal.id, { label: form.label, amount: form.amount, accountId: form.accountId });
+      else update((p) => withAccount({ ...p, incomes: [...p.incomes, { id: uid(), label: form.label, amount: form.amount, accountId: form.accountId }] }, form.accountId, realAccounts));
+    } else if (modal.entity === "account") {
+      setAccount(modal.id, { startBalance: form.startBalance, keep: form.keep });
+    } else if (modal.entity === "expense") {
+      if (modal.id) setExpense(modal.id, { label: form.label, amount: form.amount, applyTax: form.applyTax, kind: form.kind });
+      else addExpense(modal.accountId, { label: form.label, amount: form.amount, applyTax: form.applyTax, kind: form.kind });
+    } else {
+      if (modal.id) setTransfer(modal.id, { toId: form.toId, mode: form.mode, amount: form.amount, applyTax: form.applyTax });
+      else update((p) => withAccount({ ...p, transfers: [...p.transfers, { id: uid(), fromId: modal.accountId, toId: form.toId, mode: form.mode, amount: form.amount, applyTax: form.applyTax }] }, form.toId, realAccounts));
+    }
+    setModal(null);
+  };
 
   const startNew = () => {
     setPlan(newPlan(realAccounts, taxRate));
@@ -311,6 +365,18 @@ export default function CalculatorView() {
 
   const activeAccounts = result.accounts.filter((r) => r.incomes.length || r.incoming.length || r.outgoing.length || r.expenses.length);
 
+  const modalAcc = modal?.entity === "account" ? plan.accounts.find((a) => a.id === modal.id) ?? null : null;
+  const modalTitle = !modal
+    ? ""
+    : modal.entity === "income"
+    ? modal.id ? "Editar ingreso" : "Nuevo ingreso"
+    : modal.entity === "account"
+    ? `Configurar ${modalAcc?.name ?? "cuenta"}`
+    : modal.entity === "expense"
+    ? modal.id ? "Editar gasto" : "Nuevo gasto"
+    : modal.id ? "Editar transferencia" : "Nueva transferencia";
+  const modalIsEdit = modal?.entity === "account" ? true : !!modal?.id;
+
   return (
     <div className="space-y-6">
       {/* Encabezado */}
@@ -370,20 +436,23 @@ export default function CalculatorView() {
             {/* Ingresos */}
             <section className={`${card} p-5 space-y-3`} aria-labelledby="calc-incomes">
               <h2 id="calc-incomes" className="text-sm font-bold text-zinc-950">1. ¿Qué dinero entra?</h2>
-              {plan.incomes.map((inc) => (
-                <div key={inc.id} className="grid grid-cols-12 gap-2 items-center">
-                  <input className={`${input} col-span-12 sm:col-span-4`} value={inc.label} placeholder="Quincena, freelance…" aria-label="Concepto del ingreso" onChange={(e) => setIncome(inc.id, { label: e.target.value })} />
-                  <MoneyInput className={`${input} col-span-5 sm:col-span-3 font-bold`} value={inc.amount} placeholder="30,000" aria-label="Monto del ingreso" onChange={(e) => setIncome(inc.id, { amount: e.target.value })} />
-                  <select className={`${input} col-span-6 sm:col-span-4`} value={inc.accountId} aria-label="Cuenta donde entra" onChange={(e) => setIncome(inc.id, { accountId: e.target.value })}>
-                    <option value="">Entra a…</option>
-                    {realAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-                  </select>
-                  <button type="button" className="col-span-1 p-2 rounded-lg text-zinc-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer" aria-label="Quitar ingreso" onClick={() => update((p) => ({ ...p, incomes: p.incomes.filter((i) => i.id !== inc.id) }))}>
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ))}
-              <button type="button" className={ghostBtn} onClick={() => update((p) => ({ ...p, incomes: [...p.incomes, { id: uid(), label: "", amount: "", accountId: p.accounts[0]?.id || "" }] }))}>
+              {plan.incomes.length === 0 && <p className="text-xs text-zinc-400">Aún no hay ingresos. Agrega la quincena, freelance u otros.</p>}
+              {plan.incomes.map((inc) => {
+                const accName = realAccounts.find((a) => a.id === inc.accountId)?.name;
+                return (
+                  <div key={inc.id} className="flex items-center justify-between gap-2 p-3 rounded-2xl border border-zinc-200/80 hover:bg-zinc-50">
+                    <button type="button" onClick={() => openIncome(inc)} className="flex-1 min-w-0 text-left cursor-pointer">
+                      <div className="text-sm font-semibold text-zinc-900 truncate">{inc.label || "Ingreso"}</div>
+                      <div className="text-[11px] text-zinc-400 truncate">{accName ? `Entra a ${accName}` : "Sin cuenta asignada"}</div>
+                    </button>
+                    <span className="text-sm font-bold text-zinc-950 shrink-0">{money(amt(inc.amount))}</span>
+                    <button type="button" className="p-2 rounded-lg text-zinc-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer shrink-0" aria-label="Quitar ingreso" onClick={() => update((p) => ({ ...p, incomes: p.incomes.filter((i) => i.id !== inc.id) }))}>
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                );
+              })}
+              <button type="button" className={ghostBtn} onClick={() => openIncome()}>
                 <Plus className="w-3.5 h-3.5" aria-hidden="true" /> Agregar ingreso
               </button>
             </section>
@@ -409,31 +478,21 @@ export default function CalculatorView() {
                 const r = resultFor(acc.id)!;
                 const expenses = plan.expenses.filter((e) => e.accountId === acc.id);
                 const transfers = plan.transfers.filter((t) => t.fromId === acc.id);
-                const changed = Number(acc.startBalance.replace(/,/g, "")) !== acc.realBalance;
                 return (
                   <div key={acc.id} className={`${card} p-5 space-y-4 ${r.issues.length ? "border-rose-300" : ""}`}>
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-9 h-9 rounded-xl bg-zinc-100 flex items-center justify-center"><Wallet className="w-4 h-4" aria-hidden="true" /></div>
-                        <div>
-                          <h3 className="text-sm font-bold text-zinc-950">{acc.name}</h3>
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <button type="button" onClick={() => openAccount(acc)} className="flex items-center gap-2.5 text-left cursor-pointer group min-w-0">
+                        <div className="w-9 h-9 rounded-xl bg-zinc-100 flex items-center justify-center shrink-0"><Wallet className="w-4 h-4" aria-hidden="true" /></div>
+                        <div className="min-w-0">
+                          <h3 className="text-sm font-bold text-zinc-950 flex items-center gap-1.5 truncate">{acc.name} <Pencil className="w-3 h-3 text-zinc-300 group-hover:text-zinc-500 shrink-0" aria-hidden="true" /></h3>
                           <p className="text-[11px] text-zinc-400">Saldo real hoy: {money(acc.realBalance)}</p>
                         </div>
-                      </div>
-                      <div className="flex items-end gap-2">
-                        <label className="text-[10px] text-zinc-500 space-y-1 w-32">
-                          <span>Saldo de partida</span>
-                          <MoneyInput allowNegative className={input} value={acc.startBalance} onChange={(e) => setAccount(acc.id, { startBalance: e.target.value })} />
-                        </label>
-                        {changed && (
-                          <button type="button" title="Volver al saldo real" aria-label="Volver al saldo real" className="p-2 rounded-lg text-zinc-500 hover:bg-zinc-100 cursor-pointer" onClick={() => setAccount(acc.id, { startBalance: String(acc.realBalance) })}>
-                            <RotateCcw className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                        <label className="text-[10px] text-zinc-500 space-y-1 w-28">
-                          <span>Dejar mínimo</span>
-                          <MoneyInput className={input} value={acc.keep} onChange={(e) => setAccount(acc.id, { keep: e.target.value })} />
-                        </label>
+                      </button>
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5 text-[11px]">
+                          <span className="px-2 py-1 rounded-lg bg-zinc-50 border border-zinc-200/70 text-zinc-600">Partida: <strong className="text-zinc-900">{money(amt(acc.startBalance))}</strong></span>
+                          <span className="px-2 py-1 rounded-lg bg-zinc-50 border border-zinc-200/70 text-zinc-600">Dejar: <strong className="text-zinc-900">{money(amt(acc.keep))}</strong></span>
+                        </div>
                         <button type="button" className="p-2 rounded-lg text-zinc-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer" aria-label={`Quitar ${acc.name} del plan`} onClick={() => removeAccount(acc.id)}>
                           <X className="w-4 h-4" />
                         </button>
@@ -453,26 +512,24 @@ export default function CalculatorView() {
                       {expenses.map((e) => {
                         const er = r.expenses.find((x) => x.id === e.id);
                         return (
-                          <div key={e.id} className="grid grid-cols-12 gap-2 items-center">
-                            <input className={`${input} col-span-12 sm:col-span-4`} value={e.label} placeholder="ITLA, pasaje, tarjeta…" aria-label="Concepto del gasto" onChange={(ev) => setExpense(e.id, { label: ev.target.value })} />
-                            <MoneyInput className={`${input} col-span-4 sm:col-span-2`} value={e.amount} placeholder="0.00" aria-label="Monto del gasto" onChange={(ev) => setExpense(e.id, { amount: ev.target.value })} />
-                            <select className={`${input} col-span-4 sm:col-span-2`} value={e.kind} aria-label="Tipo" onChange={(ev) => setExpense(e.id, { kind: ev.target.value as PlanExpense["kind"] })}>
-                              <option value="gasto">Gasto</option>
-                              <option value="ahorro">Ahorro</option>
-                            </select>
-                            <div className="col-span-3 sm:col-span-3 flex items-center gap-1.5 text-[10px] text-zinc-500">
-                              <Toggle checked={e.applyTax} onChange={(v) => setExpense(e.id, { applyTax: v })} label="Cobra impuesto DGII" />
-                              <span>{e.applyTax && er ? `+${money(er.tax)}` : "Sin impuesto"}</span>
-                            </div>
-                            <button type="button" className="col-span-1 p-2 rounded-lg text-zinc-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer" aria-label="Quitar gasto" onClick={() => update((p) => ({ ...p, expenses: p.expenses.filter((x) => x.id !== e.id) }))}>
+                          <div key={e.id} className="flex items-center justify-between gap-2 p-2.5 rounded-xl border border-zinc-200/70 hover:bg-zinc-50">
+                            <button type="button" onClick={() => openExpense(acc.id, e)} className="flex-1 min-w-0 text-left cursor-pointer">
+                              <div className="text-xs font-semibold text-zinc-900 truncate">
+                                {e.label || "Gasto"}
+                                {e.kind === "ahorro" && <span className="ml-1 text-[10px] text-zinc-400">(ahorro)</span>}
+                              </div>
+                              {e.applyTax && <div className="text-[10px] text-amber-700">Impuesto DGII{er ? ` +${money(er.tax)}` : ""}</div>}
+                            </button>
+                            <span className="text-xs font-bold text-zinc-900 shrink-0">{money(amt(e.amount))}</span>
+                            <button type="button" className="p-1.5 rounded-lg text-zinc-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer shrink-0" aria-label="Quitar gasto" onClick={() => update((p) => ({ ...p, expenses: p.expenses.filter((x) => x.id !== e.id) }))}>
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         );
                       })}
                       <div className="flex flex-wrap items-center gap-1.5">
-                        <button type="button" className={ghostBtn} onClick={() => addExpense(acc.id)}>
-                          <Plus className="w-3.5 h-3.5" aria-hidden="true" /> Gasto
+                        <button type="button" className={ghostBtn} onClick={() => openExpense(acc.id)}>
+                          <Plus className="w-3.5 h-3.5" aria-hidden="true" /> Agregar gasto
                         </button>
                         {cards.map((c) => (
                           <button
@@ -492,37 +549,25 @@ export default function CalculatorView() {
                       <div className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">Transferir desde esta cuenta</div>
                       {transfers.map((t) => {
                         const tr = r.outgoing.find((x) => x.id === t.id);
+                        const toName = realAccounts.find((a) => a.id === t.toId)?.name || "—";
                         return (
-                          <div key={t.id} className="grid grid-cols-12 gap-2 items-center">
-                            <div className="col-span-12 sm:col-span-4 flex items-center gap-1.5">
+                          <div key={t.id} className="flex items-center justify-between gap-2 p-2.5 rounded-xl border border-zinc-200/70 hover:bg-zinc-50">
+                            <button type="button" onClick={() => openTransfer(acc.id, t)} className="flex-1 min-w-0 text-left cursor-pointer flex items-center gap-1.5">
                               <ArrowRight className="w-3.5 h-3.5 text-zinc-400 shrink-0" aria-hidden="true" />
-                              <select className={input} value={t.toId} aria-label="Cuenta destino" onChange={(ev) => setTransfer(t.id, { toId: ev.target.value })}>
-                                {realAccounts.filter((a) => a.id !== acc.id).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-                              </select>
-                            </div>
-                            <select className={`${input} col-span-4 sm:col-span-2`} value={t.mode} aria-label="Tipo de monto" onChange={(ev) => setTransfer(t.id, { mode: ev.target.value as PlanTransfer["mode"] })}>
-                              <option value="rest">El resto</option>
-                              <option value="fixed">Monto fijo</option>
-                            </select>
-                            {t.mode === "fixed" ? (
-                              <MoneyInput className={`${input} col-span-4 sm:col-span-2 font-bold`} value={t.amount} placeholder="0.00" aria-label="Monto a transferir" onChange={(ev) => setTransfer(t.id, { amount: ev.target.value })} />
-                            ) : (
-                              <div className="col-span-4 sm:col-span-2 px-3 py-2 rounded-xl bg-zinc-50 border border-zinc-200 text-xs font-bold text-zinc-900" aria-label="Monto calculado">
-                                {money(tr?.amount || 0)}
+                              <div className="min-w-0">
+                                <div className="text-xs font-semibold text-zinc-900 truncate">{toName}</div>
+                                <div className="text-[10px] text-zinc-400">{t.mode === "rest" ? "El resto" : "Monto fijo"}{t.applyTax && tr ? ` · imp. ${money(tr.tax)}` : ""}</div>
                               </div>
-                            )}
-                            <div className="col-span-3 sm:col-span-3 flex items-center gap-1.5 text-[10px] text-zinc-500">
-                              <Toggle checked={t.applyTax} onChange={(v) => setTransfer(t.id, { applyTax: v })} label="Cobra impuesto DGII" />
-                              <span>{t.applyTax && tr ? `+${money(tr.tax)}` : "Sin impuesto"}</span>
-                            </div>
-                            <button type="button" className="col-span-1 p-2 rounded-lg text-zinc-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer" aria-label="Quitar transferencia" onClick={() => update((p) => ({ ...p, transfers: p.transfers.filter((x) => x.id !== t.id) }))}>
+                            </button>
+                            <span className="text-xs font-bold text-zinc-900 shrink-0">{money(tr?.amount || 0)}</span>
+                            <button type="button" className="p-1.5 rounded-lg text-zinc-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer shrink-0" aria-label="Quitar transferencia" onClick={() => update((p) => ({ ...p, transfers: p.transfers.filter((x) => x.id !== t.id) }))}>
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         );
                       })}
                       {realAccounts.length > 1 && (
-                        <button type="button" className={ghostBtn} onClick={() => addTransfer(acc.id)}>
+                        <button type="button" className={ghostBtn} onClick={() => openTransfer(acc.id)}>
                           <Plus className="w-3.5 h-3.5" aria-hidden="true" /> Transferencia
                         </button>
                       )}
@@ -624,6 +669,130 @@ export default function CalculatorView() {
           </aside>
         </div>
       )}
+
+      {/* Modal crear/editar (ingreso, cuenta, gasto, transferencia) */}
+      <AnimatePresence>
+        {modal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
+            <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="calc-modal-title"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-md bg-white rounded-3xl border border-zinc-200 p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex items-center justify-between">
+                <h3 id="calc-modal-title" className="font-bold text-zinc-950 text-base">{modalTitle}</h3>
+                <button type="button" onClick={() => setModal(null)} aria-label="Cerrar" className="p-1 rounded-lg text-zinc-400 hover:text-zinc-900 transition-colors cursor-pointer">
+                  <X className="w-5 h-5" aria-hidden="true" />
+                </button>
+              </div>
+
+              <form onSubmit={submitModal} className="space-y-3">
+                {modal.entity === "income" && (
+                  <>
+                    <label className="text-[11px] text-zinc-500 space-y-1 block">
+                      <span>Concepto</span>
+                      <input className={input} value={form.label} placeholder="Quincena, freelance…" onChange={(e) => setForm({ ...form, label: e.target.value })} />
+                    </label>
+                    <label className="text-[11px] text-zinc-500 space-y-1 block">
+                      <span>Monto</span>
+                      <MoneyInput className={input} value={form.amount} placeholder="30,000" onChange={(e) => setForm({ ...form, amount: e.target.value })} />
+                    </label>
+                    <label className="text-[11px] text-zinc-500 space-y-1 block">
+                      <span>Entra a</span>
+                      <select className={input} value={form.accountId} onChange={(e) => setForm({ ...form, accountId: e.target.value })}>
+                        <option value="">Entra a…</option>
+                        {realAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                      </select>
+                    </label>
+                  </>
+                )}
+
+                {modal.entity === "account" && (
+                  <>
+                    <label className="text-[11px] text-zinc-500 space-y-1 block">
+                      <span>Saldo de partida</span>
+                      <MoneyInput allowNegative className={input} value={form.startBalance} onChange={(e) => setForm({ ...form, startBalance: e.target.value })} />
+                    </label>
+                    {modalAcc && amt(form.startBalance) !== modalAcc.realBalance && (
+                      <button type="button" className={ghostBtn} onClick={() => setForm({ ...form, startBalance: String(modalAcc.realBalance) })}>
+                        <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" /> Volver al saldo real ({money(modalAcc.realBalance)})
+                      </button>
+                    )}
+                    <label className="text-[11px] text-zinc-500 space-y-1 block">
+                      <span>Dejar mínimo</span>
+                      <MoneyInput className={input} value={form.keep} onChange={(e) => setForm({ ...form, keep: e.target.value })} />
+                    </label>
+                  </>
+                )}
+
+                {modal.entity === "expense" && (
+                  <>
+                    <label className="text-[11px] text-zinc-500 space-y-1 block">
+                      <span>Concepto</span>
+                      <input className={input} value={form.label} placeholder="ITLA, pasaje, tarjeta…" onChange={(e) => setForm({ ...form, label: e.target.value })} />
+                    </label>
+                    <label className="text-[11px] text-zinc-500 space-y-1 block">
+                      <span>Monto</span>
+                      <MoneyInput className={input} value={form.amount} placeholder="0.00" onChange={(e) => setForm({ ...form, amount: e.target.value })} />
+                    </label>
+                    <label className="text-[11px] text-zinc-500 space-y-1 block">
+                      <span>Tipo</span>
+                      <select className={input} value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value as PlanExpense["kind"] })}>
+                        <option value="gasto">Gasto</option>
+                        <option value="ahorro">Ahorro</option>
+                      </select>
+                    </label>
+                    <div className="flex items-center gap-2 text-[11px] text-zinc-500">
+                      <Toggle checked={form.applyTax} onChange={(v) => setForm({ ...form, applyTax: v })} label="Cobra impuesto DGII" />
+                      <span>Cobra impuesto DGII por transferencia</span>
+                    </div>
+                  </>
+                )}
+
+                {modal.entity === "transfer" && (
+                  <>
+                    <label className="text-[11px] text-zinc-500 space-y-1 block">
+                      <span>Cuenta destino</span>
+                      <select className={input} value={form.toId} onChange={(e) => setForm({ ...form, toId: e.target.value })}>
+                        <option value="">Transferir a…</option>
+                        {realAccounts.filter((a) => a.id !== modal.accountId).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                      </select>
+                    </label>
+                    <label className="text-[11px] text-zinc-500 space-y-1 block">
+                      <span>Tipo de monto</span>
+                      <select className={input} value={form.mode} onChange={(e) => setForm({ ...form, mode: e.target.value as PlanTransfer["mode"] })}>
+                        <option value="rest">El resto</option>
+                        <option value="fixed">Monto fijo</option>
+                      </select>
+                    </label>
+                    {form.mode === "fixed" && (
+                      <label className="text-[11px] text-zinc-500 space-y-1 block">
+                        <span>Monto a transferir</span>
+                        <MoneyInput className={input} value={form.amount} placeholder="0.00" onChange={(e) => setForm({ ...form, amount: e.target.value })} />
+                      </label>
+                    )}
+                    <div className="flex items-center gap-2 text-[11px] text-zinc-500">
+                      <Toggle checked={form.applyTax} onChange={(v) => setForm({ ...form, applyTax: v })} label="Cobra impuesto DGII" />
+                      <span>Cobra impuesto DGII por transferencia</span>
+                    </div>
+                  </>
+                )}
+
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-100">
+                  <button type="button" onClick={() => setModal(null)} className="px-4 py-2 rounded-xl border border-zinc-200 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 cursor-pointer">
+                    Cancelar
+                  </button>
+                  <button type="submit" className={primaryBtn}>{modalIsEdit ? "Actualizar" : "Guardar"}</button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Historial */}
       {historyOpen && (
