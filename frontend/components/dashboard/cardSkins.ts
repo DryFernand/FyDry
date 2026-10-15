@@ -42,16 +42,18 @@ export function detectNetwork(acc: AccountItem): CardNetwork {
 export function getCardSkin(acc: AccountItem): CardSkin {
   const n = acc.name.toLowerCase();
   const isCardType = acc.type === "credit_card" || acc.type === "debit_card" || acc.type === "card" || acc.type === "bank";
+  // El chip solo aparece en tarjetas plásticas (débito/crédito), no en una cuenta bancaria normal.
+  const isPlastic = acc.type === "credit_card" || acc.type === "debit_card" || acc.type === "card";
 
   // Bancos conocidos (detección por nombre)
   if (isCardType && n.includes("popular")) {
-    return { background: "linear-gradient(135deg,#002147,#003f87)", fg: "#ffffff", sub: "rgba(255,255,255,.72)", accent: "#ffffff", chip: GOLD, issuer: "Popular", kind: "card" };
+    return { background: "linear-gradient(135deg,#002147,#003f87)", fg: "#ffffff", sub: "rgba(255,255,255,.72)", accent: "#ffffff", chip: isPlastic ? GOLD : "", issuer: "Popular", kind: "card" };
   }
   if (isCardType && n.includes("bhd")) {
-    return { background: "linear-gradient(135deg,#023d22,#0a7a40)", fg: "#ffffff", sub: "rgba(255,255,255,.72)", accent: "#ffffff", chip: GOLD, issuer: "BHD", kind: "card" };
+    return { background: "linear-gradient(135deg,#023d22,#0a7a40)", fg: "#ffffff", sub: "rgba(255,255,255,.72)", accent: "#ffffff", chip: isPlastic ? GOLD : "", issuer: "BHD", kind: "card" };
   }
   if (isCardType && n.includes("qik")) {
-    return { background: "linear-gradient(135deg,#0a0a0a,#15302e)", fg: "#ffffff", sub: "rgba(255,255,255,.6)", accent: "#2fd4c4", chip: "linear-gradient(135deg,#9fe9e0,#2fd4c4)", issuer: "qik", kind: "card" };
+    return { background: "linear-gradient(135deg,#0a0a0a,#15302e)", fg: "#ffffff", sub: "rgba(255,255,255,.6)", accent: "#2fd4c4", chip: isPlastic ? "linear-gradient(135deg,#9fe9e0,#2fd4c4)" : "", issuer: "qik", kind: "card" };
   }
 
   // Metas de ahorro / fondos: tarjeta FyDry (vino de marca)
@@ -76,5 +78,5 @@ export function getCardSkin(acc: AccountItem): CardSkin {
   }
 
   // Banco/tarjeta sin banco reconocido: grafito sobrio
-  return { background: "linear-gradient(135deg,#1e293b,#3a4a63)", fg: "#ffffff", sub: "rgba(255,255,255,.68)", accent: "#ffffff", chip: GOLD, issuer: acc.name, kind: "card" };
+  return { background: "linear-gradient(135deg,#1e293b,#3a4a63)", fg: "#ffffff", sub: "rgba(255,255,255,.68)", accent: "#ffffff", chip: isPlastic ? GOLD : "", issuer: acc.name, kind: "card" };
 }

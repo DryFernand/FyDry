@@ -63,24 +63,24 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       {
-        url: "/logo_negro.png",
+        url: "/logo_vino_fondo_blanco.png",
         media: "(prefers-color-scheme: light)",
         type: "image/png",
       },
       {
-        url: "/logo_blanco.png",
+        url: "/logo_vino_fondo_blanco.png",
         media: "(prefers-color-scheme: dark)",
         type: "image/png",
       },
     ],
     shortcut: [
       {
-        url: "/logo_negro.png",
+        url: "/logo_vino_fondo_blanco.png",
         media: "(prefers-color-scheme: light)",
         type: "image/png",
       },
       {
-        url: "/logo_blanco.png",
+        url: "/logo_vino_fondo_blanco.png",
         media: "(prefers-color-scheme: dark)",
         type: "image/png",
       },
@@ -93,10 +93,10 @@ export const metadata: Metadata = {
     siteName: "FyDry",
     images: [
       {
-        url: "/logo_negro.png",
-        width: 800,
-        height: 800,
-        alt: "FyDry Logo",
+        url: "/og_fydry.png",
+        width: 1200,
+        height: 630,
+        alt: "FyDry — Ordena tus gastos",
       },
     ],
     locale: "es_DO",
@@ -106,7 +106,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "FyDry — Ordena tus gastos, tranquiliza tu mente",
     description: "Claridad total sobre tus finanzas personales sin complicaciones.",
-    images: ["/logo_negro.png"],
+    images: ["/og_fydry.png"],
   },
   robots: {
     index: true,
@@ -132,7 +132,7 @@ export default async function RootLayout({
   const secChTheme = headerList.get("sec-ch-prefers-color-scheme");
   const isDark = themeCookie === "dark" || secChTheme === "dark";
 
-  const mobileIcon = isDark ? "/logo_blanco_fondo_negro.png" : "/logo_negro_fondo_blanco.png";
+  const mobileIcon = isDark ? "/logo_vino_fondo_blanco.png" : "/logo_vino_fondo_blanco.png";
   const manifestPath = isDark ? "/manifest.dark.json" : "/manifest.light.json";
 
   const jsonLd = {
@@ -143,8 +143,8 @@ export default async function RootLayout({
     description: "Plataforma de gestión financiera minimalista y presupuesto inteligente.",
     applicationCategory: "FinanceApplication",
     operatingSystem: "All",
-    image: `${siteUrl}/logo_negro.png`,
-    logo: `${siteUrl}/logo_negro.png`,
+    image: `${siteUrl}/logo_vino_fondo_blanco.png`,
+    logo: `${siteUrl}/logo_vino_fondo_blanco.png`,
     offers: {
       "@type": "Offer",
       price: "0",
@@ -168,7 +168,7 @@ export default async function RootLayout({
                     // Actualizar Apple Touch Icon para iOS Safari
                     var appleLink = document.getElementById('apple-touch-icon');
                     if (appleLink) {
-                      appleLink.href = dark ? '/logo_blanco_fondo_negro.png' : '/logo_negro_fondo_blanco.png';
+                      appleLink.href = dark ? '/logo_vino_fondo_blanco.png' : '/logo_vino_fondo_blanco.png';
                     }
 
                     // Actualizar Manifest para Android Chrome
@@ -180,7 +180,7 @@ export default async function RootLayout({
                     // Actualizar Favicon de pestaña
                     var favLink = document.getElementById('dynamic-favicon');
                     if (favLink) {
-                      favLink.href = dark ? '/logo_blanco.png' : '/logo_negro.png';
+                      favLink.href = dark ? '/logo_vino_fondo_blanco.png' : '/logo_vino_fondo_blanco.png';
                     }
                   }
                   applyTheme(mql.matches);
@@ -200,8 +200,8 @@ export default async function RootLayout({
         <meta name="apple-mobile-web-app-title" content="FyDry" />
         <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
         <meta name="theme-color" content="#09090b" media="(prefers-color-scheme: dark)" />
-        <link id="dynamic-favicon" rel="icon" href="/logo_negro.png" type="image/png" media="(prefers-color-scheme: light)" />
-        <link rel="icon" href="/logo_blanco.png" type="image/png" media="(prefers-color-scheme: dark)" />
+        <link id="dynamic-favicon" rel="icon" href="/logo_vino_fondo_blanco.png" type="image/png" media="(prefers-color-scheme: light)" />
+        <link rel="icon" href="/logo_vino_fondo_blanco.png" type="image/png" media="(prefers-color-scheme: dark)" />
         <link id="apple-touch-icon" rel="apple-touch-icon" sizes="180x180" href={mobileIcon} />
         <link id="app-manifest" rel="manifest" href={manifestPath} />
         <script
