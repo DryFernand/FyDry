@@ -128,7 +128,7 @@ export default function PlanningView() {
       return;
     }
     const ok = await run(() =>
-      createGoalApi({ name: goalForm.name.trim(), targetAmount: target, targetDate: goalForm.date || undefined, color: "bg-emerald-500" })
+      createGoalApi({ name: goalForm.name.trim(), targetAmount: target, targetDate: goalForm.date || undefined, color: "bg-green-500" })
     );
     if (ok) {
       setGoalForm({ name: "", target: "", date: "" });
@@ -161,7 +161,7 @@ export default function PlanningView() {
   }
 
   const score = insights?.peace_score ?? 0;
-  const scoreColor = score >= 70 ? "bg-emerald-500" : score >= 40 ? "bg-amber-500" : "bg-red-500";
+  const scoreColor = score >= 70 ? "bg-green-500" : score >= 40 ? "bg-amber-500" : "bg-red-500";
   const categories = recForm.kind === "expense" ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
 
   return (
@@ -372,7 +372,7 @@ export default function PlanningView() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className={`font-semibold ${r.kind === "income" ? "text-emerald-700" : "text-zinc-900"}`}>
+                  <span className={`font-semibold ${r.kind === "income" ? "text-green-700" : "text-zinc-900"}`}>
                     {r.kind === "income" ? "+" : "-"}{money(r.amount)}
                   </span>
                   <button
@@ -453,7 +453,7 @@ export default function PlanningView() {
                     </button>
                   </div>
                   <div className="h-2 rounded-full bg-zinc-100 overflow-hidden" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} aria-label={g.name}>
-                    <div className={`h-full ${g.color || "bg-emerald-500"}`} style={{ width: `${pct}%` }} />
+                    <div className={`h-full ${g.color || "bg-green-500"}`} style={{ width: `${pct}%` }} />
                   </div>
                   <div className="flex gap-2">
                     <MoneyInput

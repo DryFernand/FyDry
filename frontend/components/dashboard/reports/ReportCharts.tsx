@@ -171,7 +171,7 @@ export function DeltaBadge({ current, previous, goodWhenUp, language }: { curren
   const good = up === goodWhenUp;
   const Icon = up ? ArrowUpRight : ArrowDownRight;
   return (
-    <span className={`inline-flex items-center gap-1 text-[10px] font-semibold ${good ? "text-emerald-700" : "text-rose-700"}`}>
+    <span className={`inline-flex items-center gap-1 text-[10px] font-semibold ${good ? "text-green-700" : "text-rose-700"}`}>
       <Icon className="w-3 h-3" aria-hidden="true" />
       {up ? "+" : ""}
       {change}% {es ? "vs. periodo anterior" : "vs. previous period"}

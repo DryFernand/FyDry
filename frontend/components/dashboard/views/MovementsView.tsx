@@ -425,7 +425,7 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
             onClick={() => setMovementFilter("savings")}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
               movementFilter === "savings"
-                ? "bg-emerald-600 text-white shadow-xs"
+                ? "bg-green-600 text-white shadow-xs"
                 : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200/70"
             }`}
           >
@@ -530,7 +530,7 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
             <div className="py-12 text-center space-y-2">
               <div className="w-10 h-10 rounded-2xl bg-zinc-100 text-zinc-400 flex items-center justify-center mx-auto">
                 {movementFilter === "savings" ? (
-                  <PiggyBank className="w-5 h-5 text-emerald-600" />
+                  <PiggyBank className="w-5 h-5 text-green-600" />
                 ) : (
                   <ArrowLeftRight className="w-5 h-5" />
                 )}
@@ -706,7 +706,7 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
                   <div className="space-y-0.5 pt-1.5 border-t border-zinc-200/60">
                     <div className="flex justify-between text-zinc-700">
                       <span>Llega a {toAccount || "Destino"}:</span>
-                      <span className="font-bold text-emerald-600">+{formatMoney(numReceived, toCur)}</span>
+                      <span className="font-bold text-green-600">+{formatMoney(numReceived, toCur)}</span>
                     </div>
                     {toAccObj && (
                       <div className="flex justify-between text-[11px] text-zinc-500">

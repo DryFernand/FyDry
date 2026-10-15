@@ -843,7 +843,7 @@ export default function BudgetView() {
           <div className="flex items-center gap-6">
             <div className="text-right">
               <span className="text-xs font-semibold text-zinc-400 block">{t.budget.availableMargin || "Disponible"}</span>
-              <span className="text-lg font-bold text-emerald-600">
+              <span className="text-lg font-bold text-green-600">
                 {formatMoney(remainingBudget, budgetCurrency)}
               </span>
             </div>

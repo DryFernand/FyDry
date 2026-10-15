@@ -475,11 +475,11 @@ export default function QuickTransactionModal({
                 onClick={() => handleTypeChange("income")}
                 className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                   type === "income"
-                    ? "bg-white text-emerald-600 shadow-xs border border-emerald-200/60"
+                    ? "bg-white text-green-600 shadow-xs border border-green-200/60"
                     : "text-zinc-500 hover:text-zinc-900"
                 }`}
               >
-                <ArrowUpRight className="w-4 h-4 shrink-0 text-emerald-500" />
+                <ArrowUpRight className="w-4 h-4 shrink-0 text-green-500" />
                 <span className="truncate">{isEn ? "Income" : "Ingreso"}</span>
               </button>
 
@@ -523,7 +523,7 @@ export default function QuickTransactionModal({
             )}
 
             {successMessage && (
-              <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs flex items-center gap-2">
+              <div className="p-3 rounded-2xl bg-green-50 border border-green-200 text-green-700 text-xs flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 shrink-0" />
                 <span>{successMessage}</span>
               </div>
@@ -844,7 +844,7 @@ export default function QuickTransactionModal({
                             ? `Deposit into ${transferToAcc.name}:`
                             : `Llega a ${transferToAcc.name}:`}
                         </span>
-                        <span className="font-bold text-emerald-600">
+                        <span className="font-bold text-green-600">
                           +{formatMoney(parsedAmountPreview, transferToAcc.currency)}
                         </span>
                       </div>
@@ -879,7 +879,7 @@ export default function QuickTransactionModal({
                     type === "expense"
                       ? "bg-rose-600 hover:bg-rose-700"
                       : type === "income"
-                      ? "bg-emerald-600 hover:bg-emerald-700"
+                      ? "bg-green-600 hover:bg-green-700"
                       : type === "card_payment"
                       ? "bg-sky-700 hover:bg-sky-800"
                       : "bg-zinc-950 hover:bg-zinc-800 text-white"

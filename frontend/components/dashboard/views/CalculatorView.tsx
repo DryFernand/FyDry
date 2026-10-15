@@ -349,7 +349,7 @@ export default function CalculatorView() {
           </div>
         </div>
         {message && (
-          <div role="status" className={`p-2.5 rounded-xl text-xs ${message.ok ? "bg-emerald-50 text-emerald-800 border border-emerald-200/70" : "bg-rose-50 text-rose-700 border border-rose-200/70"}`}>
+          <div role="status" className={`p-2.5 rounded-xl text-xs ${message.ok ? "bg-green-50 text-green-800 border border-green-200/70" : "bg-rose-50 text-rose-700 border border-rose-200/70"}`}>
             {message.text}
           </div>
         )}
@@ -442,7 +442,7 @@ export default function CalculatorView() {
 
                     {(r.incomes.length > 0 || r.incoming.length > 0) && (
                       <div className="text-[11px] text-zinc-600 flex flex-wrap gap-1.5">
-                        {r.incomes.map((i, idx) => <span key={`i${idx}`} className="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-800">+ {i.label}: {money(i.amount)}</span>)}
+                        {r.incomes.map((i, idx) => <span key={`i${idx}`} className="px-2 py-1 rounded-lg bg-green-50 text-green-800">+ {i.label}: {money(i.amount)}</span>)}
                         {r.incoming.map((i, idx) => <span key={`t${idx}`} className="px-2 py-1 rounded-lg bg-sky-50 text-sky-800">+ desde {i.from}: {money(i.amount)}</span>)}
                       </div>
                     )}
@@ -593,7 +593,7 @@ export default function CalculatorView() {
                           <span>{money(e.amount + e.tax)}</span>
                         </div>
                       ))}
-                      <div className={`flex justify-between font-bold pt-1 border-t border-zinc-100 ${r.final < 0 ? "text-rose-600" : "text-emerald-700"}`}>
+                      <div className={`flex justify-between font-bold pt-1 border-t border-zinc-100 ${r.final < 0 ? "text-rose-600" : "text-green-700"}`}>
                         <span>Queda</span>
                         <span>{money(r.final)}</span>
                       </div>
@@ -692,7 +692,7 @@ function AccountFooter({ result }: { result: AccountResult }) {
         </div>
         <div className="text-right">
           <div className="text-[10px] text-zinc-500">Queda al final</div>
-          <div className={`text-base font-extrabold ${result.final < 0 ? "text-rose-600" : "text-emerald-700"}`}>{money(result.final)}</div>
+          <div className={`text-base font-extrabold ${result.final < 0 ? "text-rose-600" : "text-green-700"}`}>{money(result.final)}</div>
         </div>
       </div>
       {result.issues.map((i) => (

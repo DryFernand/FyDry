@@ -245,7 +245,7 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
               <span
                 className={
                   netFlow >= 0
-                    ? "text-emerald-400 font-semibold"
+                    ? "text-green-400 font-semibold"
                     : "text-rose-400 font-semibold"
                 }
               >
@@ -275,7 +275,7 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
               onClick={() => onNavigate("incomes")}
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2 py-3 px-5 rounded-2xl bg-white/10 hover:bg-white/15 text-white border border-white/15 text-xs font-bold backdrop-blur-md transition-all active:scale-[0.98] cursor-pointer"
             >
-              <ArrowUpRight className="w-4 h-4 text-emerald-400" />
+              <ArrowUpRight className="w-4 h-4 text-green-400" />
               <span>{t.home.addIncome}</span>
             </button>
           </div>
@@ -300,7 +300,7 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
                 <span
                   className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
                     savingsRate >= 20
-                      ? "bg-emerald-50 text-emerald-700 border border-emerald-200/60"
+                      ? "bg-green-50 text-green-700 border border-green-200/60"
                       : savingsRate > 0
                       ? "bg-blue-50 text-blue-700 border border-blue-200/60"
                       : "bg-zinc-100 text-zinc-600 border border-zinc-200"
@@ -344,11 +344,11 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
           <div className="p-3.5 rounded-2xl bg-zinc-50/70 border border-zinc-100 space-y-2">
             <div className="flex items-center justify-between text-xs">
               <span className="font-medium text-zinc-500">{t.home.savingsRate}</span>
-              <span className="font-bold text-emerald-600">{savingsRate}%</span>
+              <span className="font-bold text-green-600">{savingsRate}%</span>
             </div>
             <div className="w-full bg-zinc-200 rounded-full h-2 overflow-hidden">
               <div
-                className="bg-emerald-500 h-2 rounded-full transition-all duration-500"
+                className="bg-green-500 h-2 rounded-full transition-all duration-500"
                 style={{ width: `${Math.min(savingsRate, 100)}%` }}
               />
             </div>
@@ -426,7 +426,7 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
                         ? "bg-rose-500"
                         : budgetConsumedPercent > 80
                         ? "bg-amber-500"
-                        : "bg-emerald-500"
+                        : "bg-green-500"
                     }`}
                     style={{ width: `${Math.min(budgetConsumedPercent, 100)}%` }}
                   />
@@ -470,11 +470,11 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-zinc-500">{t.home.incomesMonth}</span>
-            <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-xl bg-green-50 text-green-600 flex items-center justify-center">
               <ArrowUpRight className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl sm:text-3xl font-bold tracking-tight text-emerald-600">
+          <div className="text-2xl sm:text-3xl font-bold tracking-tight text-green-600">
             +{formatMoney(totalIncomes, mainCurrency)}
           </div>
           <div className="text-[11px] text-zinc-400 flex items-center justify-between">
@@ -529,7 +529,7 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
           </div>
           <div className="text-[11px] text-zinc-400 flex items-center justify-between">
             <span>{t.home.savingsRate}:</span>
-            <span className="font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+            <span className="font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-100">
               {savingsRate}%
             </span>
           </div>
@@ -600,7 +600,7 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
                   <div
                     className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 ${
                       item.type === "income"
-                        ? "bg-emerald-50 text-emerald-600 border border-emerald-100"
+                        ? "bg-green-50 text-green-600 border border-green-100"
                         : "bg-zinc-100 text-zinc-700 border border-zinc-200/60"
                     }`}
                   >
@@ -627,7 +627,7 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
                 <div className="text-right shrink-0 pl-3">
                   <div
                     className={`text-xs sm:text-sm font-bold tracking-tight ${
-                      item.type === "income" ? "text-emerald-600" : "text-zinc-950"
+                      item.type === "income" ? "text-green-600" : "text-zinc-950"
                     }`}
                   >
                     {item.type === "income" ? "+" : "-"}{formatMoney(item.amount, accounts.find((a) => a.name === item.account)?.currency || mainCurrency)}

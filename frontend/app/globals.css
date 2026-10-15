@@ -1,18 +1,43 @@
 @import "tailwindcss";
 
+/* Marca FyDry — vino/borgoña. Remapea la rampa `emerald` de Tailwind al vino,
+   así todas las clases emerald-* del proyecto quedan en vino sin tocar archivos.
+   El verde (ingresos/positivo) se mantiene con las clases green-*. */
+@theme {
+  --color-emerald-50: #fbf1f3;
+  --color-emerald-100: #f6dfe4;
+  --color-emerald-200: #ebbac4;
+  --color-emerald-300: #dc93a2;
+  --color-emerald-400: #c06378;
+  --color-emerald-500: #9a3850;
+  --color-emerald-600: #7e2639;
+  --color-emerald-700: #6e2234;
+  --color-emerald-800: #5a1a28;
+  --color-emerald-900: #4a1521;
+  --color-emerald-950: #2d0b13;
+
+  --font-display: var(--font-display), Georgia, serif;
+}
+
 @layer base {
   :root {
-    --background: #ffffff;
-    --foreground: #09090b;
-    --muted: #f4f4f5;
-    --muted-foreground: #71717a;
-    --border: #e4e4e7;
+    --background: #fdfbfa;
+    --foreground: #1c1416;
+    --muted: #f5f0ee;
+    --muted-foreground: #78706d;
+    --border: #e7ded9;
     --card: #ffffff;
-    --card-foreground: #09090b;
-    --primary: #18181b;
-    --primary-foreground: #fafafa;
-    --accent: #f4f4f5;
-    --accent-foreground: #18181b;
+    --card-foreground: #1c1416;
+    --primary: #6e2234;
+    --primary-foreground: #fdfbfa;
+    --accent: #f5f0ee;
+    --accent-foreground: #6e2234;
+  }
+
+  /* Titulares con serif elegante; el cuerpo queda en la sans cómoda (Figtree) */
+  h1, h2, h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
   }
 
   * {
@@ -99,7 +124,7 @@ html {
   border: 1px solid transparent;
   background:
     linear-gradient(#09090b, #09090b) padding-box,
-    conic-gradient(from var(--border-angle), #27272a 0%, #10b981 15%, #27272a 30%, #27272a 100%) border-box;
+    conic-gradient(from var(--border-angle), #27272a 0%, #9a3850 15%, #27272a 30%, #27272a 100%) border-box;
   animation: border-spin 6s linear infinite;
 }
 
@@ -113,7 +138,7 @@ html {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: radial-gradient(320px circle at var(--spot-x, 50%) var(--spot-y, 50%), rgba(16, 185, 129, 0.12), transparent 60%);
+  background: radial-gradient(320px circle at var(--spot-x, 50%) var(--spot-y, 50%), rgba(154, 56, 80, 0.12), transparent 60%);
   opacity: 0;
   transition: opacity 0.3s;
   pointer-events: none;

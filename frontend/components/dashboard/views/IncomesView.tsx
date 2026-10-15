@@ -500,11 +500,11 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
             <span className="text-xs font-semibold text-zinc-500">
               {scope === "cycle" ? t.incomes.totalIncomesMonth : "Ingresos en Pantalla"}
             </span>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200/60">
               Ciclo
             </span>
           </div>
-          <div className="text-2xl font-bold tracking-tight text-emerald-600">
+          <div className="text-2xl font-bold tracking-tight text-green-600">
             +{formatMoney(totalIncomesSelectedCycle, mainCurrency)}
           </div>
           <div className="text-[11px] text-zinc-400">
@@ -530,7 +530,7 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
               >
                 {(() => {
                   const TopCatIcon = getIncomeCategoryIcon(topCategoryInfo.category);
-                  return <TopCatIcon className="w-5 h-5 text-emerald-600 shrink-0" />;
+                  return <TopCatIcon className="w-5 h-5 text-green-600 shrink-0" />;
                 })()}
                 <span className="truncate">{topCategoryInfo.category}</span>
               </div>
@@ -654,8 +654,8 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
                 className="py-3.5 flex items-center justify-between hover:bg-zinc-50/80 rounded-2xl px-3 -mx-3 transition-colors cursor-pointer group"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-700 border border-emerald-100 flex items-center justify-center font-bold text-xs group-hover:bg-emerald-100 transition-colors shrink-0">
-                    <CategoryIcon className="w-5 h-5 text-emerald-700" />
+                  <div className="w-10 h-10 rounded-2xl bg-green-50 text-green-700 border border-green-100 flex items-center justify-center font-bold text-xs group-hover:bg-green-100 transition-colors shrink-0">
+                    <CategoryIcon className="w-5 h-5 text-green-700" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
@@ -675,10 +675,10 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
                 </div>
 
                 <div className="text-right">
-                  <div className="text-xs font-bold text-emerald-600">
+                  <div className="text-xs font-bold text-green-600">
                     +{formatMoney(inc.amount, accounts.find((a) => a.name === inc.account)?.currency || mainCurrency)}
                   </div>
-                  <span className="text-[10px] px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-semibold">
+                  <span className="text-[10px] px-2 py-0.5 rounded-md bg-green-50 text-green-700 font-semibold">
                     {t.incomes.credited}
                   </span>
                 </div>
@@ -688,7 +688,7 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
 
           {filteredIncomes.length === 0 && (
             <div className="py-12 text-center space-y-2">
-              <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
+              <div className="w-10 h-10 rounded-2xl bg-green-50 text-green-600 flex items-center justify-center mx-auto">
                 <PiggyBank className="w-5 h-5" />
               </div>
               <div className="text-xs font-semibold text-zinc-700">
@@ -721,8 +721,8 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-700 border border-emerald-100 flex items-center justify-center font-bold text-xs shrink-0">
-                    <ModalCategoryIcon className="w-5 h-5 text-emerald-700" />
+                  <div className="w-10 h-10 rounded-2xl bg-green-50 text-green-700 border border-green-100 flex items-center justify-center font-bold text-xs shrink-0">
+                    <ModalCategoryIcon className="w-5 h-5 text-green-700" />
                   </div>
                   <div>
                     <h3 id="income-modal-title" className="text-lg font-bold text-zinc-950">
@@ -779,7 +779,7 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
                       {t.incomes.category} (15 Opciones)
                     </label>
                     <div className="relative">
-                      <div className="absolute left-3 top-2.5 pointer-events-none text-emerald-600">
+                      <div className="absolute left-3 top-2.5 pointer-events-none text-green-600">
                         <ModalCategoryIcon className="w-4 h-4" />
                       </div>
                       <select
@@ -841,7 +841,7 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
                   <div className="bg-zinc-50 border border-zinc-200/80 rounded-2xl p-3.5 space-y-2">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5 font-bold text-zinc-900 text-xs">
-                        <TrendingUp className="w-4 h-4 text-emerald-600" />
+                        <TrendingUp className="w-4 h-4 text-green-600" />
                         <span>Simulación de Saldo</span>
                       </div>
                       <span className="text-[10px] font-semibold text-zinc-500 bg-zinc-200/60 px-2 py-0.5 rounded-full">
@@ -859,7 +859,7 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
 
                       <div className="flex items-center justify-between text-zinc-600">
                         <span>Acreditación estimada:</span>
-                        <span className="text-emerald-600 font-semibold">
+                        <span className="text-green-600 font-semibold">
                           +{formatMoney(numAmountPreview, selectedAcc.currency)}
                         </span>
                       </div>

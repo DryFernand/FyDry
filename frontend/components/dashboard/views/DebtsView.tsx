@@ -388,7 +388,7 @@ export default function DebtsView() {
           </div>
           <div className="w-full bg-zinc-100 rounded-full h-2 overflow-hidden mt-2">
             <motion.div
-              className={`${liquidationPercent === 100 ? "bg-emerald-600" : "bg-zinc-950"} h-2 rounded-full`}
+              className={`${liquidationPercent === 100 ? "bg-green-600" : "bg-zinc-950"} h-2 rounded-full`}
               initial={{ width: "0%" }}
               animate={{ width: `${liquidationPercent}%` }}
               transition={{ duration: 0.8, ease: "easeOut" }}
@@ -469,7 +469,7 @@ export default function DebtsView() {
                   <div
                     className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-xs shrink-0 border ${
                       isLiquidated
-                        ? "bg-emerald-50 text-emerald-700 border-emerald-200/60"
+                        ? "bg-green-50 text-green-700 border-green-200/60"
                         : "bg-zinc-100 text-zinc-700 border-zinc-200/60"
                     }`}
                   >
@@ -486,7 +486,7 @@ export default function DebtsView() {
                       </h3>
                       <Edit3 className="w-3 h-3 text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                       {isLiquidated && (
-                        <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 text-[10px] font-bold">
+                        <span className="px-2 py-0.5 rounded-md bg-green-50 text-green-700 text-[10px] font-bold">
                           Liquidada
                         </span>
                       )}
@@ -525,7 +525,7 @@ export default function DebtsView() {
 
                 <div className="flex items-center justify-between sm:justify-end gap-4">
                   <div className="text-left sm:text-right">
-                    <div className={`text-base font-bold ${isLiquidated ? "text-emerald-600 line-through" : "text-zinc-950"}`}>
+                    <div className={`text-base font-bold ${isLiquidated ? "text-green-600 line-through" : "text-zinc-950"}`}>
                       {formatMoney(d.remainingAmount, mainCurrency)}{" "}
                       <span className="text-xs text-zinc-400 font-normal">
                         de {formatMoney(d.totalAmount, mainCurrency)}
@@ -558,7 +558,7 @@ export default function DebtsView() {
                 </div>
                 <div className="w-full bg-zinc-100 rounded-full h-2 overflow-hidden">
                   <motion.div
-                    className={`${isLiquidated ? "bg-emerald-600" : "bg-zinc-950"} h-2 rounded-full`}
+                    className={`${isLiquidated ? "bg-green-600" : "bg-zinc-950"} h-2 rounded-full`}
                     initial={{ width: "0%" }}
                     animate={{ width: `${percentPaid}%` }}
                     transition={{ duration: 0.6, ease: "easeOut" }}
@@ -572,7 +572,7 @@ export default function DebtsView() {
         {/* Empty state: No debts at all */}
         {debts.length === 0 && (
           <div className="py-16 text-center bg-white rounded-3xl border border-zinc-200/80 p-8 space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto border border-emerald-100">
+            <div className="w-12 h-12 rounded-2xl bg-green-50 text-green-600 flex items-center justify-center mx-auto border border-green-100">
               <ShieldCheck className="w-6 h-6" />
             </div>
             <div className="text-sm font-bold text-zinc-900">¡Libre de deudas! Cero compromisos pendientes</div>
@@ -612,7 +612,7 @@ export default function DebtsView() {
 
         {debts.length > 0 && displayedDebts.length === 0 && debtFilter === "active" && (
           <div className="py-12 text-center bg-white rounded-3xl border border-zinc-200/80 p-8 space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto border border-emerald-100">
+            <div className="w-12 h-12 rounded-2xl bg-green-50 text-green-600 flex items-center justify-center mx-auto border border-green-100">
               <ShieldCheck className="w-6 h-6" />
             </div>
             <div className="text-sm font-bold text-zinc-900">¡Todas tus deudas están liquidadas!</div>

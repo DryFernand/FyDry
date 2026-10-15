@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Figtree, Fraunces, Geist_Mono } from "next/font/google";
 import { cookies, headers } from "next/headers";
 import "./globals.css";
 import { LanguageProvider } from "@/context/LanguageContext";
@@ -16,9 +16,15 @@ export const viewport: Viewport = {
   ],
 };
 
-const geistSans = Geist({
+const figtree = Figtree({
   variable: "--font-geist-sans",
   subsets: ["latin"],
+});
+
+const fraunces = Fraunces({
+  variable: "--font-display",
+  subsets: ["latin"],
+  axes: ["opsz"],
 });
 
 const geistMono = Geist_Mono({
@@ -147,7 +153,7 @@ export default async function RootLayout({
   };
 
   return (
-    <html lang="es" data-scroll-behavior="smooth" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
+    <html lang="es" data-scroll-behavior="smooth" className={`${figtree.variable} ${fraunces.variable} ${geistMono.variable} h-full antialiased`}>
       <head>
         <script
           dangerouslySetInnerHTML={{

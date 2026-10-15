@@ -436,7 +436,7 @@ function ActionCard({ action, accounts, taxRate, onConfirm, onCancel }: ActionCa
     case "create_income": {
       title = "Registrar Ingreso";
       badge = "Ingreso";
-      icon = <ArrowUpRight className="w-4 h-4 text-emerald-600" />;
+      icon = <ArrowUpRight className="w-4 h-4 text-green-600" />;
       const amt = Number(args.amount) || 0;
       details.push({ label: "Monto", value: money(amt, args.account) });
       details.push({ label: "Concepto", value: args.description || "Ingreso" });
@@ -578,8 +578,8 @@ function ActionCard({ action, accounts, taxRate, onConfirm, onCancel }: ActionCa
       )}
 
       {action.status === "completed" && (
-        <div className="flex items-center gap-1.5 pt-1 border-t border-zinc-100 text-emerald-700 text-[11px] font-medium">
-          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+        <div className="flex items-center gap-1.5 pt-1 border-t border-zinc-100 text-green-700 text-[11px] font-medium">
+          <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
           <span>Registrado exitosamente</span>
         </div>
       )}
@@ -642,7 +642,7 @@ function getActionIcon(actionType: string) {
     case "expense":
       return <ArrowDownRight className="w-3.5 h-3.5 text-rose-500" />;
     case "income":
-      return <ArrowUpRight className="w-3.5 h-3.5 text-emerald-500" />;
+      return <ArrowUpRight className="w-3.5 h-3.5 text-green-500" />;
     case "transfer":
       return <ArrowRightLeft className="w-3.5 h-3.5 text-blue-500" />;
     case "account":
