@@ -1,6 +1,7 @@
-from typing import List, Union, Optional
+import json
+from typing import Annotated, List, Union, Optional
 from pydantic import field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 DEV_JWT_SECRET = "fydry_dev_only_jwt_secret_no_usar_en_produccion"
 
@@ -13,7 +14,8 @@ class Settings(BaseSettings):
     FRONTEND_URL: str = "http://localhost:3000"
 
     # CORS Configuration
-    CORS_ORIGINS: List[str] = [
+    # NoDecode: acepta "a,b" además de JSON; sin esto un valor con comas tumba el arranque
+    CORS_ORIGINS: Annotated[List[str], NoDecode] = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "https://fydry-dary.vercel.app",
@@ -24,10 +26,11 @@ class Settings(BaseSettings):
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
-    def assemble_cors_origins(cls, v: Union[str, List[str]]) -> Union[List[str], str]:
-        if isinstance(v, str) and not v.startswith("["):
-            return [i.strip() for i in v.split(",")]
-        elif isinstance(v, (list, str)):
+    def assemble_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:
+        if isinstance(v, str):
+            v = v.strip()
+            return json.loads(v) if v.startswith("[") else [i.strip() for i in v.split(",") if i.strip()]
+        if isinstance(v, list):
             return v
         raise ValueError(v)
 

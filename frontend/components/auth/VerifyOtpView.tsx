@@ -99,11 +99,7 @@ export default function VerifyOtpView({
         setErrorMsg(res.error || "El código ingresado es incorrecto.");
       }
     } catch {
-      // Fallback en dev
-      setIsSuccess(true);
-      setTimeout(() => {
-        window.location.href = "/onboarding";
-      }, 1200);
+      setErrorMsg("No se pudo conectar con el servidor. Intenta de nuevo.");
     } finally {
       setIsLoading(false);
     }
