@@ -62,6 +62,14 @@ export function availableFunds(acc: AccountItem): number {
   return acc.balance + overdraft;
 }
 
+/** Monto que se muestra al elegir una cuenta. En tarjetas de crédito es el crédito disponible, no lo consumido. */
+export function accountOptionAmount(acc: AccountItem, en = false): string {
+  if (!isLiability(acc)) return formatMoney(Number(acc.balance), acc.currency);
+  const avail = availableFunds(acc);
+  if (!isFinite(avail)) return en ? "No limit set" : "Sin límite configurado";
+  return `${en ? "Available" : "Disponible"} ${formatMoney(avail, acc.currency)}`;
+}
+
 /** Patrimonio neto por moneda: activos menos deuda de tarjetas. Nunca mezcla DOP con USD. */
 export function netWorthByCurrency(accounts: AccountItem[]): Record<string, number> {
   const totals: Record<string, number> = {};

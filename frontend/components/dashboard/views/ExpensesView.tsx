@@ -56,7 +56,7 @@ import {
   markNotificationProcessedApi,
 } from "@/lib/api";
 import { getCycleRange, isTransactionInPeriod, formatCycleLabel } from "@/lib/cycle";
-import { availableFunds, currencySymbol, formatMoney, isLiability, parseAmount, todayISO } from "@/lib/money";
+import { accountOptionAmount, availableFunds, currencySymbol, formatMoney, isLiability, parseAmount, todayISO } from "@/lib/money";
 import ConfirmDialog, { useEscapeKey } from "../ConfirmDialog";
 import MoneyInput from "@/components/ui/MoneyInput";
 
@@ -962,7 +962,7 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
                       {accounts.length > 0 ? (
                         accounts.map((a) => (
                           <option key={a.id} value={a.name}>
-                            {a.name} · {formatMoney(a.balance, a.currency)}
+                            {a.name} · {accountOptionAmount(a)}
                           </option>
                         ))
                       ) : (

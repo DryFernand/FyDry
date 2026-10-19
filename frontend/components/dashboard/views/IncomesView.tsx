@@ -44,7 +44,7 @@ import {
   markNotificationProcessedApi,
 } from "@/lib/api";
 import { getCycleRange, isTransactionInPeriod, formatCycleLabel } from "@/lib/cycle";
-import { currencySymbol, formatMoney, isLiability, parseAmount, todayISO } from "@/lib/money";
+import { accountOptionAmount, currencySymbol, formatMoney, isLiability, parseAmount, todayISO } from "@/lib/money";
 import ConfirmDialog, { useEscapeKey } from "../ConfirmDialog";
 import MoneyInput from "@/components/ui/MoneyInput";
 
@@ -830,7 +830,7 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
                       {incomeAccounts.length > 0 ? (
                         incomeAccounts.map((a) => (
                           <option key={a.id} value={a.name}>
-                            {a.name} · {formatMoney(a.balance, a.currency)}
+                            {a.name} · {accountOptionAmount(a)}
                           </option>
                         ))
                       ) : (

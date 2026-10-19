@@ -24,7 +24,7 @@ import {
   fetchUserSettingsApi,
 } from "@/lib/api";
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from "@/lib/categories";
-import { availableFunds, currencySymbol, formatMoney, isLiability, parseAmount, todayISO, transferTax, DEFAULT_TRANSFER_TAX_RATE } from "@/lib/money";
+import { accountOptionAmount, availableFunds, currencySymbol, formatMoney, isLiability, parseAmount, todayISO, transferTax, DEFAULT_TRANSFER_TAX_RATE } from "@/lib/money";
 import { useLanguage } from "@/context/LanguageContext";
 import MoneyInput from "@/components/ui/MoneyInput";
 
@@ -684,7 +684,7 @@ export default function QuickTransactionModal({
                     {sourceAccounts.length > 0 ? (
                       sourceAccounts.map((a) => (
                         <option key={a.id} value={a.name}>
-                          {a.name} · {formatMoney(Number(a.balance), a.currency)}
+                          {a.name} · {accountOptionAmount(a, isEn)}
                         </option>
                       ))
                     ) : (
@@ -708,7 +708,7 @@ export default function QuickTransactionModal({
                       {destinationAccounts
                         .map((a) => (
                           <option key={a.id} value={a.name}>
-                            {a.name} · {formatMoney(Number(a.balance), a.currency)}
+                            {a.name} · {accountOptionAmount(a, isEn)}
                           </option>
                         ))}
                       {destinationAccounts.length === 0 && (

@@ -33,7 +33,7 @@ import {
   payDebtApi,
   fetchAccountsApi,
 } from "@/lib/api";
-import { availableFunds, currencySymbol, formatMoney, parseAmount, todayISO } from "@/lib/money";
+import { accountOptionAmount, availableFunds, currencySymbol, formatMoney, parseAmount, todayISO } from "@/lib/money";
 import ConfirmDialog, { useEscapeKey } from "../ConfirmDialog";
 import MoneyInput from "@/components/ui/MoneyInput";
 
@@ -732,7 +732,7 @@ export default function DebtsView() {
                   >
                     {accounts.map((acc) => (
                       <option key={acc.id} value={acc.name}>
-                        {acc.name} · {formatMoney(acc.balance, acc.currency)}
+                        {acc.name} · {accountOptionAmount(acc)}
                       </option>
                     ))}
                   </select>

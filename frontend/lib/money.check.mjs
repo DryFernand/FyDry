@@ -1,6 +1,6 @@
 // Self-check (Node 22.6+): node lib/money.check.mjs
 import assert from "node:assert/strict";
-import { parseAmount, availableFunds, netWorthByCurrency, todayISO, formatMoney, formatAmountInput } from "./money.ts";
+import { parseAmount, availableFunds, netWorthByCurrency, todayISO, formatMoney, formatAmountInput, accountOptionAmount } from "./money.ts";
 
 assert.equal(parseAmount("1,500"), 1500);
 assert.equal(parseAmount("1,500.50"), 1500.5);
@@ -34,5 +34,11 @@ assert.equal(formatAmountInput("-2500", true), "-2,500");
 assert.equal(formatAmountInput("-2500"), "2,500");
 assert.equal(formatAmountInput("RD$ 30000"), "30,000");
 for (const v of ["1,500,000", "1,500.56", "30,000", "999"]) assert.equal(parseAmount(formatAmountInput(v)), Number(v.replace(/,/g, "")));
+
+// Selector de cuenta: tarjetas muestran crédito disponible, no lo consumido
+const visa = { type: "credit_card", balance: 15000, creditLimit: 50000, currency: "DOP" };
+assert.equal(accountOptionAmount(visa), `Disponible ${formatMoney(35000, "DOP")}`);
+assert.equal(accountOptionAmount({ ...visa, creditLimit: 0 }), "Sin límite configurado");
+assert.equal(accountOptionAmount({ type: "bank", balance: 8000, currency: "DOP" }), formatMoney(8000, "DOP"));
 
 console.log("OK: money helpers");
