@@ -23,7 +23,7 @@ import {
   payCreditCardApi,
   fetchUserSettingsApi,
 } from "@/lib/api";
-import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from "@/lib/categories";
+import { CARD_INCOME_CATEGORY, EXPENSE_CATEGORIES, INCOME_CATEGORIES } from "@/lib/categories";
 import { accountOptionAmount, availableFunds, currencySymbol, formatMoney, isLiability, parseAmount, todayISO, transferTax, DEFAULT_TRANSFER_TAX_RATE } from "@/lib/money";
 import { useLanguage } from "@/context/LanguageContext";
 import MoneyInput from "@/components/ui/MoneyInput";
@@ -74,7 +74,7 @@ export default function QuickTransactionModal({
     type === "card_payment"
       ? nonCards.filter((a) => (a.currency || "DOP") === (payingCard?.currency || "DOP"))
       : type === "income"
-      ? nonCards
+      ? category === CARD_INCOME_CATEGORY ? accounts : nonCards // el cashback sí puede abonarse a una tarjeta
       : accounts;
   const effectiveFrom = sourceAccounts.some((a) => a.name === fromAccount) ? fromAccount : sourceAccounts[0]?.name || "";
   // Destino de un traspaso: nunca una tarjeta de crédito (se paga con "Pagar tarjeta")

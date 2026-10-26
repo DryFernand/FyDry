@@ -52,6 +52,16 @@ with TestClient(app) as c:
     # La tarjeta solo se abona con "Pagar tarjeta": ni traspasos ni ingresos hacia ella
     post("/movements", {"from_account_id": bank["id"], "to_account_id": card["id"], "amount": 100, "date": "2026-10-03"}, 400)
     post("/incomes", {"account_id": card["id"], "category": "Otros", "description": "x", "amount": 10, "date": "2026-10-03"}, 400)
+    # Excepción: el cashback (ingreso 'Rendimientos & Intereses Bancarios') sí abona a la tarjeta y baja su consumo
+    cb = post("/incomes", {"account_id": card["id"], "category": "Rendimientos & Intereses Bancarios", "description": "cashback",
+                           "amount": 25, "date": "2026-10-03"}, 201).json()
+    assert bal(card["id"]) == 275
+    assert c.put(f"{API}/incomes/{cb['id']}", json={"category": "Otros"}, headers=H).status_code == 400  # deja de ser cashback
+    assert c.put(f"{API}/incomes/{cb['id']}", json={"amount": 30}, headers=H).status_code == 200
+    assert bal(card["id"]) == 270
+    post("/expenses", {"account_id": card["id"], "category": "Comida", "description": "e", "amount": 231, "date": "2026-10-03"}, 400)  # disponible 230
+    assert c.delete(f"{API}/incomes/{cb['id']}", headers=H).status_code == 200
+    assert bal(card["id"]) == 300
     post(f"/accounts/{card['id']}/pay", {"from_account_id": bank["id"], "amount": 301}, 400)  # más de lo pendiente
     post(f"/accounts/{card['id']}/pay", {"from_account_id": card["id"], "amount": 10}, 400)  # tarjeta con tarjeta
     post(f"/accounts/{bank['id']}/pay", {"from_account_id": bank["id"], "amount": 10}, 404)  # destino no es tarjeta

@@ -236,7 +236,7 @@ def record_expense(db: Session, user_id: str, account_id, account_name, category
 def record_income(db: Session, user_id: str, account_id, account_name, category, description, amount: Decimal, when: date) -> Income:
     """Crea un ingreso aplicando su efecto en la cuenta (sin commit). Reutilizado por recurrentes."""
     account = get_account(db, user_id, account_id, account_name)
-    ensure_can_receive(account)
+    ensure_can_receive(account, category=category)
     if account:
         apply_delta(account, amount)
     income = Income(
@@ -405,8 +405,8 @@ def update_income(
             setattr(income, field, data[field])
 
     new_account = get_account(db, current_user.id, data.get("account_id"), data.get("account_name")) if account_changed else old_account
-    if account_changed:
-        ensure_can_receive(new_account)
+    if account_changed or "category" in data:
+        ensure_can_receive(new_account, category=income.category)
     if new_account:
         apply_delta(new_account, money(income.amount))
         income.account_id = new_account.id

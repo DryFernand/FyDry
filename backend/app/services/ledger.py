@@ -13,6 +13,8 @@ from app.models.financial import Account
 CENT = Decimal("0.01")
 # Cuentas pasivo: su saldo es lo CONSUMIDO (deuda). Un gasto lo aumenta, un pago lo reduce.
 LIABILITY_TYPES = {"credit_card"}
+# Único ingreso que puede abonarse a una tarjeta: el cashback que el banco acredita como intereses.
+CARD_INCOME_CATEGORY = "Rendimientos & Intereses Bancarios"
 
 
 def money(value) -> Decimal:
@@ -39,12 +41,13 @@ def apply_delta(account: Account, delta: Decimal) -> None:
         account.balance = money(account.balance) + delta
 
 
-def ensure_can_receive(account: Optional[Account], what: str = "ingresos") -> None:
-    """Una tarjeta de crédito solo baja su consumo con 'Pagar tarjeta', nunca con ingresos ni traspasos."""
-    if account is not None and account.type in LIABILITY_TYPES:
+def ensure_can_receive(account: Optional[Account], what: str = "ingresos", category: Optional[str] = None) -> None:
+    """Una tarjeta de crédito solo baja su consumo con 'Pagar tarjeta' o con cashback (ingreso de intereses bancarios)."""
+    if account is not None and account.type in LIABILITY_TYPES and category != CARD_INCOME_CATEGORY:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"La tarjeta '{account.name}' no puede recibir {what}. Para abonarle usa la opción 'Pagar tarjeta'.",
+            detail=f"La tarjeta '{account.name}' no puede recibir {what}. Para abonarle usa la opción 'Pagar tarjeta' "
+                   f"(el cashback se registra como ingreso '{CARD_INCOME_CATEGORY}').",
         )
 
 

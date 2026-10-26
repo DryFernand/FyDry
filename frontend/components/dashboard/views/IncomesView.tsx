@@ -32,7 +32,7 @@ import {
   Coins,
 } from "lucide-react";
 import { TransactionItem, AccountItem } from "../types";
-import { INCOME_CATEGORIES } from "@/lib/categories";
+import { CARD_INCOME_CATEGORY, INCOME_CATEGORIES } from "@/lib/categories";
 import { useLanguage } from "@/context/LanguageContext";
 import {
   fetchTransactionsApi,
@@ -101,7 +101,6 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
   const { t, language } = useLanguage();
   const [incomes, setIncomes] = useState<TransactionItem[]>([]);
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
-  const incomeAccounts = accounts.filter((a) => !isLiability(a));
   const [budgetResetDay, setBudgetResetDay] = useState<number>(1);
   const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
   const [scope, setScope] = useState<"cycle" | "all">("cycle");
@@ -117,6 +116,8 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
   const [desc, setDesc] = useState("");
   const [amount, setAmount] = useState("");
   const [cat, setCat] = useState<string>(INCOME_CATEGORIES[0]);
+  // Tarjetas de crédito solo como destino del cashback (intereses bancarios)
+  const incomeAccounts = accounts.filter((a) => !isLiability(a) || cat === CARD_INCOME_CATEGORY);
   const [selectedAccountId, setSelectedAccountId] = useState("");
   const [incomeDate, setIncomeDate] = useState(() => todayISO());
   const [formError, setFormError] = useState<string | null>(null);

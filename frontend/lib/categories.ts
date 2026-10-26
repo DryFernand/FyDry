@@ -44,3 +44,6 @@ export const INCOME_CATEGORIES = [
   "Criptomonedas & Staking",
   "Otros Ingresos",
 ] as const;
+
+/** Único ingreso que puede abonarse a una tarjeta de crédito (cashback). Igual que CARD_INCOME_CATEGORY del backend. */
+export const CARD_INCOME_CATEGORY = "Rendimientos & Intereses Bancarios";
