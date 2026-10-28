@@ -59,6 +59,7 @@ import { getCycleRange, isTransactionInPeriod, formatCycleLabel } from "@/lib/cy
 import { accountOptionAmount, availableFunds, currencySymbol, formatMoney, isLiability, parseAmount, todayISO } from "@/lib/money";
 import ConfirmDialog, { useEscapeKey } from "../ConfirmDialog";
 import MoneyInput from "@/components/ui/MoneyInput";
+import ScreenSkeleton from "../ScreenSkeleton";
 
 export function getCategoryIcon(category: string): LucideIcon {
   const norm = (category || "").toLowerCase().trim();
@@ -106,6 +107,7 @@ interface ExpensesViewProps {
 
 export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesViewProps = {}) {
   const { t, language } = useLanguage();
+  const [loading, setLoading] = useState(true);
   const [expenses, setExpenses] = useState<TransactionItem[]>([]);
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
   const [budgetResetDay, setBudgetResetDay] = useState<number>(1);
@@ -147,7 +149,7 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
   };
 
   useEffect(() => {
-    loadData();
+    loadData().finally(() => setLoading(false));
     window.addEventListener("fydry_storage_updated", loadData);
     window.addEventListener("fydry_refresh_data", loadData);
     return () => {
@@ -500,6 +502,8 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
   };
 
   const ModalCategoryIcon = getCategoryIcon(cat);
+
+  if (loading) return <ScreenSkeleton screen="expenses" />;
 
   return (
     <div className="space-y-6">

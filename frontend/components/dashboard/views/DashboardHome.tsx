@@ -36,6 +36,7 @@ import {
   getTransactionTimestamp,
 } from "@/lib/cycle";
 import { formatMoney, netWorthByCurrency } from "@/lib/money";
+import ScreenSkeleton from "../ScreenSkeleton";
 
 interface DashboardHomeProps {
   onNavigate: (tab: DashboardTab) => void;
@@ -98,6 +99,7 @@ function getAccountIcon(type: AccountItem["type"]) {
 
 export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
   const { t, language } = useLanguage();
+  const [loading, setLoading] = useState(true);
   const [transactions, setTransactions] = useState<TransactionItem[]>([]);
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
   const [budgets, setBudgets] = useState<BudgetItem[]>([]);
@@ -125,7 +127,7 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
   };
 
   useEffect(() => {
-    loadData();
+    loadData().finally(() => setLoading(false));
     window.addEventListener("fydry_storage_updated", loadData);
     window.addEventListener("fydry_refresh_data", loadData);
     return () => {
@@ -180,6 +182,8 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
       ? Math.round((budgetedSpent / totalBudgetAllocated) * 100)
       : 0;
   const budgetRemaining = Math.max(0, totalBudgetAllocated - budgetedSpent);
+
+  if (loading) return <ScreenSkeleton screen="home" />;
 
   return (
     <div className="space-y-6">

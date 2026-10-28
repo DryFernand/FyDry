@@ -31,6 +31,7 @@ import { getCycleRange, isTransactionInPeriod } from "@/lib/cycle";
 import { availableFunds, formatMoney, isLiability, parseAmount, todayISO } from "@/lib/money";
 import ConfirmDialog, { useEscapeKey } from "../ConfirmDialog";
 import MoneyInput from "@/components/ui/MoneyInput";
+import ScreenSkeleton from "../ScreenSkeleton";
 
 type MovementFilterType = "all" | "savings" | "standard";
 
@@ -48,6 +49,7 @@ interface MovementsViewProps {
 
 export default function MovementsView({ initialDraft, onClearDraft }: MovementsViewProps = {}) {
   const { language } = useLanguage();
+  const [loading, setLoading] = useState(true);
   const [movements, setMovements] = useState<MovementItem[]>([]);
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
   const [budgetResetDay, setBudgetResetDay] = useState<number>(1);
@@ -94,7 +96,7 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
   };
 
   useEffect(() => {
-    loadData();
+    loadData().finally(() => setLoading(false));
     window.addEventListener("fydry_storage_updated", loadData);
     window.addEventListener("fydry_refresh_data", loadData);
     return () => {
@@ -329,6 +331,8 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
   const toBalanceAfter = toAccObj ? toAccObj.balance + (isLiability(toAccObj) ? -numReceived : numReceived) : 0;
   const fromCur = fromAccObj?.currency || mainCurrency;
   const toCur = toAccObj?.currency || mainCurrency;
+
+  if (loading) return <ScreenSkeleton screen="movements" />;
 
   return (
     <div className="space-y-6">

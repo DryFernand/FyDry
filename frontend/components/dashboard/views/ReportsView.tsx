@@ -26,6 +26,7 @@ import { periodSavings, savingsRatePct } from "@/lib/savings";
 import { getCycleRange, isTransactionInPeriod, formatCycleLabel } from "@/lib/cycle";
 import { isLiability, formatMoney, netWorthByCurrency } from "@/lib/money";
 import { TrendChart, CategoryBars, DeltaBadge, type TrendPoint } from "../reports/ReportCharts";
+import ScreenSkeleton from "../ScreenSkeleton";
 
 const ACCOUNT_TYPE_LABELS: Record<string, { es: string; en: string }> = {
   bank: { es: "Banco", en: "Bank" },
@@ -39,6 +40,7 @@ const ACCOUNT_TYPE_LABELS: Record<string, { es: string; en: string }> = {
 
 export default function ReportsView() {
   const { t, language } = useLanguage();
+  const [loading, setLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
   const [expenses, setExpenses] = useState<TransactionItem[]>([]);
@@ -93,7 +95,7 @@ export default function ReportsView() {
   };
 
   useEffect(() => {
-    loadData();
+    loadData().finally(() => setLoading(false));
     window.addEventListener("fydry_storage_updated", loadData);
     window.addEventListener("fydry_refresh_data", loadData);
     return () => {
@@ -339,6 +341,8 @@ export default function ReportsView() {
   const periodDisplayValue = reportScope === "current_cycle"
     ? `${cycleLabel} (Reinicia día ${budgetResetDay})`
     : (language === "es" ? "Histórico Consolidado Completo" : "Full Consolidated History");
+
+  if (loading) return <ScreenSkeleton screen="reports" />;
 
   return (
     <div className="space-y-6 print:m-0 print:p-0">

@@ -36,6 +36,7 @@ import {
 import { accountOptionAmount, availableFunds, currencySymbol, formatMoney, parseAmount, todayISO } from "@/lib/money";
 import ConfirmDialog, { useEscapeKey } from "../ConfirmDialog";
 import MoneyInput from "@/components/ui/MoneyInput";
+import ScreenSkeleton from "../ScreenSkeleton";
 
 type DebtFilter = "all" | "active" | "liquidated";
 
@@ -61,6 +62,7 @@ const getDebtIcon = (type: string) => {
 
 export default function DebtsView() {
   const { t } = useLanguage();
+  const [loading, setLoading] = useState(true);
   const [debts, setDebts] = useState<DebtItem[]>([]);
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -104,7 +106,7 @@ export default function DebtsView() {
   };
 
   useEffect(() => {
-    loadData();
+    loadData().finally(() => setLoading(false));
     window.addEventListener("fydry_storage_updated", loadData);
     window.addEventListener("fydry_refresh_data", loadData);
     return () => {
@@ -325,6 +327,8 @@ export default function DebtsView() {
       setIsPaying(false);
     }
   };
+
+  if (loading) return <ScreenSkeleton screen="debts" />;
 
   return (
     <div className="space-y-6">

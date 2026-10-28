@@ -42,6 +42,7 @@ import {
   type AccountResult,
 } from "@/lib/planner";
 import ConfirmDialog, { useEscapeKey } from "../ConfirmDialog";
+import ScreenSkeleton from "../ScreenSkeleton";
 import MoneyInput from "@/components/ui/MoneyInput";
 
 const DRAFT_KEY = "fydry_planner_draft_v1";
@@ -185,13 +186,7 @@ export default function CalculatorView() {
 
   const result = useMemo(() => (plan ? computePlan(plan) : null), [plan]);
 
-  if (!plan || !result) {
-    return (
-      <div className="flex items-center justify-center py-24 text-xs text-zinc-400" role="status">
-        Cargando calculadora…
-      </div>
-    );
-  }
+  if (!plan || !result) return <ScreenSkeleton screen="calculator" />;
 
   const update = (fn: (p: PlanData) => PlanData) => {
     setMessage(null);

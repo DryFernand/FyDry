@@ -59,6 +59,7 @@ import {
 import { currencySymbol, formatMoney, parseAmount } from "@/lib/money";
 import ConfirmDialog, { useEscapeKey } from "../ConfirmDialog";
 import MoneyInput from "@/components/ui/MoneyInput";
+import ScreenSkeleton from "../ScreenSkeleton";
 
 const MONTH_NAMES_ES = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -107,6 +108,7 @@ export function getCategoryIcon(category: string): LucideIcon {
 
 export default function BudgetView() {
   const { t, language } = useLanguage();
+  const [loading, setLoading] = useState(true);
   const [budgets, setBudgets] = useState<BudgetItem[]>([]);
   const [expenses, setExpenses] = useState<TransactionItem[]>([]);
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
@@ -161,7 +163,7 @@ export default function BudgetView() {
   };
 
   useEffect(() => {
-    loadData();
+    loadData().finally(() => setLoading(false));
     window.addEventListener("fydry_storage_updated", loadData);
     window.addEventListener("fydry_refresh_data", loadData);
     return () => {
@@ -631,6 +633,8 @@ export default function BudgetView() {
     }
     return monthLabel;
   };
+
+  if (loading) return <ScreenSkeleton screen="budget" />;
 
   return (
     <div className="space-y-6">

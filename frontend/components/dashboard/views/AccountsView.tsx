@@ -25,11 +25,13 @@ import ConfirmDialog, { useEscapeKey } from "../ConfirmDialog";
 import MoneyInput from "@/components/ui/MoneyInput";
 import AccountCard from "../AccountCard";
 import AccountDetailModal from "../AccountDetailModal";
+import ScreenSkeleton from "../ScreenSkeleton";
 
 type AccountType = "bank" | "credit_card" | "debit_card" | "card" | "wallet" | "cash" | "savings";
 
 export default function AccountsView() {
   const { t } = useLanguage();
+  const [loading, setLoading] = useState(true);
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<AccountItem | null>(null);
@@ -57,7 +59,7 @@ export default function AccountsView() {
   };
 
   useEffect(() => {
-    loadAccounts();
+    loadAccounts().finally(() => setLoading(false));
     window.addEventListener("fydry_storage_updated", loadAccounts);
     window.addEventListener("fydry_refresh_data", loadAccounts);
     return () => {
@@ -193,6 +195,8 @@ export default function AccountsView() {
     setIsModalOpen(false);
     setEditingAccount(null);
   };
+
+  if (loading) return <ScreenSkeleton screen="accounts" />;
 
   return (
     <div className="space-y-6">

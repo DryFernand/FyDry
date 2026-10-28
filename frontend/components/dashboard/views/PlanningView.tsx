@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Wallet, HeartPulse, Coffee, Repeat, Target, Plus, Trash2, Pause, Play, Loader2, X } from "lucide-react";
+import { Wallet, HeartPulse, Coffee, Repeat, Target, Plus, Trash2, Pause, Play, X } from "lucide-react";
 import {
   fetchInsightsApi,
   fetchRecurringApi,
@@ -20,6 +20,7 @@ import { formatMoney, parseAmount, todayISO } from "@/lib/money";
 import { useLanguage } from "@/context/LanguageContext";
 import type { AccountItem, GoalItem, InsightsData, RecurringFrequency, RecurringItem } from "../types";
 import { useEscapeKey } from "../ConfirmDialog";
+import ScreenSkeleton from "../ScreenSkeleton";
 import MoneyInput from "@/components/ui/MoneyInput";
 
 const card = "bg-white p-5 rounded-3xl border border-zinc-200/80 shadow-xs";
@@ -156,14 +157,7 @@ export default function PlanningView() {
     setShowRecForm(true);
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-24 text-zinc-400" role="status">
-        <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" />
-        <span className="sr-only">{tr("Cargando", "Loading")}</span>
-      </div>
-    );
-  }
+  if (loading) return <ScreenSkeleton screen="planning" />;
 
   const score = insights?.peace_score ?? 0;
   const scoreColor = score >= 70 ? "bg-green-500" : score >= 40 ? "bg-amber-500" : "bg-red-500";

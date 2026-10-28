@@ -47,6 +47,7 @@ import { getCycleRange, isTransactionInPeriod, formatCycleLabel } from "@/lib/cy
 import { accountOptionAmount, currencySymbol, formatMoney, isLiability, parseAmount, todayISO } from "@/lib/money";
 import ConfirmDialog, { useEscapeKey } from "../ConfirmDialog";
 import MoneyInput from "@/components/ui/MoneyInput";
+import ScreenSkeleton from "../ScreenSkeleton";
 
 export function getIncomeCategoryIcon(category: string) {
   switch (category) {
@@ -99,6 +100,7 @@ interface IncomesViewProps {
 
 export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewProps = {}) {
   const { t, language } = useLanguage();
+  const [loading, setLoading] = useState(true);
   const [incomes, setIncomes] = useState<TransactionItem[]>([]);
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
   const [budgetResetDay, setBudgetResetDay] = useState<number>(1);
@@ -139,7 +141,7 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
   };
 
   useEffect(() => {
-    loadData();
+    loadData().finally(() => setLoading(false));
     window.addEventListener("fydry_storage_updated", loadData);
     window.addEventListener("fydry_refresh_data", loadData);
     return () => {
@@ -393,6 +395,8 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
   const resultingBalance = selectedIsCard ? currentBalance - numAmountPreview : currentBalance + numAmountPreview;
 
   const ModalCategoryIcon = getIncomeCategoryIcon(cat);
+
+  if (loading) return <ScreenSkeleton screen="incomes" />;
 
   return (
     <div className="space-y-6">
