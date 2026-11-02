@@ -4,22 +4,64 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import Image from "next/image";
-import { User, Briefcase, Wallet, Target, Sparkles, CheckCircle2 } from "lucide-react";
+import { User, Briefcase, Wallet, Landmark, Target, Sparkles, CheckCircle2 } from "lucide-react";
 import { OnboardingFormData, initialOnboardingData } from "./types";
 import StepPersonal from "./StepPersonal";
 import StepWork from "./StepWork";
 import StepFinancial from "./StepFinancial";
+import StepMoney from "./StepMoney";
 import StepGoals from "./StepGoals";
 import StepReferral from "./StepReferral";
 import { apiCompleteOnboarding } from "@/lib/auth";
+import { parseAmount } from "@/lib/money";
 
 const steps = [
   { id: 1, title: "Personal", icon: User },
   { id: 2, title: "Laboral", icon: Briefcase },
   { id: 3, title: "Finanzas", icon: Wallet },
-  { id: 4, title: "Metas", icon: Target },
-  { id: 5, title: "Origen", icon: Sparkles },
+  { id: 4, title: "Tu dinero", icon: Landmark },
+  { id: 5, title: "Metas", icon: Target },
+  { id: 6, title: "Origen", icon: Sparkles },
 ];
+
+const amountOrZero = (s: string) => {
+  const n = parseAmount(s);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+};
+const dayOrNull = (s: string) => {
+  const n = parseInt(s, 10);
+  return n >= 1 && n <= 31 ? n : null;
+};
+
+/** Convierte el formulario al cuerpo de /onboarding/complete, descartando filas vacías. */
+function toPayload(f: OnboardingFormData) {
+  const { accounts, fixed_expenses, pay_day, emergency_months, ...profile } = f;
+  const payDay = dayOrNull(pay_day);
+  return {
+    ...profile,
+    pay_day: payDay,
+    accounts: accounts
+      .filter((a) => a.name.trim())
+      .map((a) => ({
+        name: a.name.trim(),
+        type: a.type,
+        currency: f.preferred_currency,
+        balance: amountOrZero(a.balance),
+        ...(a.type === "credit_card"
+          ? { credit_limit: amountOrZero(a.credit_limit), cutoff_day: dayOrNull(a.cutoff_day), payment_day: dayOrNull(a.payment_day) }
+          : {}),
+      })),
+    fixed_expenses: fixed_expenses
+      .filter((x) => x.description.trim() && amountOrZero(x.amount) > 0)
+      .map((x) => ({
+        description: x.description.trim(),
+        amount: amountOrZero(x.amount),
+        day: dayOrNull(x.day) ?? payDay ?? 1,
+        category: x.category,
+      })),
+    emergency_months: f.primary_goals.includes("emergency_fund") ? Number(emergency_months) || null : null,
+  };
+}
 
 export default function OnboardingWizard() {
   const router = useRouter();
@@ -35,7 +77,7 @@ export default function OnboardingWizard() {
   };
 
   const handleNext = () => {
-    if (currentStep < 5) {
+    if (currentStep < steps.length) {
       setDirection(1);
       setCurrentStep((prev) => prev + 1);
     }
@@ -53,40 +95,26 @@ export default function OnboardingWizard() {
     setErrorMsg("");
 
     try {
-      const res = await apiCompleteOnboarding(formData);
-      if (res.data?.user) {
-        if (typeof window !== "undefined") {
-          const userStr = localStorage.getItem("fydry_user");
-          if (userStr) {
-            try {
-              const u = JSON.parse(userStr);
-              u.onboarding_completed = true;
-              localStorage.setItem("fydry_user", JSON.stringify(u));
-            } catch {}
-          }
-        }
+      const res = await apiCompleteOnboarding(toPayload(formData));
+      // Si falla no se da por terminado: se perderían las cuentas y gastos fijos que escribió
+      if (!res.ok) {
+        setErrorMsg(res.error || "No pudimos guardar tu perfil. Revisa los datos e intenta de nuevo.");
+        return;
       }
+      try {
+        const u = JSON.parse(localStorage.getItem("fydry_user") || "null");
+        if (u) localStorage.setItem("fydry_user", JSON.stringify({ ...u, onboarding_completed: true }));
+      } catch {}
       setIsFinished(true);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error al completar onboarding:", err);
-      // Marcamos localmente completado como fallback
-      if (typeof window !== "undefined") {
-        const userStr = localStorage.getItem("fydry_user");
-        if (userStr) {
-          try {
-            const u = JSON.parse(userStr);
-            u.onboarding_completed = true;
-            localStorage.setItem("fydry_user", JSON.stringify(u));
-          } catch {}
-        }
-      }
-      setIsFinished(true);
+      setErrorMsg("No pudimos conectar con FyDry. Revisa tu conexión e intenta de nuevo.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const progressPercentage = (currentStep / 5) * 100;
+  const progressPercentage = (currentStep / steps.length) * 100;
 
   const slideVariants = {
     enter: (dir: number) => ({
@@ -169,7 +197,7 @@ export default function OnboardingWizard() {
             </span>
           </div>
           <span className="text-xs font-semibold text-zinc-400">
-            Paso {currentStep} de 5
+            Paso {currentStep} de {steps.length}
           </span>
         </div>
 
@@ -281,7 +309,7 @@ export default function OnboardingWizard() {
                 />
               )}
               {currentStep === 4 && (
-                <StepGoals
+                <StepMoney
                   formData={formData}
                   updateData={updateFormData}
                   onNext={handleNext}
@@ -289,6 +317,14 @@ export default function OnboardingWizard() {
                 />
               )}
               {currentStep === 5 && (
+                <StepGoals
+                  formData={formData}
+                  updateData={updateFormData}
+                  onNext={handleNext}
+                  onPrev={handlePrev}
+                />
+              )}
+              {currentStep === 6 && (
                 <StepReferral
                   formData={formData}
                   updateData={updateFormData}

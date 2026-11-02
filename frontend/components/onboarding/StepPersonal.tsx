@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
-import { Globe2, Phone, MapPin, DollarSign, Euro, Coins } from "lucide-react";
+import { Globe2, Phone, DollarSign, Euro, Coins } from "lucide-react";
 import { OnboardingFormData } from "./types";
 
 interface StepPersonalProps {
@@ -56,8 +56,8 @@ export default function StepPersonal({
         </p>
       </div>
 
-      {/* País y Ciudad */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+      {/* País */}
+      <div>
         <div>
           <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
             País de residencia
@@ -75,22 +75,6 @@ export default function StepPersonal({
               ))}
             </select>
             <Globe2 className="w-4 h-4 text-zinc-400 absolute left-3 top-3 pointer-events-none" />
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-xs font-semibold text-zinc-800 mb-1.5">
-            Ciudad (opcional)
-          </label>
-          <div className="relative">
-            <input
-              type="text"
-              value={formData.city}
-              onChange={(e) => updateData({ city: e.target.value })}
-              placeholder="Ej. Madrid, CDMX, Bogotá"
-              className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-zinc-200 bg-white text-zinc-900 text-xs placeholder:text-zinc-400 focus:outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 transition-colors shadow-2xs"
-            />
-            <MapPin className="w-4 h-4 text-zinc-400 absolute left-3 top-3 pointer-events-none" />
           </div>
         </div>
       </div>

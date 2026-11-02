@@ -577,6 +577,11 @@ export interface UserSettingsData {
   email_notifications: boolean;
   budget_alerts: boolean;
   weekly_digest: boolean;
+  /** Perfil del onboarding (solo lectura) */
+  employment_type?: string | null;
+  income_frequency?: string | null;
+  financial_situation_status?: string | null;
+  primary_goals?: string[];
 }
 
 export async function fetchUserSettingsApi(): Promise<UserSettingsData | null> {

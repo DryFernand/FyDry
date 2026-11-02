@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Plus,
@@ -121,6 +121,7 @@ export default function BudgetView() {
 
   // 3 Vistas de periodicidad: Mensual (base), Quincenal (÷2), Semanal (÷4)
   const [periodView, setPeriodView] = useState<BudgetPeriodView>("monthly");
+  const periodFromProfile = useRef(false);
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
 
   // Sub-período interactivo para Quincenal (1 o 2) y Semanal (1, 2, 3, 4)
@@ -159,6 +160,12 @@ export default function BudgetView() {
     setMovements(movData);
     if (settingsData?.budget_reset_day !== undefined && settingsData.budget_reset_day !== null) {
       setBudgetResetDay(settingsData.budget_reset_day);
+    }
+    // Solo en la primera carga: arranca en la vista que coincide con cómo cobra (luego manda lo que elija)
+    if (!periodFromProfile.current) {
+      periodFromProfile.current = true;
+      const freq = settingsData?.income_frequency;
+      if (freq === "biweekly" || freq === "weekly") setPeriodView(freq);
     }
   };
 

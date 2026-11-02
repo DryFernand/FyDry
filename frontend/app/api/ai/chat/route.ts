@@ -147,6 +147,50 @@ interface BackendInsights {
   small_expenses: { total: number; count: number };
 }
 
+interface BackendSettings {
+  transfer_tax_rate?: number;
+  employment_type?: string | null;
+  income_frequency?: string | null;
+  financial_situation_status?: string | null;
+  primary_goals?: string[];
+}
+
+// Solo valores conocidos del onboarding: nada de texto libre del usuario entra al prompt por aquí
+const EMPLOYMENT: Record<string, string> = {
+  employed: "empleado con sueldo fijo",
+  freelance: "freelancer con ingresos variables (prioriza colchón y presupuestar con el mes flojo)",
+  business_owner: "dueño de negocio",
+  student: "estudiante",
+};
+const FREQUENCY: Record<string, string> = { monthly: "mensual", biweekly: "quincenal", weekly: "semanal", irregular: "variable, sin fecha fija" };
+const SITUATION: Record<string, string> = {
+  stressful: "vive al día y le genera estrés (sé especialmente calmado y empieza por lo urgente)",
+  living_paycheck: "gana bien pero no sabe en qué se le va el dinero (ayúdale a ver sus gastos)",
+  stable_growing: "tiene control básico y quiere optimizar su ahorro",
+  wealth_building: "quiere acelerar inversiones y patrimonio",
+};
+const GOALS: Record<string, string> = {
+  emergency_fund: "fondo de emergencia",
+  debt_payoff: "salir de deudas",
+  stop_living_paycheck: "dejar de vivir al día",
+  save_specific_goal: "ahorrar para una meta concreta",
+  expense_clarity: "entender sus gastos fijos y variables",
+  invest_more: "tener excedente para invertir",
+};
+
+/** Perfil del onboarding para adaptar consejos y tono. Vacío si el usuario no lo completó. */
+function buildProfileContext(s: BackendSettings | null): string {
+  if (!s) return "";
+  const parts = [
+    s.employment_type && EMPLOYMENT[s.employment_type] && `situación laboral: ${EMPLOYMENT[s.employment_type]}`,
+    s.income_frequency && FREQUENCY[s.income_frequency] && `cobra de forma ${FREQUENCY[s.income_frequency]}`,
+    s.financial_situation_status && SITUATION[s.financial_situation_status] && `se describe así: ${SITUATION[s.financial_situation_status]}`,
+  ].filter(Boolean);
+  const goals = (s.primary_goals || []).map((g) => GOALS[g]).filter(Boolean);
+  if (goals.length) parts.push(`sus metas: ${goals.join(", ")}`);
+  return parts.length ? `\n\nPERFIL DEL USUARIO (de su registro; úsalo para orientar consejos, sin repetírselo):\n- ${parts.join(".\n- ")}.` : "";
+}
+
 function buildFinancialContext(
   accounts: BackendAccount[],
   insights: BackendInsights | null,
@@ -573,7 +617,7 @@ export async function POST(req: NextRequest) {
       backendGet<BackendInsights>("/insights", token),
       backendGet<BackendDebt[]>("/debts", token),
       backendGet<BackendBudget[]>("/budgets", token),
-      backendGet<{ transfer_tax_rate?: number }>("/auth/settings", token),
+      backendGet<BackendSettings>("/auth/settings", token),
     ]);
     const validAccounts = (accountsRes.data || []).slice(0, 30).map((a) => ({
       name: oneLine(a.name),
@@ -615,7 +659,7 @@ El usuario no tiene cuentas registradas aún. Si pide registrar un gasto o ingre
 
     const financialContext = buildFinancialContext(accountsRes.data || [], insightsRes.data, debtsRes.data || [], budgetsRes.data || []);
     const taxRatePct = Math.round((Number(settingsRes.data?.transfer_tax_rate ?? 0.0015) || 0) * 100000) / 1000;
-    const fullSystemPrompt = `${SYSTEM_PROMPT}\n\n${accountsPromptSection}\n\n${financialContext}\n- Impuesto DGII a transferencias configurado por el usuario: ${taxRatePct}%.`;
+    const fullSystemPrompt = `${SYSTEM_PROMPT}\n\n${accountsPromptSection}\n\n${financialContext}\n- Impuesto DGII a transferencias configurado por el usuario: ${taxRatePct}%.${buildProfileContext(settingsRes.data)}`;
 
     // 3. Límites defensivos de payload (Anti-DoS / Token Overflow)
     // Rechazar mensajes desproporcionados (>5,000 caracteres)

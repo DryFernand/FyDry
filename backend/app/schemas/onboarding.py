@@ -1,6 +1,20 @@
 from typing import Optional, List
 from pydantic import BaseModel, Field
 from app.schemas import CoreSchema
+from app.schemas.financial import AccountCreate, Category, Name, PositiveAmount
+
+
+class OnboardingAccount(AccountCreate):
+    # Tarjeta de crédito: día del mes en que vence el pago (se convierte a días de gracia desde el corte)
+    payment_day: Optional[int] = Field(None, ge=1, le=31)
+
+
+class OnboardingFixedExpense(BaseModel):
+    """Gasto fijo mensual (alquiler, internet...). Se guarda como gasto recurrente."""
+    description: Name
+    amount: PositiveAmount
+    day: int = Field(..., ge=1, le=31)
+    category: Category = "Otros Gastos"
 
 
 class OnboardingDataInput(BaseModel):
@@ -26,6 +40,12 @@ class OnboardingDataInput(BaseModel):
     # 5. Adquisición
     referral_source: str = Field(..., description="tiktok, instagram, youtube, friend, google, other")
     referral_detail: Optional[str] = None
+
+    # 6. Arranque de la app (todo opcional): día de cobro, cuentas, gastos fijos y colchón de emergencia
+    pay_day: Optional[int] = Field(None, ge=1, le=31)
+    accounts: List[OnboardingAccount] = Field(default_factory=list, max_length=10)
+    fixed_expenses: List[OnboardingFixedExpense] = Field(default_factory=list, max_length=15)
+    emergency_months: Optional[int] = Field(None, ge=1, le=24)
 
 
 class UserProfileOut(CoreSchema):

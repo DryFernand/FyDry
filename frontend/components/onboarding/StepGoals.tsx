@@ -144,6 +144,36 @@ export default function StepGoals({
         </div>
       </div>
 
+      {/* Fondo de emergencia: cuántos meses de gastos fijos quiere cubrir */}
+      {formData.primary_goals?.includes("emergency_fund") && (
+        <div>
+          <label className="block text-xs font-semibold text-zinc-800 mb-2">
+            ¿Cuántos meses de gastos fijos quieres tener de colchón?
+          </label>
+          <div className="grid grid-cols-4 gap-2">
+            {["3", "6", "9", "12"].map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => updateData({ emergency_months: m })}
+                className={`p-2.5 rounded-xl border text-center text-xs font-medium transition-all cursor-pointer ${
+                  formData.emergency_months === m
+                    ? "border-zinc-950 bg-emerald-700 text-white"
+                    : "border-zinc-200 bg-white hover:border-zinc-300 text-zinc-700"
+                }`}
+              >
+                {m} meses
+              </button>
+            ))}
+          </div>
+          {formData.fixed_expenses.length === 0 && (
+            <p className="text-[11px] text-zinc-400 mt-1">
+              Agrega tus gastos fijos en el paso anterior para crear la meta con un monto concreto.
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Botones de navegación */}
       <div className="flex items-center gap-3 pt-3">
         <button

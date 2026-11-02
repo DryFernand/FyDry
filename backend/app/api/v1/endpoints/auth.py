@@ -588,6 +588,16 @@ def complete_onboarding(
     return current_user
 
 
+def _profile_fields(profile: UserProfile) -> dict:
+    """Datos del onboarding que la app usa para ajustarse al usuario."""
+    return {
+        "employment_type": profile.employment_type,
+        "income_frequency": profile.income_frequency,
+        "financial_situation_status": profile.financial_situation_status,
+        "primary_goals": profile.primary_goals or [],
+    }
+
+
 @router.get(
     "/settings",
     response_model=UserSettingsResponse,
@@ -618,6 +628,7 @@ def get_user_settings(
         email_notifications=profile.email_notifications,
         budget_alerts=profile.budget_alerts,
         weekly_digest=profile.weekly_digest,
+        **_profile_fields(profile),
     )
 
 
@@ -662,6 +673,7 @@ def update_user_settings(
         email_notifications=profile.email_notifications,
         budget_alerts=profile.budget_alerts,
         weekly_digest=profile.weekly_digest,
+        **_profile_fields(profile),
     )
 
 

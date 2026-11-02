@@ -1,4 +1,4 @@
-from typing import Literal, Optional
+from typing import List, Literal, Optional
 from pydantic import BaseModel, EmailStr, Field
 from app.schemas import CoreSchema
 
@@ -92,6 +92,11 @@ class UserSettingsResponse(BaseModel):
     email_notifications: bool = True
     budget_alerts: bool = True
     weekly_digest: bool = True
+    # Perfil del onboarding (solo lectura): ajusta el periodo del presupuesto y el contexto del asistente de IA
+    employment_type: Optional[str] = None
+    income_frequency: Optional[str] = None
+    financial_situation_status: Optional[str] = None
+    primary_goals: List[str] = []
 
 
 class UserSettingsUpdate(BaseModel):
