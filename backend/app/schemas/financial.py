@@ -180,6 +180,7 @@ class MovementCreate(BaseModel):
     tax_amount: Optional[NonNegAmount] = 0.0
     description: Optional[str] = Field("Traspaso entre cuentas", max_length=255)
     date: FlexDate
+    affects_budget: bool = True
 
 
 class MovementUpdate(BaseModel):
@@ -192,6 +193,7 @@ class MovementUpdate(BaseModel):
     tax_amount: Optional[NonNegAmount] = None
     description: Optional[str] = Field(None, max_length=255)
     date: Optional[FlexDate] = None
+    affects_budget: Optional[bool] = None
 
 
 class MovementResponse(ORMModel):
@@ -206,6 +208,7 @@ class MovementResponse(ORMModel):
     tax_expense_id: Optional[str] = None
     description: str
     date: Date
+    affects_budget: bool = True
     created_at: Optional[datetime] = None
 
 

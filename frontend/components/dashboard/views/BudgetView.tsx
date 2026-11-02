@@ -453,6 +453,7 @@ export default function BudgetView() {
   // Filtrar movimientos hacia cuentas de ahorro dentro del período seleccionado
   const filteredSavingsMovements = movements
     .filter(isMovementInPeriod)
+    .filter((m) => m.affectsBudget !== false)
     .filter((m) => {
       const toIdMatch = m.toAccountId ? savingsAccountIds.has(m.toAccountId) : false;
       const toNameMatch = m.toAccount

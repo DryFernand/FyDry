@@ -96,9 +96,19 @@ with TestClient(app) as c:
     # Impuesto de traspaso: borrar el gasto del impuesto y luego el traspaso no reembolsa dos veces
     m = post("/movements", {"from_account_id": bank["id"], "to_account_id": usd2["id"], "amount": 100, "tax_amount": 5, "date": "2026-10-05"}, 201).json()
     assert bal(bank["id"]) == 204.7
+    assert m["affects_budget"] is True  # por defecto el traspaso a ahorro cuenta en el presupuesto
     assert c.delete(f"{API}/expenses/{m['tax_expense_id']}", headers=H).status_code == 200
     assert c.delete(f"{API}/movements/{m['id']}", headers=H).status_code == 200
     assert bal(bank["id"]) == 309.7 and bal(card["id"]) == 200 and bal(usd2["id"]) == 0
+
+    # Traspaso a ahorro fuera del presupuesto: se guarda, se puede cambiar y no altera saldos
+    m = post("/movements", {"from_account_id": bank["id"], "to_account_id": usd2["id"], "amount": 10, "date": "2026-10-05",
+                            "affects_budget": False}, 201).json()
+    assert m["affects_budget"] is False
+    r = c.put(f"{API}/movements/{m['id']}", json={"affects_budget": True}, headers=H)
+    assert r.status_code == 200 and r.json()["affects_budget"] is True and bal(usd2["id"]) == 10
+    assert c.delete(f"{API}/movements/{m['id']}", headers=H).status_code == 200
+    assert bal(bank["id"]) == 309.7 and bal(usd2["id"]) == 0
 
     # Misma cuenta origen/destino rechazada
     post("/movements", {"from_account_id": bank["id"], "to_account_id": bank["id"], "amount": 1, "date": "2026-10-05"}, 400)

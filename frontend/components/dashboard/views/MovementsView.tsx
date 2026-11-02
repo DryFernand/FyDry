@@ -69,6 +69,7 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
   const [amount, setAmount] = useState("");
   const [taxAmount, setTaxAmount] = useState("");
   const [toAmount, setToAmount] = useState("");
+  const [affectsBudget, setAffectsBudget] = useState(true);
   const [description, setDescription] = useState("");
   const [formError, setFormError] = useState("");
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
@@ -145,6 +146,7 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
     setAmount("");
     setTaxAmount("");
     setToAmount("");
+    setAffectsBudget(true);
     setDescription("");
     setFormError("");
     if (accounts.length >= 2) {
@@ -164,6 +166,7 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
     setAmount(mov.amount.toString());
     setTaxAmount(mov.taxAmount && mov.taxAmount > 0 ? mov.taxAmount.toString() : "");
     setToAmount(mov.toAmount != null ? mov.toAmount.toString() : "");
+    setAffectsBudget(mov.affectsBudget !== false);
     setDescription(mov.description);
     setFormError("");
     setIsModalOpen(true);
@@ -231,6 +234,7 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
           toAmount: parsedToAmount,
           taxAmount: parsedTax,
           description: description || `Traspaso de ${fromAccount} a ${toAccount}`,
+          affectsBudget,
         };
         await updateMovementApi(editingMovement.id, updated);
         setMovements((prev) =>
@@ -247,6 +251,7 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
           taxAmount: parsedTax,
           description: description || `Traspaso de ${fromAccount} a ${toAccount}`,
           date: initialDraft?.date || todayISO(),
+          affectsBudget,
         });
         setMovements((prev) => [created, ...prev]);
       }
@@ -747,6 +752,24 @@ export default function MovementsView({ initialDraft, onClearDraft }: MovementsV
                     </div>
                   )}
                 </div>
+
+                {/* Traspaso a ahorro: decidir si cuenta en el presupuesto "Ahorro Programado" */}
+                {toAccObj?.type === "savings" && (
+                  <label className="flex items-start gap-2.5 p-3 rounded-xl border border-zinc-200 bg-white cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={affectsBudget}
+                      onChange={(e) => setAffectsBudget(e.target.checked)}
+                      className="mt-0.5 w-4 h-4 accent-zinc-900 cursor-pointer"
+                    />
+                    <span className="text-xs">
+                      <span className="block font-semibold text-zinc-800">Contar en el presupuesto</span>
+                      <span className="block text-[11px] text-zinc-500">
+                        Suma este traspaso a tu presupuesto de &quot;Ahorro Programado&quot;.
+                      </span>
+                    </span>
+                  </label>
+                )}
 
                 {/* Concept / Description */}
                 <div>

@@ -53,6 +53,7 @@ export default function QuickTransactionModal({
   const [toAccount, setToAccount] = useState<string>("");
   const [cardAccount, setCardAccount] = useState<string>("");
   const [taxTouched, setTaxTouched] = useState(false);
+  const [affectsBudget, setAffectsBudget] = useState(true);
   const [taxRate, setTaxRate] = useState(DEFAULT_TRANSFER_TAX_RATE);
   const [date, setDate] = useState<string>(todayISO());
 
@@ -167,6 +168,7 @@ export default function QuickTransactionModal({
     setAmount("");
     setTaxAmount("");
     setTaxTouched(false);
+    setAffectsBudget(true);
     setDescription("");
     setDate(todayISO());
     setErrorMessage(null);
@@ -349,6 +351,7 @@ export default function QuickTransactionModal({
               ? `Transfer from ${currentFromAccount} to ${targetToAccount}`
               : `Traspaso de ${currentFromAccount} a ${targetToAccount}`),
           date,
+          affectsBudget,
         });
       }
 
@@ -861,6 +864,28 @@ export default function QuickTransactionModal({
                     </div>
                   </div>
                 )}
+
+              {/* Traspaso a ahorro: decidir si cuenta en el presupuesto "Ahorro Programado" */}
+              {type === "transfer" && transferToAcc?.type === "savings" && (
+                <label className="flex items-start gap-2.5 p-3 rounded-xl border border-zinc-200 bg-white cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={affectsBudget}
+                    onChange={(e) => setAffectsBudget(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 accent-zinc-900 cursor-pointer"
+                  />
+                  <span className="text-xs">
+                    <span className="block font-semibold text-zinc-800">
+                      {isEn ? "Count in budget" : "Contar en el presupuesto"}
+                    </span>
+                    <span className="block text-[11px] text-zinc-500">
+                      {isEn
+                        ? 'Adds this transfer to your "Ahorro Programado" budget.'
+                        : 'Suma este traspaso a tu presupuesto de "Ahorro Programado".'}
+                    </span>
+                  </span>
+                </label>
+              )}
 
               {/* Botones de Acción */}
               <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-zinc-100">

@@ -34,6 +34,8 @@ export interface MovementItem {
   taxExpenseId?: string;
   description: string;
   date: string;
+  /** Traspaso a ahorro: si cuenta en el presupuesto "Ahorro Programado" (por defecto sí) */
+  affectsBudget?: boolean;
 }
 
 export interface AccountItem {

@@ -135,6 +135,7 @@ const toMovement = (d: any): MovementItem => ({
   taxExpenseId: d.tax_expense_id,
   description: d.description,
   date: d.date,
+  affectsBudget: d.affects_budget !== false,
 });
 
 const toBudget = (d: any): BudgetItem => ({
@@ -301,6 +302,7 @@ const movementPayload = (mov: Partial<MovementItem>) => ({
   tax_amount: mov.taxAmount || 0,
   description: mov.description,
   date: mov.date,
+  affects_budget: mov.affectsBudget,
 });
 
 export async function fetchMovementsApi(): Promise<MovementItem[]> {

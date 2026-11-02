@@ -541,6 +541,7 @@ def create_movement(
         tax_amount=money(mov_in.tax_amount),
         description=mov_in.description or f"Traspaso de {from_name} a {to_name}",
         date=mov_in.date,
+        affects_budget=mov_in.affects_budget,
     )
     _apply_movement(db, current_user.id, mov, from_acc, to_acc)
     db.add(mov)
@@ -581,7 +582,7 @@ def update_movement(
         ensure_can_receive(to_acc, "traspasos")
 
     _revert_movement(db, current_user.id, mov)
-    for field in ("amount", "to_amount", "tax_amount", "description", "date"):
+    for field in ("amount", "to_amount", "tax_amount", "description", "date", "affects_budget"):
         if field in data:
             setattr(mov, field, data[field])
     _apply_movement(db, current_user.id, mov, from_acc, to_acc)

@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, Numeric, Integer, Boolean, Date, DateTime, ForeignKey, Index
+from sqlalchemy import Column, String, Numeric, Integer, Boolean, Date, DateTime, ForeignKey, Index, true
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 from app.models.base import TimestampMixin
@@ -83,6 +83,8 @@ class Movement(Base, TimestampMixin):
     tax_expense_id = Column(String(36), ForeignKey("expenses.id", ondelete="SET NULL"), nullable=True)
     description = Column(String(255), default="Traspaso entre cuentas", nullable=False)
     date = Column(Date, nullable=False)
+    # Si un traspaso a una cuenta de ahorro cuenta en el presupuesto "Ahorro Programado"
+    affects_budget = Column(Boolean, default=True, server_default=true(), nullable=False)
 
     user = relationship("User", backref="movements")
 
