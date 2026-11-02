@@ -1527,3 +1527,32 @@ Se integró el cómputo automático de los movimientos/traspasos entre cuentas c
 - **Validaciones:**
   - `security-agent`: **LUZ VERDE** (Prompt estático seguro, validación de sesión intacta y sin exposición de datos).
   - `qa-agent`: **LUZ VERDE** (`npx tsc --noEmit` exit code 0 y suite de checks en verde).
+
+
+## [2026-11-02] - Rostro Animado de Camila y Recorrido Guiado Post-Registro en Orden Lógico
+
+### Modulo: Frontend (AI Face & Post-Registration Interactive Tour)
+- **Archivos afectados:**
+  - `frontend/components/ai/CamilaFace.tsx` (nuevo)
+  - `frontend/components/ai/CamilaGuidedTour.tsx` (nuevo)
+  - `frontend/components/dashboard/DashboardLayout.tsx`
+  - `frontend/components/ai/AiAssistantChat.tsx`
+- **Cambios realizados:**
+  - **Rostro animado de Camila (`CamilaFace.tsx`):**
+    - Se portó a `<canvas>` HTML5 (60 fps con `requestAnimationFrame` y antialiasing sub-píxel SDF) el modelo matemático de `fysh/src/cara.rs`: fondo oscuro `#080A0E` y trazos cian `#00D2FF`.
+    - Incluye las 5 expresiones (`neutral`, `happy`, `listening`, `thinking`, `asking`), parpadeo simple y doble probabilístico, mirada autónoma o seguimiento suave del puntero, corte de párpados inclinados y boca con onda compuesta sincronizada al hablar.
+  - **Recorrido guiado post-registro (`CamilaGuidedTour.tsx`):**
+    - Se abre automáticamente cuando el usuario entra por primera vez al Dashboard tras completar su registro (`fydry_camila_tour_done`), o bajo demanda desde la barra superior (`Guía con Camila`), el menú móvil o el menú de tres puntos del chat de Camila (`Recorrido guiado`).
+    - Sigue el orden lógico de construcción financiera en 8 pasos (más la pantalla de bienvenida):
+      1. **Cuentas (`accounts`):** crear primero banco, efectivo, tarjeta o ahorro para tener dónde aplicar los movimientos; detecta en vivo cuando el usuario crea su primera cuenta sin cerrar la guía.
+      2. **Ingresos (`incomes`):** registrar entradas de dinero acreditadas a las cuentas creadas.
+      3. **Gastos (`expenses`):** anotar salidas descontadas del saldo o sumadas al consumo de tarjeta.
+      4. **Presupuesto (`budget`):** fijar topes por categoría y alertas al 80%.
+      5. **Movimientos y Traspasos (`movements`):** transferir entre cuentas propias o hacia ahorros con cálculo de impuesto DGII (0.15%).
+      6. **Deudas (`debts`):** registrar préstamos, priorizarlos (Bola de Nieve / Avalancha) y abonar cuotas.
+      7. **Plan y Metas (`planning`):** revisar el Disponible hoy, Puntaje de Paz Mental, gastos hormiga y metas de ahorro.
+      8. **Inicio y Reportes (`home` / `reports`):** consultar patrimonio neto, exportar estados en PDF/CSV y usar el chat con Camila.
+    - Integra síntesis de voz en español (`window.speechSynthesis`) con controles para silenciar o repetir cada explicación mientras la boca y la mirada de Camila reaccionan en vivo.
+- **Validaciones:**
+  - `security-agent`: **LUZ VERDE** (Renderizado numérico acotado en canvas, textos estáticos en TTS, limpieza de `requestAnimationFrame`, listeners y `speechSynthesis.cancel()` al desmontar).
+  - `qa-agent`: **LUZ VERDE** (`npx tsc --noEmit` exit code 0, suites `.check.mjs` en verde y cero colisiones con archivos de otros agentes).

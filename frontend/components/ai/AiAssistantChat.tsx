@@ -41,6 +41,7 @@ import {
 import { AccountItem } from "@/components/dashboard/types";
 import { formatMoney, currencySymbol, todayISO, isLiability, transferTax, DEFAULT_TRANSFER_TAX_RATE, parseAmount } from "@/lib/money";
 import MoneyInput from "@/components/ui/MoneyInput";
+import CamilaFace from "@/components/ai/CamilaFace";
 
 export interface PendingAction {
   id: string;
@@ -1952,9 +1953,11 @@ export default function AiAssistantChat({ hidden = false }: { hidden?: boolean }
             title="Camila · Asistente de Bienestar Financiero"
             aria-label="Abrir chat con Camila"
             style={hidden ? { pointerEvents: "none" } : undefined}
-            className="fixed bottom-24 md:bottom-6 right-5 md:right-6 z-40 bg-emerald-700 text-white hover:bg-emerald-800 shadow-xl rounded-2xl w-13 h-13 min-w-[52px] min-h-[52px] flex items-center justify-center transition-all cursor-pointer group"
+            className="fixed bottom-24 md:bottom-6 right-5 md:right-6 z-40 bg-[#080A0E] text-white border border-cyan-500/30 hover:border-cyan-400/60 shadow-xl rounded-2xl w-13 h-13 min-w-[52px] min-h-[52px] flex items-center justify-center transition-all cursor-pointer group overflow-visible"
           >
-            <Bot className="w-6 h-6 text-white group-hover:scale-110 transition-transform duration-200" />
+            <div className="w-full h-full rounded-2xl overflow-hidden flex items-center justify-center">
+              <CamilaFace expression="happy" interactiveGaze={false} />
+            </div>
             <span className="absolute -top-1 -right-1 flex h-3 w-3">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
@@ -2037,6 +2040,19 @@ export default function AiAssistantChat({ hidden = false }: { hidden?: boolean }
                         <span>Configuración</span>
                       </button>
 
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsOpen(false);
+                          setMenuOpen(false);
+                          window.dispatchEvent(new CustomEvent("fydry_start_camila_tour"));
+                        }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 text-emerald-700 hover:bg-emerald-50/70 transition-colors cursor-pointer text-left"
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>Recorrido guiado</span>
+                      </button>
+
                       <div className="h-px bg-zinc-100 my-1" />
 
                       <button
@@ -2054,8 +2070,12 @@ export default function AiAssistantChat({ hidden = false }: { hidden?: boolean }
 
               {/* Centro: Identidad del Asistente */}
               <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-xl bg-emerald-700 text-white flex items-center justify-center shadow-xs shrink-0">
-                  <Bot className="w-4 h-4" />
+                <div className="w-9 h-7 rounded-xl bg-[#080A0E] border border-cyan-500/30 flex items-center justify-center shadow-xs shrink-0 overflow-hidden">
+                  <CamilaFace
+                    expression={isLoading ? "thinking" : isTyping ? "happy" : "neutral"}
+                    speaking={isTyping}
+                    interactiveGaze={false}
+                  />
                 </div>
                 <div className="flex flex-col">
                   <span className="text-xs font-semibold text-zinc-900 tracking-tight leading-tight">
