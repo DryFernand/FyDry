@@ -1556,3 +1556,27 @@ Se integró el cómputo automático de los movimientos/traspasos entre cuentas c
 - **Validaciones:**
   - `security-agent`: **LUZ VERDE** (Renderizado numérico acotado en canvas, textos estáticos en TTS, limpieza de `requestAnimationFrame`, listeners y `speechSynthesis.cancel()` al desmontar).
   - `qa-agent`: **LUZ VERDE** (`npx tsc --noEmit` exit code 0, suites `.check.mjs` en verde y cero colisiones con archivos de otros agentes).
+
+
+## [2026-11-02] - Voz Neuronal Natural (Kore), Sincronización Acústica 50Hz e Inicio Directo Post-Registro
+
+### Modulo: Frontend & API (Neural TTS Voice & Immediate Tour Flow)
+- **Archivos afectados:**
+  - `frontend/app/api/ai/tts/route.ts` (nuevo)
+  - `frontend/components/ai/camilaAudioData.ts` (nuevo)
+  - `frontend/public/audio/camila/step-0.wav` .. `step-8.wav` y `envelopes.json` (nuevos)
+  - `frontend/components/ai/CamilaGuidedTour.tsx`
+  - `frontend/components/dashboard/DashboardLayout.tsx`
+  - `frontend/components/ai/AiAssistantChat.tsx`
+  - `frontend/components/onboarding/OnboardingWizard.tsx`
+- **Cambios realizados:**
+  - **Voz neuronal fluida (`Kore` de Gemini 2.5 Flash TTS):**
+    - Se reemplazó por completo `window.speechSynthesis` (voces SAPI5 robóticas del navegador) por pistas de audio neuronal real a 24,000 Hz PCM 16-bit mono generadas con `gemini-2.5-flash-preview-tts` (`voiceName: "Kore"`, misma voz de `fysh/src/live.rs`).
+    - Se calcularon las envolventes acústicas RMS a 50Hz (bloques de 20 ms normalizados al percentil 95 con curva `pow(0.7)`, idéntico a `fysh/src/voz.rs`) en `camilaAudioData.ts`, sincronizando `mouthLevel` de `CamilaFace` con `Math.floor(audio.currentTime * 50)` a 60 fps.
+    - Se creó `/api/ai/tts` con autenticación Bearer contra `/auth/me`, rate-limiting por usuario e IP y filtro fonético `paraLeer` para síntesis neuronal bajo demanda.
+  - **Inicio inmediato al registrarse y desaparición definitiva al saltar o completar:**
+    - Al finalizar el registro en `OnboardingWizard.tsx`, se activa `fydry_start_camila_tour = "1"` y al entrar al Dashboard el recorrido arranca directamente en el **Paso 1 (Cuentas)** hablando sin pantalla previa de espera («Iniciar guía»).
+    - Se eliminaron los botones fijos de guía de la barra superior, del menú móvil (`DashboardLayout.tsx`) y del menú del chat (`AiAssistantChat.tsx`). Al pulsar «Saltar guía» o completar el último paso, la guía se cierra de forma definitiva y no vuelve a mostrarse.
+- **Validaciones:**
+  - `security-agent`: **LUZ VERDE** (Autenticación Bearer verificada en `/api/ai/tts`, rate-limit por usuario e IP, limpieza de `audioRef` y `preloadAudioRef`).
+  - `qa-agent`: **LUZ VERDE** (`npx tsc --noEmit` exit code 0, validación binaria de los 9 archivos WAV a 24kHz y sus envolventes a 50Hz, suites `.check.mjs` en verde).

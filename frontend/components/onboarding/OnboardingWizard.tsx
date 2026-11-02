@@ -103,7 +103,12 @@ export default function OnboardingWizard() {
       }
       try {
         const u = JSON.parse(localStorage.getItem("fydry_user") || "null");
-        if (u) localStorage.setItem("fydry_user", JSON.stringify({ ...u, onboarding_completed: true }));
+        if (u) {
+          localStorage.setItem("fydry_user", JSON.stringify({ ...u, onboarding_completed: true }));
+          if (u.id) localStorage.removeItem(`fydry_camila_tour_done_${u.id}`);
+        }
+        localStorage.setItem("fydry_start_camila_tour", "1");
+        localStorage.removeItem("fydry_camila_tour_done");
       } catch {}
       setIsFinished(true);
     } catch (err: unknown) {
@@ -158,7 +163,13 @@ export default function OnboardingWizard() {
           </div>
           <button
             type="button"
-            onClick={() => router.push("/dashboard")}
+            onClick={() => {
+              try {
+                localStorage.setItem("fydry_start_camila_tour", "1");
+                localStorage.removeItem("fydry_camila_tour_done");
+              } catch {}
+              router.push("/dashboard");
+            }}
             className="w-full py-3 rounded-xl bg-emerald-700 text-white text-xs font-semibold hover:bg-emerald-800 transition-all cursor-pointer shadow-xs"
           >
             Ir a mi Dashboard

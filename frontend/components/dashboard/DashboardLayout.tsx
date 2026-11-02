@@ -21,7 +21,6 @@ import {
   Plus,
   Target,
   Calculator,
-  Sparkles,
 } from "lucide-react";
 import { DashboardTab, NotificationItem } from "./types";
 import DashboardHome from "./views/DashboardHome";
@@ -229,27 +228,22 @@ export default function DashboardLayout() {
     verifyAuth();
   }, [router]);
 
-  // Recorrido guiado post-registro con Camila (se abre automáticamente si aún no se ha completado)
+  // Recorrido guiado post-registro con Camila (se abre automáticamente al llegar del registro/onboarding si aún no se ha completado)
   useEffect(() => {
     if (isLoadingAuth || typeof window === "undefined") return;
+    const forceStart = localStorage.getItem("fydry_start_camila_tour") === "1";
     const globalDone = localStorage.getItem("fydry_camila_tour_done") === "1";
     const userDone =
       currentUser?.id &&
       localStorage.getItem(`fydry_camila_tour_done_${currentUser.id}`) === "1";
-    if (!globalDone && !userDone) {
+    if (forceStart || (!globalDone && !userDone)) {
       setIsTourOpen(true);
     }
   }, [isLoadingAuth, currentUser?.id]);
 
-  // Evento global para abrir el recorrido de Camila desde cualquier botón o menú
-  useEffect(() => {
-    const handleStartTour = () => setIsTourOpen(true);
-    window.addEventListener("fydry_start_camila_tour", handleStartTour);
-    return () => window.removeEventListener("fydry_start_camila_tour", handleStartTour);
-  }, []);
-
   const handleCloseTour = () => {
     if (typeof window !== "undefined") {
+      localStorage.removeItem("fydry_start_camila_tour");
       localStorage.setItem("fydry_camila_tour_done", "1");
       if (currentUser?.id) {
         localStorage.setItem(`fydry_camila_tour_done_${currentUser.id}`, "1");
@@ -505,17 +499,6 @@ export default function DashboardLayout() {
             <div className="pt-2 border-t border-zinc-100 space-y-1">
               <button
                 type="button"
-                onClick={() => {
-                  setIsMobileMenuOpen(false);
-                  setIsTourOpen(true);
-                }}
-                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-emerald-700 hover:bg-emerald-50 cursor-pointer"
-              >
-                <Sparkles className="w-4 h-4" />
-                <span>{language === "en" ? "Guided Tour with Camila" : "Recorrido con Camila"}</span>
-              </button>
-              <button
-                type="button"
                 onClick={handleLogout}
                 className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-rose-600 hover:bg-rose-50 cursor-pointer"
               >
@@ -532,15 +515,6 @@ export default function DashboardLayout() {
         {/* Desktop Top Bar with NotificationBell & Quick Button */}
         <div className="hidden md:flex items-center justify-end px-6 lg:px-8 pt-6 pb-2 print:hidden">
           <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setIsTourOpen(true)}
-              title={language === "en" ? "Guided Tour with Camila" : "Recorrido guiado con Camila"}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl border border-emerald-200 hover:border-emerald-300 bg-emerald-50/60 hover:bg-emerald-50 text-emerald-800 font-semibold text-xs shadow-2xs transition-all active:scale-95 cursor-pointer"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-emerald-700" />
-              <span>{language === "en" ? "Camila Guide" : "Guía con Camila"}</span>
-            </button>
             <button
               type="button"
               onClick={() => setIsQuickModalOpen(true)}

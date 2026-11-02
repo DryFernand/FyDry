@@ -2040,19 +2040,6 @@ export default function AiAssistantChat({ hidden = false }: { hidden?: boolean }
                         <span>Configuración</span>
                       </button>
 
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsOpen(false);
-                          setMenuOpen(false);
-                          window.dispatchEvent(new CustomEvent("fydry_start_camila_tour"));
-                        }}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 text-emerald-700 hover:bg-emerald-50/70 transition-colors cursor-pointer text-left"
-                      >
-                        <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>Recorrido guiado</span>
-                      </button>
-
                       <div className="h-px bg-zinc-100 my-1" />
 
                       <button
