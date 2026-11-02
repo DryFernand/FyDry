@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import {
   X,
   Volume2,
@@ -19,6 +19,7 @@ import {
   Target,
   Home,
   FileText,
+  Sparkles,
   Minimize2,
   Maximize2,
 } from "lucide-react";
@@ -49,13 +50,26 @@ interface TourStepConfig {
 
 const TOUR_STEPS: TourStepConfig[] = [
   {
+    stepNumber: 0,
+    tab: "home",
+    expression: "happy",
+    badge: "Bienvenida a FyDry",
+    title: "Hola, soy Camila. ¿Te doy un recorrido guiado por tu espacio?",
+    whatAndWhy:
+      "Puedo acompañarte paso a paso en el orden exacto en que se construye tu sistema financiero: primero tus Cuentas, luego cómo registrar Ingresos y Gastos sobre esas cuentas, después tu Presupuesto, Movimientos, Deudas, tu Plan diario y tus Reportes.",
+    howToDoIt:
+      "Tú decides si quieres que hagamos el recorrido ahora mismo o si prefieres explorar por tu cuenta.",
+    audioUrl: "/audio/camila/step-0.wav",
+    icon: Sparkles,
+  },
+  {
     stepNumber: 1,
     tab: "accounts",
     expression: "listening",
     badge: "Paso 1 de 8 · Base del Sistema",
     title: "Primero lo primero: Tus Cuentas",
     whatAndWhy:
-      "Hola, soy Camila. Empezamos aquí porque Tus Cuentas son la base de todo en FyDry: cada ingreso, gasto o transferencia necesita saber de qué cuenta sale o a qué cuenta entra el dinero.",
+      "Aquí registras tus cuentas de Banco, Efectivo, Tarjetas de Crédito o Ahorros. Es obligatorio empezar por aquí porque cada ingreso, gasto o transferencia necesita saber de qué cuenta sale o a qué cuenta entra el dinero.",
     howToDoIt:
       "Haz clic en el botón «+ Añadir Cuenta» arriba a la derecha, escribe el nombre (por ejemplo Banreservas, Efectivo o Tarjeta Visa), elige el tipo, la moneda (RD$ o US$) y coloca tu saldo inicial.",
     audioUrl: "/audio/camila/step-1.wav",
@@ -161,8 +175,8 @@ export default function CamilaGuidedTour({
   onClose,
   userName,
 }: CamilaGuidedTourProps) {
-  // Inicia directamente en el Paso 1 (índice 0 = Cuentas) sin pantalla previa de espera
-  const [stepIdx, setStepIdx] = useState(0);
+  // Inicia en stepIndex = 0 (Modal Grande de Bienvenida donde el usuario decide si aceptar o no)
+  const [stepIndex, setStepIndex] = useState(0);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [mouthLevel, setMouthLevel] = useState<number | undefined>(0);
@@ -174,7 +188,7 @@ export default function CamilaGuidedTour({
   const rafRef = useRef<number | null>(null);
   const preloadAudioRef = useRef<HTMLAudioElement | null>(null);
 
-  const currentStep = TOUR_STEPS[stepIdx] || TOUR_STEPS[0];
+  const currentStep = TOUR_STEPS[stepIndex] || TOUR_STEPS[0];
 
   const stopAudio = useCallback(() => {
     if (rafRef.current !== null) {
@@ -260,7 +274,6 @@ export default function CamilaGuidedTour({
       const playPromise = audio.play();
       if (playPromise !== undefined) {
         playPromise.catch(() => {
-          // Si el navegador bloquea el autoplay antes del primer gesto, desbloquear en el primer clic
           setAutoplayBlocked(true);
           setIsSpeaking(false);
           setMouthLevel(0);
@@ -270,7 +283,7 @@ export default function CamilaGuidedTour({
     [stopAudio]
   );
 
-  // Desbloqueo automático de audio al primer clic en cualquier parte si el navegador bloqueó autoplay
+  // Desbloqueo automático de audio al primer clic si el navegador bloqueó autoplay
   useEffect(() => {
     if (!isOpen || !autoplayBlocked || !voiceEnabled) return;
     const unlock = () => {
@@ -308,10 +321,10 @@ export default function CamilaGuidedTour({
     };
   }, [isOpen, refreshAccountsCount, stopAudio]);
 
-  // Al abrir el tour, comenzar inmediatamente en el Paso 1 (índice 0)
+  // Al abrir el tour, iniciar siempre en el modal grande (stepIndex = 0)
   useEffect(() => {
     if (isOpen) {
-      setStepIdx(0);
+      setStepIndex(0);
       setIsMinimized(false);
     } else {
       stopAudio();
@@ -321,7 +334,7 @@ export default function CamilaGuidedTour({
   // Navegar a la pestaña del paso y reproducir la voz neuronal de Camila
   useEffect(() => {
     if (!isOpen) return;
-    const step = TOUR_STEPS[stepIdx];
+    const step = TOUR_STEPS[stepIndex];
     if (!step) return;
     if (activeTab !== step.tab) {
       onNavigateTab(step.tab);
@@ -331,7 +344,7 @@ export default function CamilaGuidedTour({
       stopAudio();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, stepIdx]);
+  }, [isOpen, stepIndex]);
 
   const handleToggleVoice = () => {
     const next = !voiceEnabled;
@@ -348,8 +361,8 @@ export default function CamilaGuidedTour({
   };
 
   const handleNext = () => {
-    if (stepIdx < TOUR_STEPS.length - 1) {
-      setStepIdx((prev) => prev + 1);
+    if (stepIndex < TOUR_STEPS.length - 1) {
+      setStepIndex((prev) => prev + 1);
     } else {
       stopAudio();
       onClose();
@@ -357,8 +370,10 @@ export default function CamilaGuidedTour({
   };
 
   const handlePrev = () => {
-    if (stepIdx > 0) {
-      setStepIdx((prev) => prev - 1);
+    if (stepIndex > 1) {
+      setStepIndex((prev) => prev - 1);
+    } else {
+      setStepIndex(0);
     }
   };
 
@@ -371,7 +386,137 @@ export default function CamilaGuidedTour({
 
   const firstName = userName ? userName.trim().split(/\s+/)[0] : "";
   const effectiveExpression: CamilaExpression =
-    currentStep.stepNumber === 1 && accountsCount > 0 ? "happy" : currentStep.expression;
+    stepIndex === 1 && accountsCount > 0 ? "happy" : currentStep.expression;
+
+  // PASO 0: Modal grande centrado donde Camila te dice que te dará el recorrido y tú decides si aceptar o no
+  if (stepIndex === 0) {
+    return (
+      <AnimatePresence>
+        <div
+          className="fixed inset-0 z-50 bg-zinc-950/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto print:hidden"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Bienvenida al recorrido guiado con Camila"
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 12 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 12 }}
+            transition={{ duration: 0.22, ease: "easeOut" }}
+            className="w-full max-w-xl bg-white rounded-3xl border border-zinc-200 shadow-2xl overflow-hidden my-auto"
+          >
+            {/* Cabecera en grande con el rostro animado de Camila y controles de voz */}
+            <div className="relative bg-[#080A0E] px-6 pt-7 pb-6 flex flex-col items-center text-center border-b border-zinc-800">
+              <div className="absolute top-4 right-4 flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={handleToggleVoice}
+                  title={voiceEnabled ? "Silenciar voz de Camila" : "Activar voz de Camila"}
+                  aria-label={voiceEnabled ? "Silenciar voz de Camila" : "Activar voz de Camila"}
+                  className="p-2 rounded-xl bg-zinc-900/90 text-cyan-400 hover:bg-zinc-800 border border-zinc-800 transition-colors cursor-pointer"
+                >
+                  {voiceEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4 text-zinc-500" />}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRepeat}
+                  title="Repetir saludo"
+                  aria-label="Repetir saludo"
+                  className="p-2 rounded-xl bg-zinc-900/90 text-zinc-300 hover:text-white hover:bg-zinc-800 border border-zinc-800 transition-colors cursor-pointer"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSkip}
+                  title="No, saltar recorrido"
+                  aria-label="No, saltar recorrido"
+                  className="p-2 rounded-xl bg-zinc-900/90 text-zinc-400 hover:text-white hover:bg-zinc-800 border border-zinc-800 transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="w-52 h-40 sm:w-64 sm:h-44 rounded-2xl overflow-hidden border border-cyan-500/25 shadow-inner bg-[#080A0E]">
+                <CamilaFace
+                  expression={effectiveExpression}
+                  speaking={isSpeaking}
+                  mouthLevel={mouthLevel}
+                  interactiveGaze={true}
+                />
+              </div>
+
+              <span className="mt-3.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-400/25 text-[11px] font-semibold text-cyan-300">
+                <Sparkles className="w-3 h-3" />
+                Camila · Asistente de Bienestar Financiero
+              </span>
+
+              <h2 className="mt-2.5 text-lg sm:text-xl font-bold text-white tracking-tight">
+                {firstName
+                  ? `¡Hola, ${firstName}! Soy Camila. ¿Te doy el recorrido por FyDry?`
+                  : "¡Hola! Soy Camila. ¿Te doy el recorrido guiado por FyDry?"}
+              </h2>
+              <p className="mt-2 text-xs sm:text-[13px] text-zinc-300 max-w-md leading-relaxed">
+                {currentStep.whatAndWhy}
+              </p>
+            </div>
+
+            {/* Resumen de los 8 pasos y decisión del usuario (Aceptar o Saltar) */}
+            <div className="p-5 sm:p-6 space-y-4">
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
+                Orden lógico del recorrido (8 pasos):
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {TOUR_STEPS.slice(1).map((s) => {
+                  const StepIcon = s.icon;
+                  return (
+                    <button
+                      key={s.stepNumber}
+                      type="button"
+                      onClick={() => setStepIndex(s.stepNumber)}
+                      className="flex flex-col items-start p-2.5 rounded-2xl border border-zinc-200/80 hover:border-emerald-600 hover:bg-emerald-50/40 transition-all text-left cursor-pointer group"
+                    >
+                      <div className="flex items-center justify-between w-full mb-1">
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-zinc-100 text-zinc-700 group-hover:bg-emerald-700 group-hover:text-white transition-colors">
+                          Paso {s.stepNumber}
+                        </span>
+                        <StepIcon className="w-3.5 h-3.5 text-zinc-400 group-hover:text-emerald-700" />
+                      </div>
+                      <span className="text-xs font-semibold text-zinc-900 line-clamp-1">
+                        {s.title.replace(/^.*:\s*/, "")}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-2.5 border-t border-zinc-100">
+                <button
+                  type="button"
+                  onClick={handleSkip}
+                  className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-zinc-200 hover:bg-zinc-100 text-xs font-semibold text-zinc-600 hover:text-zinc-900 transition-colors cursor-pointer"
+                >
+                  No, saltar recorrido
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setStepIndex(1)}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold shadow-md transition-all active:scale-95 cursor-pointer"
+                >
+                  <span>Sí, aceptar recorrido paso a paso</span>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </AnimatePresence>
+    );
+  }
+
+  // PASOS 1 A 8: Tarjeta flotante no bloqueante mientras Camila guía cada pantalla
   const StepIcon = currentStep.icon;
 
   return (
@@ -404,9 +549,7 @@ export default function CamilaGuidedTour({
               </span>
             </div>
             <h3 className="text-xs sm:text-sm font-bold text-white truncate">
-              {currentStep.stepNumber === 1 && firstName
-                ? `¡Hola, ${firstName}! ${currentStep.title}`
-                : currentStep.title}
+              {currentStep.title}
             </h3>
           </div>
         </div>
@@ -456,7 +599,7 @@ export default function CamilaGuidedTour({
       <div className="h-1 w-full bg-zinc-100">
         <div
           className="h-full bg-emerald-600 transition-all duration-300"
-          style={{ width: `${((stepIdx + 1) / TOUR_STEPS.length) * 100}%` }}
+          style={{ width: `${(stepIndex / (TOUR_STEPS.length - 1)) * 100}%` }}
         />
       </div>
 
@@ -484,7 +627,7 @@ export default function CamilaGuidedTour({
           </div>
 
           {/* Feedback en vivo en el Paso 1 si el usuario ya creó una cuenta */}
-          {currentStep.stepNumber === 1 && (
+          {stepIndex === 1 && (
             <div
               className={`px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 ${
                 accountsCount > 0
@@ -506,7 +649,7 @@ export default function CamilaGuidedTour({
           )}
 
           {/* En el paso 8, botón rápido para ver Reportes también */}
-          {currentStep.stepNumber === 8 && (
+          {stepIndex === 8 && (
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -529,14 +672,14 @@ export default function CamilaGuidedTour({
 
           {/* Selector rápido de pasos (1..8) */}
           <div className="flex items-center justify-between gap-1 pt-1">
-            {TOUR_STEPS.map((s, idx) => {
-              const active = stepIdx === idx;
-              const done = stepIdx > idx;
+            {TOUR_STEPS.slice(1).map((s) => {
+              const active = stepIndex === s.stepNumber;
+              const done = stepIndex > s.stepNumber;
               return (
                 <button
                   key={s.stepNumber}
                   type="button"
-                  onClick={() => setStepIdx(idx)}
+                  onClick={() => setStepIndex(s.stepNumber)}
                   title={`Ir al Paso ${s.stepNumber}: ${s.title}`}
                   className={`flex-1 h-7 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
                     active
@@ -557,8 +700,7 @@ export default function CamilaGuidedTour({
             <button
               type="button"
               onClick={handlePrev}
-              disabled={stepIdx === 0}
-              className="inline-flex items-center gap-1 px-3 py-2 rounded-xl border border-zinc-200 hover:bg-zinc-50 text-xs font-semibold text-zinc-700 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-1 px-3 py-2 rounded-xl border border-zinc-200 hover:bg-zinc-50 text-xs font-semibold text-zinc-700 transition-colors cursor-pointer"
             >
               <ChevronLeft className="w-3.5 h-3.5" />
               <span>Anterior</span>
@@ -578,7 +720,7 @@ export default function CamilaGuidedTour({
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold shadow-sm transition-all active:scale-95 cursor-pointer"
             >
               <span>
-                {stepIdx === TOUR_STEPS.length - 1 ? "Finalizar recorrido" : "Siguiente paso"}
+                {stepIndex === TOUR_STEPS.length - 1 ? "Finalizar recorrido" : "Siguiente paso"}
               </span>
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
