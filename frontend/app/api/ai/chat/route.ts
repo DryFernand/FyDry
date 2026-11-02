@@ -678,7 +678,9 @@ El usuario no tiene cuentas registradas aún. Si pide registrar un gasto o ingre
     const defaultBaseUrl = isGemini
       ? "https://generativelanguage.googleapis.com/v1beta/openai"
       : "https://api.openai.com/v1";
-    const defaultModel = isGemini ? "gemini-2.5-flash" : "gpt-4o-mini";
+    // Modelo fijo para controlar costo (no usar alias "-latest", que puede subir de modelo y precio).
+    // Si Google lo retira (como gemini-2.5-flash para claves nuevas), cambiar AI_MODEL en Vercel.
+    const defaultModel = isGemini ? "gemini-3.6-flash" : "gpt-4o-mini";
 
     const rawBaseUrl = process.env.AI_BASE_URL || defaultBaseUrl;
     const baseUrl = rawBaseUrl.replace(/\/+$/, "");

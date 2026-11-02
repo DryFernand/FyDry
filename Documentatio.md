@@ -1446,7 +1446,7 @@ Se integró el cómputo automático de los movimientos/traspasos entre cuentas c
   - **Estandarizacion de respuesta ante fallos:** Ante cualquier eventualidad tecnica (ausencia de clave, error de red, falla 502 del proveedor o excepciones de servidor), el asistente emite de forma transparente y unificada el mensaje: `"No se puede procesar su solicitud en este momento por favor intente luego"`.
   - **Compatibilidad nativa con Google Gemini:**
     - Autodeteccion inteligente para claves con prefijos `AQ.` y `AIza.`.
-    - Enrutamiento por defecto hacia `https://generativelanguage.googleapis.com/v1beta/openai` con modelo `gemini-2.5-flash`.
+    - Enrutamiento por defecto hacia `https://generativelanguage.googleapis.com/v1beta/openai` con modelo fijo `gemini-3.6-flash` (sin alias `-latest`, por costo).
     - Ajuste de `max_tokens` a 2048 para permitir completar respuestas en modelos que utilizan tokens de razonamiento interno.
     - Configuracion local de la clave en `frontend/.env.local` protegida fuera del repositorio.
 - **Validaciones:**
