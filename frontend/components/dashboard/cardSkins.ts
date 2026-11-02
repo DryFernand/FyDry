@@ -40,8 +40,14 @@ export function detectNetwork(acc: AccountItem): CardNetwork {
 
 /** Devuelve el skin según banco (por nombre) y tipo de cuenta. */
 export function getCardSkin(acc: AccountItem): CardSkin {
+  const skin = baseSkin(acc);
+  // Ahorro: siempre con el nombre que le puso el usuario (ej. "Ahorro BHD"), con los colores de su banco si se reconoce
+  return acc.type === "savings" ? { ...skin, issuer: acc.name, kind: "savings" } : skin;
+}
+
+function baseSkin(acc: AccountItem): CardSkin {
   const n = acc.name.toLowerCase();
-  const isCardType = acc.type === "credit_card" || acc.type === "debit_card" || acc.type === "card" || acc.type === "bank";
+  const isCardType = acc.type === "credit_card" || acc.type === "debit_card" || acc.type === "card" || acc.type === "bank" || acc.type === "savings";
   // El chip solo aparece en tarjetas plásticas (débito/crédito), no en una cuenta bancaria normal.
   const isPlastic = acc.type === "credit_card" || acc.type === "debit_card" || acc.type === "card";
 
@@ -56,9 +62,9 @@ export function getCardSkin(acc: AccountItem): CardSkin {
     return { background: "linear-gradient(135deg,#0a0a0a,#15302e)", fg: "#ffffff", sub: "rgba(255,255,255,.6)", accent: "#2fd4c4", chip: isPlastic ? "linear-gradient(135deg,#9fe9e0,#2fd4c4)" : "", issuer: "qik", kind: "card" };
   }
 
-  // Metas de ahorro / fondos: tarjeta FyDry (vino de marca)
+  // Ahorro sin banco reconocido: vino de marca
   if (acc.type === "savings") {
-    return { background: "linear-gradient(135deg,#5a1a28,#8f3148)", fg: "#ffffff", sub: "rgba(255,255,255,.72)", accent: "#ffffff", chip: "", issuer: "FyDry", kind: "savings" };
+    return { background: "linear-gradient(135deg,#5a1a28,#8f3148)", fg: "#ffffff", sub: "rgba(255,255,255,.72)", accent: "#ffffff", chip: "", issuer: acc.name, kind: "savings" };
   }
 
   // Efectivo: estilo billete (verde grabado con guilloché)

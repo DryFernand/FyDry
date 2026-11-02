@@ -35,11 +35,11 @@ export default function AccountCard({ acc, onClick }: { acc: AccountItem; onClic
       className="relative text-left w-full aspect-[1.586] rounded-2xl p-5 flex flex-col justify-between overflow-hidden shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all cursor-pointer"
     >
       {/* Encabezado: emisor + tipo */}
-      <div className="flex items-start justify-between">
-        <span className="text-[15px] font-semibold tracking-wide" style={{ color: skin.accent }}>
+      <div className="flex items-start justify-between gap-2">
+        <span className="text-[15px] font-semibold tracking-wide truncate min-w-0" style={{ color: skin.accent }}>
           {skin.issuer}
         </span>
-        <span className="text-[11px]" style={{ color: skin.sub }}>
+        <span className="text-[11px] shrink-0" style={{ color: skin.sub }}>
           {isCredit ? "Crédito" : acc.type === "savings" ? "Meta de ahorro" : acc.type === "cash" ? "Billete" : acc.type === "wallet" ? "Digital" : "Cuenta"}
         </span>
       </div>
