@@ -136,7 +136,7 @@ export function ChatScreen() {
           <Bot className="w-3.5 h-3.5" aria-hidden="true" />
         </div>
         <div>
-          <div className="text-[11px] font-bold">Asistente FyDry</div>
+          <div className="text-[11px] font-bold">Camila · FyDry</div>
           <div className="text-[8px] text-emerald-600">En línea</div>
         </div>
       </div>

@@ -1511,3 +1511,19 @@ Se integró el cómputo automático de los movimientos/traspasos entre cuentas c
 - **Validaciones:**
   - `security-agent`: **LUZ VERDE** (Sanitizacion anti-prompt-injection en nombres de cuenta, limite anti-DoS, validacion defensiva en pay_debt y executeAction).
   - `qa-agent`: **LUZ VERDE** (`npx tsc --noEmit` exit code 0, `npm run build` Turbopack exit code 0, flujo de cuentas y deteccion verificado).
+
+
+## [2026-11-02] - Cambio de Nombre e Identidad del Asistente de IA a Camila
+
+### Modulo: Frontend & API (AI Assistant Identity)
+- **Archivos afectados:**
+  - `frontend/app/api/ai/chat/route.ts`
+  - `frontend/components/ai/AiAssistantChat.tsx`
+  - `frontend/components/landing/AppScreens.tsx`
+- **Cambios realizados:**
+  - **Identidad en el servidor (`route.ts`):** El `SYSTEM_PROMPT` presenta a la asistente como **Camila**, Asistente de Bienestar Financiero de FyDry, y le indica presentarse por su nombre cuando el usuario pregunte quién es. El aviso 401 de sesión expirada también menciona a Camila.
+  - **Interfaz del chat (`AiAssistantChat.tsx`):** Se actualizó el saludo inicial (`INITIAL_GREETING`), el encabezado del chat (`Camila`), el modal de configuración (`Configuración de Camila`), el aviso de reconexión y las etiquetas de accesibilidad (`title`, `aria-label`). Además, `loadStoredMessages` actualiza el saludo inicial guardado en `localStorage` para que el nuevo nombre se vea de inmediato sin borrar el historial.
+  - **Vista previa en landing (`AppScreens.tsx`):** El encabezado del teléfono de demostración en `ChatScreen` muestra ahora `Camila · FyDry`.
+- **Validaciones:**
+  - `security-agent`: **LUZ VERDE** (Prompt estático seguro, validación de sesión intacta y sin exposición de datos).
+  - `qa-agent`: **LUZ VERDE** (`npx tsc --noEmit` exit code 0 y suite de checks en verde).

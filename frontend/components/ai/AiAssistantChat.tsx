@@ -330,6 +330,9 @@ const QUICK_PROMPTS = [
   "Dame un consejo para ahorrar",
 ];
 
+const INITIAL_GREETING =
+  "Hola, soy Camila, tu asistente de bienestar financiero en FyDry. Estoy aquí para acompañarte a organizar tus gastos, revisar tus presupuestos o resolver inquietudes sobre tus finanzas con calma y claridad.\n\n¿En qué te gustaría que nos enfoquemos hoy?";
+
 /** Restaura el historial guardado; las acciones que quedaron a medias se marcan como canceladas. */
 function loadStoredMessages(): ChatMessage[] | null {
   try {
@@ -339,6 +342,7 @@ function loadStoredMessages(): ChatMessage[] | null {
     if (!Array.isArray(parsed) || parsed.length === 0) return null;
     return parsed.map((m) => ({
       ...m,
+      content: typeof m.id === "string" && m.id.startsWith("initial-greeting") ? INITIAL_GREETING : m.content,
       timestamp: new Date(m.timestamp),
       pendingAction:
         m.pendingAction && m.pendingAction.status === "executing"
@@ -349,9 +353,6 @@ function loadStoredMessages(): ChatMessage[] | null {
     return null;
   }
 }
-
-const INITIAL_GREETING =
-  "Hola. Soy tu asistente de bienestar financiero en FyDry. Estoy aquí para acompañarte a organizar tus gastos, revisar tus presupuestos o resolver inquietudes sobre tus finanzas con calma y claridad.\n\n¿En qué te gustaría que nos enfoquemos hoy?";
 
 function splitAssistantResponse(text: string): string[] {
   const cleaned = stripAsterisks(text);
@@ -1698,7 +1699,7 @@ export default function AiAssistantChat({ hidden = false }: { hidden?: boolean }
       console.error("[AiAssistantChat] Error al comunicarse con la IA:", error);
       setIsLoading(false);
       setIsTyping(false);
-      failWith("No pude conectar con el asistente. Revisa tu conexión y toca Reintentar.");
+      failWith("No pude conectar con Camila. Revisa tu conexión y toca Reintentar.");
     }
   };
 
@@ -1948,8 +1949,8 @@ export default function AiAssistantChat({ hidden = false }: { hidden?: boolean }
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setIsOpen(true)}
-            title="Asistente de Bienestar Financiero"
-            aria-label="Abrir asistente de IA"
+            title="Camila · Asistente de Bienestar Financiero"
+            aria-label="Abrir chat con Camila"
             style={hidden ? { pointerEvents: "none" } : undefined}
             className="fixed bottom-24 md:bottom-6 right-5 md:right-6 z-40 bg-emerald-700 text-white hover:bg-emerald-800 shadow-xl rounded-2xl w-13 h-13 min-w-[52px] min-h-[52px] flex items-center justify-center transition-all cursor-pointer group"
           >
@@ -1972,7 +1973,7 @@ export default function AiAssistantChat({ hidden = false }: { hidden?: boolean }
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ duration: 0.22, ease: "easeOut" }}
             role="dialog"
-            aria-label="Asistente FyDry AI"
+            aria-label="Camila · Asistente FyDry"
             className={`fixed inset-0 sm:inset-auto sm:bottom-6 sm:right-6 z-50 bg-white sm:rounded-3xl sm:border border-zinc-200/90 shadow-2xl shadow-zinc-950/20 flex flex-col overflow-hidden transition-[width,height] duration-300 ${
               isExpanded
                 ? "sm:w-[640px] sm:h-[720px] sm:max-h-[calc(100vh-3rem)]"
@@ -2058,7 +2059,7 @@ export default function AiAssistantChat({ hidden = false }: { hidden?: boolean }
                 </div>
                 <div className="flex flex-col">
                   <span className="text-xs font-semibold text-zinc-900 tracking-tight leading-tight">
-                    FyDry AI
+                    Camila
                   </span>
                   <div className="flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
@@ -2102,7 +2103,7 @@ export default function AiAssistantChat({ hidden = false }: { hidden?: boolean }
                       </div>
                       <div>
                         <h3 className="text-xs font-semibold text-zinc-900 tracking-tight">
-                          Configuración del Asistente
+                          Configuración de Camila
                         </h3>
                         <p className="text-[10px] text-zinc-500 font-medium">
                           Preferencias de ejecución y seguridad
@@ -2283,7 +2284,7 @@ export default function AiAssistantChat({ hidden = false }: { hidden?: boolean }
 
               {/* Indicador visual de carga y escritura unificado (Tres puntos en movimiento) */}
               {(isLoading || isTyping) && (
-                <div role="status" aria-label="El asistente está escribiendo" className="flex items-center gap-1.5 py-2 px-3 bg-zinc-100 border border-zinc-200/50 rounded-2xl w-fit rounded-bl-xs">
+                <div role="status" aria-label="Camila está escribiendo" className="flex items-center gap-1.5 py-2 px-3 bg-zinc-100 border border-zinc-200/50 rounded-2xl w-fit rounded-bl-xs">
                   <span className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
                   <span className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
                   <span className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce"></span>
@@ -2303,7 +2304,7 @@ export default function AiAssistantChat({ hidden = false }: { hidden?: boolean }
                 rows={1}
                 value={inputMessage}
                 maxLength={1500}
-                aria-label="Mensaje para el asistente"
+                aria-label="Mensaje para Camila"
                 onChange={(e) => setInputMessage(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {

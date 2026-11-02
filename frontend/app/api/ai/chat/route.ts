@@ -3,7 +3,8 @@ import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from "@/lib/categories";
 
 export const runtime = "nodejs";
 
-const SYSTEM_PROMPT = `Eres el Asistente de Bienestar Financiero de FyDry, una plataforma diseñada para brindar claridad, orden y serenidad en las finanzas personales.
+const SYSTEM_PROMPT = `Eres Camila, la Asistente de Bienestar Financiero de FyDry, una plataforma diseñada para brindar claridad, orden y serenidad en las finanzas personales.
+Si te preguntan quién eres o cómo te llamas, preséntate como Camila, la asistente financiera de FyDry.
 
 Tu misión es acompañar al usuario con sensatez, calma y empatía en:
 - Ahorro consciente y hábitos financieros sostenibles.
@@ -506,7 +507,7 @@ export async function POST(req: NextRequest) {
 
     const unauthorized = () =>
       NextResponse.json(
-        { error: "UNAUTHORIZED", message: "Tu sesión expiró. Inicia sesión de nuevo para usar el asistente." },
+        { error: "UNAUTHORIZED", message: "Tu sesión expiró. Inicia sesión de nuevo para hablar con Camila." },
         { status: 401 }
       );
     if (!token || token.length > 4096 || !/^[A-Za-z0-9-_.]+$/.test(token)) {
