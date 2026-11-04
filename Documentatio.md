@@ -1,5 +1,18 @@
 # Registro de Cambios y Documentación del Proyecto (Documentatio.md)
 
+## [2026-11-04] - Autenticación OAuth Google: Puente de Callback entre FyDry y FyDry Task
+
+### Resumen
+Se habilitó el puente de retorno seguro en el callback OAuth de FyDry y la lista de `redirect_uri` candidatos en el backend para que tanto `FyDry` como `FyDry Task` compartan el cliente OAuth de Google sin producir `redirect_uri_mismatch`.
+
+### Cambios Realizados:
+- **Backend (`backend/app/services/oauth.py`)**:
+  - Se añadieron los callbacks de `FyDry Task` (`https://fydry-task.vercel.app/auth/callback/google`, `https://fydry-task-dary.vercel.app/auth/callback/google`, `http://localhost:3001/auth/callback/google`) a `candidate_redirect_uris` en `exchange_google_code_or_token`.
+- **Frontend (`frontend/lib/oauth.ts` y `frontend/app/auth/callback/[provider]/page.tsx`)**:
+  - `getGoogleRedirectUri()` dirige las solicitudes de orígenes de producción de la familia FyDry al callback autorizado `https://fydry.vercel.app/auth/callback/google` adjuntando `state` con el origen de retorno.
+  - El callback valida `state` contra la lista blanca `ALLOWED_RETURN_ORIGINS` y reenvía el código de autorización junto con `redirect_uri` al origen correspondiente.
+
+---
 ## [2026-10-12] - Chat de IA: Interfaz Dinámica con Botones, Pills de Cuentas con Saldo y Chips de Sugerencias
 
 ### Resumen

@@ -12,6 +12,24 @@ interface CallbackProps {
   }>;
 }
 
+const ALLOWED_RETURN_ORIGINS = new Set([
+  "https://fydry.vercel.app",
+  "https://fydry-dary.vercel.app",
+  "https://fydry-task.vercel.app",
+  "https://fydry-task-dary.vercel.app",
+  "http://localhost:3000",
+  "http://localhost:3001",
+]);
+
+const ALLOWED_REDIRECT_URIS = new Set([
+  "https://fydry.vercel.app/auth/callback/google",
+  "https://fydry-dary.vercel.app/auth/callback/google",
+  "https://fydry-task.vercel.app/auth/callback/google",
+  "https://fydry-task-dary.vercel.app/auth/callback/google",
+  "http://localhost:3000/auth/callback/google",
+  "http://localhost:3001/auth/callback/google",
+]);
+
 export default function AuthCallbackPage({ params }: CallbackProps) {
   const { provider } = use(params);
   const router = useRouter();
@@ -22,6 +40,27 @@ export default function AuthCallbackPage({ params }: CallbackProps) {
   useEffect(() => {
     const code = searchParams.get("code");
     const error = searchParams.get("error");
+    const stateOrigin = searchParams.get("state");
+
+    if (
+      stateOrigin &&
+      ALLOWED_RETURN_ORIGINS.has(stateOrigin) &&
+      typeof window !== "undefined" &&
+      stateOrigin !== window.location.origin &&
+      (provider === "google" || provider === "github")
+    ) {
+      const forwardParams = new URLSearchParams();
+      if (code) forwardParams.set("code", code);
+      if (error) forwardParams.set("error", error);
+      forwardParams.set(
+        "redirect_uri",
+        `${window.location.origin}/auth/callback/${provider}`
+      );
+      window.location.replace(
+        `${stateOrigin}/auth/callback/${provider}?${forwardParams.toString()}`
+      );
+      return;
+    }
 
     if (error) {
       setStatus("error");
@@ -39,10 +78,14 @@ export default function AuthCallbackPage({ params }: CallbackProps) {
       try {
         let res;
         const currentOrigin = typeof window !== "undefined" ? window.location.origin : "";
-        const currentRedirectUri = `${currentOrigin}/auth/callback/${provider}`;
+        const paramRedirectUri = searchParams.get("redirect_uri");
+        const effectiveRedirectUri =
+          paramRedirectUri && ALLOWED_REDIRECT_URIS.has(paramRedirectUri)
+            ? paramRedirectUri
+            : `${currentOrigin}/auth/callback/${provider}`;
 
         if (provider === "google") {
-          res = await apiGoogleAuth(code as string, currentRedirectUri);
+          res = await apiGoogleAuth(code as string, effectiveRedirectUri);
         } else if (provider === "github") {
           res = await apiGitHubAuth(code as string);
         } else {

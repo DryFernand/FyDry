@@ -22,6 +22,9 @@ async def exchange_google_code_or_token(code_or_token: str, redirect_uri: Option
                 "https://fydry-dary.vercel.app/auth/callback/google",
                 "https://fydry.vercel.app/auth/callback/google",
                 "http://localhost:3000/auth/callback/google",
+                "https://fydry-task.vercel.app/auth/callback/google",
+                "https://fydry-task-dary.vercel.app/auth/callback/google",
+                "http://localhost:3001/auth/callback/google",
             ])
             # Deduplicate while preserving order
             candidate_redirect_uris = list(dict.fromkeys(candidate_redirect_uris))
