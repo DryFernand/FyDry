@@ -90,14 +90,13 @@ def detect_subscriptions(expenses: Iterable[Tx], known: Set[str]) -> List[dict]:
     return found
 
 
-# Categorías de gasto que en realidad son ahorro (igual que en el frontend)
-SAVINGS_CATEGORIES = {"Ahorro Programado", "Inversiones"}
 # Ahorrar este porcentaje de los ingresos da la puntuación completa de ahorro
 SAVINGS_TARGET = Decimal("0.20")
 
 
-def period_savings(movements, savings_ids: Set[str], expenses) -> Decimal:
-    """Ahorro neto: traspasos hacia cuentas de ahorro − retiros de ellas + gastos de ahorro/inversión."""
+def period_savings(movements, savings_ids: Set[str], expenses, savings_categories: Set[str]) -> Decimal:
+    """Ahorro neto: traspasos hacia cuentas de ahorro − retiros de ellas + gastos en categorías de ahorro/inversión."""
+    savings_categories = {c.strip().lower() for c in savings_categories}
     total = Decimal("0")
     for m in movements:
         to_savings = m.to_account_id in savings_ids
@@ -106,7 +105,7 @@ def period_savings(movements, savings_ids: Set[str], expenses) -> Decimal:
             total += money(m.amount)
         elif from_savings and not to_savings:
             total -= money(m.amount)
-    total += sum((money(e.amount) for e in expenses if e.category in SAVINGS_CATEGORIES), Decimal("0"))
+    total += sum((money(e.amount) for e in expenses if e.category.strip().lower() in savings_categories), Decimal("0"))
     return total
 
 

@@ -44,7 +44,7 @@ import {
   LucideIcon,
 } from "lucide-react";
 import { TransactionItem, AccountItem } from "../types";
-import { EXPENSE_CATEGORIES } from "@/lib/categories";
+import { useCategories } from "@/lib/useCategories";
 import { useLanguage } from "@/context/LanguageContext";
 import {
   fetchTransactionsApi,
@@ -107,6 +107,7 @@ interface ExpensesViewProps {
 
 export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesViewProps = {}) {
   const { t, language } = useLanguage();
+  const { expense: EXPENSE_CATEGORIES } = useCategories();
   const [loading, setLoading] = useState(true);
   const [expenses, setExpenses] = useState<TransactionItem[]>([]);
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
@@ -293,7 +294,7 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
       }
     });
     return list;
-  }, [baseExpenses]);
+  }, [baseExpenses, EXPENSE_CATEGORIES]);
 
   useEffect(() => {
     const isAll = selectedCategory === "Todos" || selectedCategory === "All";

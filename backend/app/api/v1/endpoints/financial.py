@@ -11,6 +11,7 @@ from app.models.user import User
 from app.models.financial import Account, Expense, Income, Movement, Budget, Debt, PendingNotification
 from app.models.planning import RecurringTransaction, SavingsGoal
 from app.services.ledger import money, get_account, apply_delta, ensure_funds, ensure_can_receive, LIABILITY_TYPES
+from app.services.categories import category_name
 from app.schemas.financial import (
     AccountCreate,
     AccountUpdate,
@@ -40,8 +41,6 @@ MONEY_FIELDS = {
     "amount", "to_amount", "tax_amount", "balance", "overdraft_limit", "credit_limit", "min_balance",
     "allocated_amount", "total_amount", "remaining_amount", "monthly_payment",
 }
-TAX_CATEGORY = "Impuestos & Tasas"
-DEBT_CATEGORY = "Pago de Deudas & Préstamos"
 
 
 def _updates(model_in, nullable: frozenset = frozenset(), partial: bool = True) -> dict:
@@ -236,7 +235,7 @@ def record_expense(db: Session, user_id: str, account_id, account_name, category
 def record_income(db: Session, user_id: str, account_id, account_name, category, description, amount: Decimal, when: date) -> Income:
     """Crea un ingreso aplicando su efecto en la cuenta (sin commit). Reutilizado por recurrentes."""
     account = get_account(db, user_id, account_id, account_name)
-    ensure_can_receive(account, category=category)
+    ensure_can_receive(account, category=category, cashback_category=category_name(db, user_id, "card_income"))
     if account:
         apply_delta(account, amount)
     income = Income(
@@ -406,7 +405,8 @@ def update_income(
 
     new_account = get_account(db, current_user.id, data.get("account_id"), data.get("account_name")) if account_changed else old_account
     if account_changed or "category" in data:
-        ensure_can_receive(new_account, category=income.category)
+        ensure_can_receive(new_account, category=income.category,
+                           cashback_category=category_name(db, current_user.id, "card_income"))
     if new_account:
         apply_delta(new_account, money(income.amount))
         income.account_id = new_account.id
@@ -446,11 +446,12 @@ def delete_income(
 # MOVEMENTS (Transferencias entre Cuentas) CRUD con Impuestos y Presupuestos
 # ==========================================
 def _tax_category(db: Session, user_id: str) -> str:
+    """Categoría de los impuestos de traspasos: su presupuesto de impuestos o su categoría de impuestos (aunque la renombre)."""
     tax_budget = db.query(Budget).filter(
         Budget.user_id == user_id,
         Budget.category.ilike("%impuesto%"),
     ).first()
-    return tax_budget.category if (tax_budget and money(tax_budget.allocated_amount) > 0) else TAX_CATEGORY
+    return tax_budget.category if (tax_budget and money(tax_budget.allocated_amount) > 0) else category_name(db, user_id, "tax")
 
 
 def _apply_movement(db: Session, user_id: str, mov: Movement, from_acc: Optional[Account], to_acc: Optional[Account]) -> None:
@@ -787,7 +788,7 @@ def pay_debt(
         )
 
     expense = record_expense(
-        db, current_user.id, pay_in.account_id, pay_in.account_name, DEBT_CATEGORY,
+        db, current_user.id, pay_in.account_id, pay_in.account_name, category_name(db, current_user.id, "debt"),
         pay_in.description or f"Abono a {debt.creditor} ({debt.type})", amount, pay_in.date or date.today(),
     )
     expense.debt_id = debt.id

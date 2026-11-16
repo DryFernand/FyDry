@@ -44,7 +44,8 @@ import {
   LucideIcon,
 } from "lucide-react";
 import { BudgetItem, TransactionItem, AccountItem, MovementItem } from "../types";
-import { EXPENSE_CATEGORIES } from "@/lib/categories";
+import { sameCategory } from "@/lib/categories";
+import { useCategories } from "@/lib/useCategories";
 import { useLanguage } from "@/context/LanguageContext";
 import {
   fetchBudgetsApi,
@@ -108,6 +109,7 @@ export function getCategoryIcon(category: string): LucideIcon {
 
 export default function BudgetView() {
   const { t, language } = useLanguage();
+  const { expense: EXPENSE_CATEGORIES, nameOf } = useCategories();
   const [loading, setLoading] = useState(true);
   const [budgets, setBudgets] = useState<BudgetItem[]>([]);
   const [expenses, setExpenses] = useState<TransactionItem[]>([]);
@@ -481,9 +483,8 @@ export default function BudgetView() {
       !b.category.toLowerCase().includes("transporte") &&
       !b.category.toLowerCase().includes("taxi");
 
-    const isSavings =
-      b.category.toLowerCase().includes("ahorro programado") ||
-      b.category.toLowerCase().trim() === "ahorro programado";
+    // Presupuesto de ahorro: también suma los traspasos a cuentas de ahorro (aunque la categoría esté renombrada)
+    const isSavings = sameCategory(b.category, nameOf("savings"));
 
     let actualSpent = filteredExpenses
       .filter((e) => {

@@ -45,5 +45,31 @@ export const INCOME_CATEGORIES = [
   "Otros Ingresos",
 ] as const;
 
-/** Único ingreso que puede abonarse a una tarjeta de crédito (cashback). Igual que CARD_INCOME_CATEGORY del backend. */
-export const CARD_INCOME_CATEGORY = "Rendimientos & Intereses Bancarios";
+// Las listas de arriba son las predefinidas: cada usuario arranca con ellas y luego las personaliza
+// (useCategories / systemCategoryName en lib/useCategories.ts dan las suyas).
+
+/** Categorías con lógica propia. Igual que SYSTEM_DEFAULTS en backend/app/services/categories.py. */
+export const SYSTEM_CATEGORY_DEFAULTS = {
+  tax: "Impuestos & Tasas",
+  debt: "Pago de Deudas & Préstamos",
+  savings: "Ahorro Programado",
+  investments: "Inversiones",
+  /** Único ingreso que puede abonarse a una tarjeta de crédito (cashback) */
+  card_income: "Rendimientos & Intereses Bancarios",
+  other_expense: "Otros Gastos",
+  other_income: "Otros Ingresos",
+} as const;
+
+export type SystemCategoryKey = keyof typeof SYSTEM_CATEGORY_DEFAULTS;
+export type CategoryKind = "expense" | "income";
+
+export interface CategoryItem {
+  id: string;
+  kind: CategoryKind;
+  name: string;
+  /** Solo en las del sistema: se pueden renombrar, no eliminar */
+  system_key: SystemCategoryKey | null;
+}
+
+export const sameCategory = (a?: string | null, b?: string | null) =>
+  (a || "").trim().toLowerCase() === (b || "").trim().toLowerCase();

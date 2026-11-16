@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from "@/lib/categories";
+import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, SYSTEM_CATEGORY_DEFAULTS } from "@/lib/categories";
 
 export const runtime = "nodejs";
 
-const SYSTEM_PROMPT = `Eres Camila, la Asistente de Bienestar Financiero de FyDry, una plataforma diseñada para brindar claridad, orden y serenidad en las finanzas personales.
+// Las categorías son las del usuario (personalizables), así el modelo solo usa nombres que existen
+const systemPrompt = (expenseCats: readonly string[], incomeCats: readonly string[], cashbackCat: string) => `Eres Camila, la Asistente de Bienestar Financiero de FyDry, una plataforma diseñada para brindar claridad, orden y serenidad en las finanzas personales.
 Si te preguntan quién eres o cómo te llamas, preséntate como Camila, la asistente financiera de FyDry.
 
 Tu misión es acompañar al usuario con sensatez, calma y empatía en:
@@ -30,10 +31,10 @@ Directivas Estrictas de Registro y Ejecución de Acciones:
 - Al invocar herramientas como create_expense, create_income o create_budget, NUNCA inventes categorías nuevas. Debes seleccionar estrictamente la categoría oficial que mejor se adapte a la descripción del usuario (por ejemplo, si el usuario dice 'comida' o 'almuerzo' usa 'Restaurantes & Bares' o 'Supermercado & Alimentación'; si dice 'uber' usa 'Transporte Público & Taxi'; si dice 'sueldo' usa 'Salario / Nómina Principal'). Si ninguna coincide de forma exacta, asóciala a la más afín de la lista oficial, o a 'Otros Gastos' / 'Otros Ingresos'.
 
 Categorías Oficiales de FyDry para Gastos y Presupuestos:
-${EXPENSE_CATEGORIES.map((c) => `- "${c}"`).join("\n")}
+${expenseCats.map((c) => `- "${c}"`).join("\n")}
 
 Categorías Oficiales de FyDry para Ingresos:
-${INCOME_CATEGORIES.map((c) => `- "${c}"`).join("\n")}
+${incomeCats.map((c) => `- "${c}"`).join("\n")}
 
 Delimitación temática estricta:
 - Tu único ámbito de conocimiento y ayuda son las finanzas personales, el bienestar financiero y las funciones de FyDry.
@@ -45,7 +46,7 @@ Uso de los datos reales del usuario:
 - Más abajo recibes un RESUMEN FINANCIERO REAL obtenido de FyDry. Úsalo para responder preguntas como "¿cuánto puedo gastar hoy?", "¿cómo voy este mes?", "¿cuánto debo?" o "¿cuánto tengo en mi cuenta?" con cifras exactas y su moneda (RD$ o US$).
 - Nunca inventes cifras que no estén en el resumen. Si un dato no aparece, dilo con naturalidad y sugiere la sección de FyDry donde verlo.
 - Si el usuario pide registrar varias operaciones en un mismo mensaje, puedes invocar varias herramientas a la vez (una por operación).
-- Tarjetas de crédito: su saldo es lo consumido (deuda). Una tarjeta NUNCA recibe ingresos ni transferencias. Si el usuario quiere pagar o abonar a su tarjeta, usa la herramienta pay_credit_card (desde una cuenta que no sea tarjeta). Nunca uses create_income ni create_transfer hacia una tarjeta.
+- Tarjetas de crédito: su saldo es lo consumido (deuda). Una tarjeta NUNCA recibe transferencias ni ingresos, salvo el cashback, que se registra con create_income en la categoría "${cashbackCat}" y la tarjeta como cuenta. Si el usuario quiere pagar o abonar a su tarjeta, usa la herramienta pay_credit_card (desde una cuenta que no sea tarjeta). Fuera del cashback, nunca uses create_income ni create_transfer hacia una tarjeta.
 - Para fechas relativas ("ayer", "el lunes") calcula la fecha exacta a partir de la fecha de hoy indicada en el resumen y envíala en formato AAAA-MM-DD.`;
 
 const API_BASE = (process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "https://fydry-api-dary.vercel.app/api/v1").replace(/\/+$/, "");
@@ -146,6 +147,8 @@ interface BackendInsights {
   peace_score: number;
   small_expenses: { total: number; count: number };
 }
+
+interface BackendCategory { kind: string; name: string; system_key: string | null }
 
 interface BackendSettings {
   transfer_tax_rate?: number;
@@ -265,7 +268,7 @@ const ALLOWED_TOOLS = new Set([
   "request_missing_details",
 ]);
 
-const TOOLS = [
+const buildTools = (expenseCats: readonly string[], incomeCats: readonly string[]) => [
   {
     type: "function",
     function: {
@@ -284,7 +287,7 @@ const TOOLS = [
           },
           category: {
             type: "string",
-            enum: [...EXPENSE_CATEGORIES],
+            enum: [...expenseCats],
             description: "Categoría oficial del gasto. Debe ser estrictamente una de las categorías oficiales de FyDry.",
           },
           account: {
@@ -318,7 +321,7 @@ const TOOLS = [
           },
           category: {
             type: "string",
-            enum: [...INCOME_CATEGORIES],
+            enum: [...incomeCats],
             description: "Categoría oficial del ingreso. Debe ser estrictamente una de las categorías oficiales de FyDry.",
           },
           account: {
@@ -407,7 +410,7 @@ const TOOLS = [
         properties: {
           category: {
             type: "string",
-            enum: [...EXPENSE_CATEGORIES],
+            enum: [...expenseCats],
             description: "Categoría oficial del gasto asignada al presupuesto. Debe ser estrictamente una de las categorías oficiales de FyDry.",
           },
           limit_amount: {
@@ -612,13 +615,23 @@ export async function POST(req: NextRequest) {
     }
 
     // Datos reales del usuario desde el backend (no se confía en lo que envíe el navegador)
-    const [accountsRes, insightsRes, debtsRes, budgetsRes, settingsRes] = await Promise.all([
+    const [accountsRes, insightsRes, debtsRes, budgetsRes, settingsRes, categoriesRes] = await Promise.all([
       backendGet<BackendAccount[]>("/accounts", token),
       backendGet<BackendInsights>("/insights", token),
       backendGet<BackendDebt[]>("/debts", token),
       backendGet<BackendBudget[]>("/budgets", token),
       backendGet<BackendSettings>("/auth/settings", token),
+      backendGet<BackendCategory[]>("/categories", token),
     ]);
+    const userCats = (categoriesRes.data || []).map((c) => ({ ...c, name: oneLine(c.name, 100) })).filter((c) => c.name);
+    const catsOf = (kind: string, fallback: readonly string[]) => {
+      const names = userCats.filter((c) => c.kind === kind).map((c) => c.name);
+      return names.length > 0 ? names : [...fallback];
+    };
+    const expenseCats = catsOf("expense", EXPENSE_CATEGORIES);
+    const incomeCats = catsOf("income", INCOME_CATEGORIES);
+    const cashbackCat = userCats.find((c) => c.system_key === "card_income")?.name || SYSTEM_CATEGORY_DEFAULTS.card_income;
+    const tools = buildTools(expenseCats, incomeCats);
     const validAccounts = (accountsRes.data || []).slice(0, 30).map((a) => ({
       name: oneLine(a.name),
       type: oneLine(a.type, 30),
@@ -659,7 +672,7 @@ El usuario no tiene cuentas registradas aún. Si pide registrar un gasto o ingre
 
     const financialContext = buildFinancialContext(accountsRes.data || [], insightsRes.data, debtsRes.data || [], budgetsRes.data || []);
     const taxRatePct = Math.round((Number(settingsRes.data?.transfer_tax_rate ?? 0.0015) || 0) * 100000) / 1000;
-    const fullSystemPrompt = `${SYSTEM_PROMPT}\n\n${accountsPromptSection}\n\n${financialContext}\n- Impuesto DGII a transferencias configurado por el usuario: ${taxRatePct}%.${buildProfileContext(settingsRes.data)}`;
+    const fullSystemPrompt = `${systemPrompt(expenseCats, incomeCats, cashbackCat)}\n\n${accountsPromptSection}\n\n${financialContext}\n- Impuesto DGII a transferencias configurado por el usuario: ${taxRatePct}%.${buildProfileContext(settingsRes.data)}`;
 
     // 3. Límites defensivos de payload (Anti-DoS / Token Overflow)
     // Rechazar mensajes desproporcionados (>5,000 caracteres)
@@ -746,7 +759,7 @@ El usuario no tiene cuentas registradas aún. Si pide registrar un gasto o ingre
           messages: [{ role: "system", content: fullSystemPrompt }, ...conversation],
           temperature: 0.6,
           max_tokens: 2048,
-          tools: TOOLS,
+          tools,
           tool_choice: "auto",
         }),
         signal: AbortSignal.timeout(30000),

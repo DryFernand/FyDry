@@ -29,6 +29,7 @@ import {
   fetchMovementsApi,
 } from "@/lib/api";
 import { periodSavings, savingsRatePct } from "@/lib/savings";
+import { useCategories } from "@/lib/useCategories";
 import {
   getCycleRange,
   isTransactionInPeriod,
@@ -99,6 +100,7 @@ function getAccountIcon(type: AccountItem["type"]) {
 
 export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
   const { t, language } = useLanguage();
+  const { nameOf } = useCategories();
   const [loading, setLoading] = useState(true);
   const [transactions, setTransactions] = useState<TransactionItem[]>([]);
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
@@ -165,7 +167,7 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
 
   // Ahorro = lo enviado a cuentas de tipo Ahorro (menos retiros) + gastos de ahorro/inversión
   const inCycle = (date: string) => isTransactionInPeriod({ date } as TransactionItem, cycleRange.startDate, cycleRange.endDate);
-  const savings = periodSavings(movements, accounts, expenseTransactions, inCycle);
+  const savings = periodSavings(movements, accounts, expenseTransactions, inCycle, [nameOf("savings"), nameOf("investments")]);
   const netSavings = savings.net;
   const netFlow = totalIncomes - totalExpenses;
   const savingsRate = savingsRatePct(netSavings, totalIncomes);

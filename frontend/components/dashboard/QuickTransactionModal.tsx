@@ -23,7 +23,8 @@ import {
   payCreditCardApi,
   fetchUserSettingsApi,
 } from "@/lib/api";
-import { CARD_INCOME_CATEGORY, EXPENSE_CATEGORIES, INCOME_CATEGORIES } from "@/lib/categories";
+import { sameCategory } from "@/lib/categories";
+import { useCategories } from "@/lib/useCategories";
 import { accountOptionAmount, availableFunds, currencySymbol, formatMoney, isLiability, parseAmount, todayISO, transferTax, DEFAULT_TRANSFER_TAX_RATE } from "@/lib/money";
 import { useLanguage } from "@/context/LanguageContext";
 import MoneyInput from "@/components/ui/MoneyInput";
@@ -43,6 +44,8 @@ export default function QuickTransactionModal({
 }: QuickTransactionModalProps) {
   const { language } = useLanguage();
   const isEn = language === "en";
+  // Categorías del usuario (personalizables); los nombres de siempre para no tocar el resto del componente
+  const { expense: EXPENSE_CATEGORIES, income: INCOME_CATEGORIES, nameOf } = useCategories();
 
   const [type, setType] = useState<TransactionType>(defaultType);
   const [amount, setAmount] = useState<string>("");
@@ -75,7 +78,7 @@ export default function QuickTransactionModal({
     type === "card_payment"
       ? nonCards.filter((a) => (a.currency || "DOP") === (payingCard?.currency || "DOP"))
       : type === "income"
-      ? category === CARD_INCOME_CATEGORY ? accounts : nonCards // el cashback sí puede abonarse a una tarjeta
+      ? sameCategory(category, nameOf("card_income")) ? accounts : nonCards // el cashback sí puede abonarse a una tarjeta
       : accounts;
   const effectiveFrom = sourceAccounts.some((a) => a.name === fromAccount) ? fromAccount : sourceAccounts[0]?.name || "";
   // Destino de un traspaso: nunca una tarjeta de crédito (se paga con "Pagar tarjeta")

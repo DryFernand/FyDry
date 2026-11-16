@@ -41,6 +41,7 @@ from app.services.insights import (
     small_expenses,
 )
 from app.services.ledger import LIABILITY_TYPES, budget_period, get_account, money
+from app.services.categories import category_name
 
 router = APIRouter()
 
@@ -248,7 +249,8 @@ def get_insights(db: Session = Depends(get_db), current_user: User = Depends(get
     period_movements = db.query(Movement).filter(
         Movement.user_id == current_user.id, Movement.date.between(start, end)
     ).all()
-    saved = period_savings(period_movements, savings_ids, period_expenses.all())
+    savings_categories = {category_name(db, current_user.id, "savings"), category_name(db, current_user.id, "investments")}
+    saved = period_savings(period_movements, savings_ids, period_expenses.all(), savings_categories)
     score = peace_score(income, saved, budget_usage, card_usage, daily)
 
     # Gastos hormiga (últimos 30 días) y suscripciones (recurrentes + detectadas en 120 días)

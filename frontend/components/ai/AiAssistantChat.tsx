@@ -24,7 +24,8 @@ import {
   RotateCcw,
   Sparkles,
 } from "lucide-react";
-import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from "@/lib/categories";
+import { sameCategory } from "@/lib/categories";
+import { categoryNames, systemCategoryName, useCategories } from "@/lib/useCategories";
 import {
   createExpenseApi,
   createIncomeApi,
@@ -164,8 +165,9 @@ export function findClosestCategory(
   categoryInput: string,
   type: "expense" | "income"
 ): string {
-  const categories = (type === "expense" ? EXPENSE_CATEGORIES : INCOME_CATEGORIES) as readonly string[];
-  const defaultCategory = type === "expense" ? "Otros Gastos" : "Otros Ingresos";
+  // Categorías del usuario (personalizables); "Otros" con el nombre que tenga ahora
+  const categories = categoryNames(type);
+  const defaultCategory = systemCategoryName(type === "expense" ? "other_expense" : "other_income");
 
   if (!categoryInput || !categoryInput.trim()) {
     return defaultCategory;
@@ -244,7 +246,9 @@ export function findClosestCategory(
     for (const kw of kws) {
       const normKw = normalizeText(kw);
       if (normalizedInput.includes(normKw) || words.some((w) => normKw.includes(w) || w.includes(normKw))) {
-        return cat;
+        // Las palabras clave apuntan a nombres predefinidos: solo sirven si el usuario aún la tiene así
+        const hit = categories.find((c) => sameCategory(c, cat));
+        if (hit) return hit;
       }
     }
   }
@@ -747,6 +751,7 @@ function MissingDetailsForm({
   onSubmit,
 }: MissingDetailsFormProps) {
   const { action_type, fields, isSubmitted } = missingDetails;
+  const { expense: EXPENSE_CATEGORIES, income: INCOME_CATEGORIES } = useCategories();
 
   const [formValues, setFormValues] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {};
@@ -788,7 +793,9 @@ function MissingDetailsForm({
 
   const isCategoryExpense = action_type === "expense" || action_type === "budget";
   const categoryOptions = isCategoryExpense ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
-  const popularCategories = isCategoryExpense ? POPULAR_EXPENSE_CATEGORIES : POPULAR_INCOME_CATEGORIES;
+  const popularCategories = (isCategoryExpense ? POPULAR_EXPENSE_CATEGORIES : POPULAR_INCOME_CATEGORIES).filter((c) =>
+    categoryOptions.includes(c)
+  );
 
   const hasEmptyField = fields.some((f) => {
     const val = formValues[f.id];
@@ -1050,6 +1057,7 @@ function MissingDetailsForm({
 }
 
 export default function AiAssistantChat({ hidden = false }: { hidden?: boolean } = {}) {
+  useCategories(); // carga las categorías del usuario que usa findClosestCategory al registrar
   const [isOpen, setIsOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);

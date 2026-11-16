@@ -14,6 +14,7 @@ from app.models.financial import (
     PendingNotification,
 )
 from app.models.planning import RecurringTransaction, SavingsGoal, PlannerSnapshot
+from app.models.category import Category
 
 __all__ = [
     "Base",
@@ -32,4 +33,5 @@ __all__ = [
     "RecurringTransaction",
     "SavingsGoal",
     "PlannerSnapshot",
+    "Category",
 ]

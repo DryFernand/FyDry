@@ -23,6 +23,7 @@ import {
   fetchMovementsApi,
 } from "@/lib/api";
 import { periodSavings, savingsRatePct } from "@/lib/savings";
+import { useCategories } from "@/lib/useCategories";
 import { getCycleRange, isTransactionInPeriod, formatCycleLabel } from "@/lib/cycle";
 import { isLiability, formatMoney, netWorthByCurrency } from "@/lib/money";
 import { TrendChart, CategoryBars, DeltaBadge, type TrendPoint } from "../reports/ReportCharts";
@@ -40,6 +41,7 @@ const ACCOUNT_TYPE_LABELS: Record<string, { es: string; en: string }> = {
 
 export default function ReportsView() {
   const { t, language } = useLanguage();
+  const { nameOf } = useCategories();
   const [loading, setLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
@@ -172,7 +174,7 @@ export default function ReportsView() {
   const scopedMovements = movements.filter(
     (m) => accountFilter === "all" || m.fromAccount === accountFilter || m.toAccount === accountFilter
   );
-  const savings = periodSavings(scopedMovements, accounts, filteredExpenses, inScope);
+  const savings = periodSavings(scopedMovements, accounts, filteredExpenses, inScope, [nameOf("savings"), nameOf("investments")]);
   const savingsRate = savingsRatePct(savings.net, totalIncomes);
 
   // Métricas Patrimoniales y de Solvencia (Fase 2)

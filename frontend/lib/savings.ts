@@ -3,8 +3,10 @@
  * más los gastos registrados como ahorro/inversión. La tasa de ahorro se calcula sobre los ingresos.
  */
 import type { AccountItem, MovementItem, TransactionItem } from "../components/dashboard/types";
+import { SYSTEM_CATEGORY_DEFAULTS, sameCategory } from "@/lib/categories";
 
-export const SAVINGS_CATEGORIES = ["Ahorro Programado", "Inversiones"];
+/** Categorías de ahorro por defecto; las pantallas pasan las del usuario, que pueden estar renombradas. */
+export const SAVINGS_CATEGORIES = [SYSTEM_CATEGORY_DEFAULTS.savings, SYSTEM_CATEGORY_DEFAULTS.investments];
 
 export interface PeriodSavings {
   /** Traspasos hacia cuentas de ahorro */
@@ -21,7 +23,8 @@ export function periodSavings(
   movements: MovementItem[],
   accounts: AccountItem[],
   expenses: TransactionItem[],
-  inPeriod: (date: string) => boolean
+  inPeriod: (date: string) => boolean,
+  savingsCategories: string[] = SAVINGS_CATEGORIES
 ): PeriodSavings {
   const savingsIds = new Set(accounts.filter((a) => a.type === "savings").map((a) => a.id));
   const savingsNames = new Set(accounts.filter((a) => a.type === "savings").map((a) => a.name));
@@ -38,7 +41,7 @@ export function periodSavings(
     if (fromSavings && !toSavings) withdrawn += m.amount;
   }
   const categorized = expenses
-    .filter((e) => inPeriod(e.date) && SAVINGS_CATEGORIES.includes(e.category))
+    .filter((e) => inPeriod(e.date) && savingsCategories.some((c) => sameCategory(c, e.category)))
     .reduce((s, e) => s + e.amount, 0);
 
   const round = (n: number) => Math.round(n * 100) / 100;

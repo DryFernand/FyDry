@@ -11,6 +11,7 @@ import {
   InsightsData,
 } from "@/components/dashboard/types";
 import { apiErrorMessage } from "@/lib/money";
+import type { CategoryItem } from "@/lib/categories";
 
 export const getApiBase = () => {
   if (typeof window !== "undefined") {
@@ -321,6 +322,27 @@ export async function updateMovementApi(id: string, mov: Partial<MovementItem>):
 
 export async function deleteMovementApi(id: string): Promise<void> {
   await send(`/movements/${id}`, "DELETE");
+}
+
+// ==========================================
+// CATEGORIES API (personalizables por usuario)
+// ==========================================
+export async function fetchCategoriesApi(): Promise<CategoryItem[]> {
+  return readCached("/categories", "fydry_categories", (d): CategoryItem => d);
+}
+
+export async function createCategoryApi(kind: CategoryItem["kind"], name: string): Promise<CategoryItem> {
+  return send("/categories", "POST", { kind, name });
+}
+
+/** Renombra la categoría y todos sus gastos, ingresos, presupuestos y recurrentes. */
+export async function renameCategoryApi(id: string, name: string): Promise<CategoryItem> {
+  return send(`/categories/${id}`, "PUT", { name });
+}
+
+/** Elimina la categoría moviendo lo que tenía a `moveToId` (o a "Otros" si no se indica). */
+export async function deleteCategoryApi(id: string, moveToId?: string): Promise<void> {
+  await send(`/categories/${id}${moveToId ? `?move_to=${encodeURIComponent(moveToId)}` : ""}`, "DELETE");
 }
 
 // ==========================================

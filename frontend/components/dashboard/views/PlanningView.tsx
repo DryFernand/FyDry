@@ -15,7 +15,8 @@ import {
   deleteGoalApi,
   fetchAccountsApi,
 } from "@/lib/api";
-import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from "@/lib/categories";
+import { EXPENSE_CATEGORIES as DEFAULT_EXPENSE_CATEGORIES, sameCategory } from "@/lib/categories";
+import { useCategories } from "@/lib/useCategories";
 import { formatMoney, parseAmount, todayISO } from "@/lib/money";
 import { useLanguage } from "@/context/LanguageContext";
 import type { AccountItem, GoalItem, InsightsData, RecurringFrequency, RecurringItem } from "../types";
@@ -37,7 +38,7 @@ const FREQUENCIES: { id: RecurringFrequency; es: string; en: string }[] = [
 const emptyRecurring = {
   kind: "expense" as "expense" | "income",
   description: "",
-  category: EXPENSE_CATEGORIES[0] as string,
+  category: DEFAULT_EXPENSE_CATEGORIES[0] as string,
   amount: "",
   account: "",
   frequency: "monthly" as RecurringFrequency,
@@ -47,6 +48,7 @@ const emptyRecurring = {
 export default function PlanningView() {
   const { language } = useLanguage();
   const en = language === "en";
+  const { expense: EXPENSE_CATEGORIES, income: INCOME_CATEGORIES, nameOf } = useCategories();
   const tr = (es: string, eng: string) => (en ? eng : es);
 
   const [insights, setInsights] = useState<InsightsData | null>(null);
@@ -108,11 +110,14 @@ export default function PlanningView() {
       return;
     }
     const acc = accounts.find((a) => a.name === recForm.account);
+    // Si la categoría del formulario ya no existe (renombrada o eliminada), se usa la que muestra el selector
+    const options = recForm.kind === "expense" ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
+    const category = options.includes(recForm.category) ? recForm.category : options[0];
     const ok = await run(() =>
       createRecurringApi({
         kind: recForm.kind,
         description: recForm.description.trim(),
-        category: recForm.category,
+        category,
         amount,
         account: recForm.account,
         accountId: acc?.id,
@@ -153,7 +158,7 @@ export default function PlanningView() {
   };
 
   const convertToRecurring = (description: string, amount: number) => {
-    setRecForm({ ...emptyRecurring, description, amount: String(amount), category: "Suscripciones Digitales" });
+    setRecForm({ ...emptyRecurring, description, amount: String(amount), category: EXPENSE_CATEGORIES.find((c) => sameCategory(c, "Suscripciones Digitales")) ?? nameOf("other_expense") });
     setShowRecForm(true);
   };
 

@@ -23,6 +23,7 @@ import {
   Calendar,
   RotateCcw,
   Percent,
+  Tags,
 } from "lucide-react";
 import { apiForgotPassword, apiVerifyResetOtp, apiResetPassword } from "@/lib/auth";
 import {
@@ -37,6 +38,7 @@ import {
 import { EmailIntegrationData } from "./types";
 import { useLanguage } from "@/context/LanguageContext";
 import ConfirmDialog, { useEscapeKey } from "./ConfirmDialog";
+import CategoriesSettings from "./CategoriesSettings";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -51,6 +53,7 @@ type SettingsTab =
   | "security"
   | "languages"
   | "taxes"
+  | "categories"
   | "notifications"
   | "support"
   | "danger";
@@ -498,6 +501,7 @@ export default function SettingsModal({
     { id: "security", label: t.settings.tabs.security, icon: Shield },
     { id: "languages", label: t.settings.tabs.languages, icon: Globe },
     { id: "taxes", label: "Impuestos", icon: Percent },
+    { id: "categories", label: "Categorías", icon: Tags },
     { id: "notifications", label: t.settings.tabs.notifications, icon: Bell },
     { id: "support", label: t.settings.tabs.support, icon: HelpCircle },
     { id: "danger", label: t.settings.tabs.danger, icon: AlertTriangle },
@@ -1228,6 +1232,9 @@ export default function SettingsModal({
                 </div>
               </div>
             )}
+
+            {/* TAB: CATEGORÍAS (personalizables por usuario) */}
+            {activeTab === "categories" && <CategoriesSettings />}
 
             {/* TAB 4: NOTIFICACIONES */}
             {activeTab === "notifications" && (

@@ -32,7 +32,8 @@ import {
   Coins,
 } from "lucide-react";
 import { TransactionItem, AccountItem } from "../types";
-import { CARD_INCOME_CATEGORY, INCOME_CATEGORIES } from "@/lib/categories";
+import { sameCategory } from "@/lib/categories";
+import { useCategories } from "@/lib/useCategories";
 import { useLanguage } from "@/context/LanguageContext";
 import {
   fetchTransactionsApi,
@@ -100,6 +101,7 @@ interface IncomesViewProps {
 
 export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewProps = {}) {
   const { t, language } = useLanguage();
+  const { income: INCOME_CATEGORIES, nameOf } = useCategories();
   const [loading, setLoading] = useState(true);
   const [incomes, setIncomes] = useState<TransactionItem[]>([]);
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
@@ -119,7 +121,7 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
   const [amount, setAmount] = useState("");
   const [cat, setCat] = useState<string>(INCOME_CATEGORIES[0]);
   // Tarjetas de crédito solo como destino del cashback (intereses bancarios)
-  const incomeAccounts = accounts.filter((a) => !isLiability(a) || cat === CARD_INCOME_CATEGORY);
+  const incomeAccounts = accounts.filter((a) => !isLiability(a) || sameCategory(cat, nameOf("card_income")));
   const [selectedAccountId, setSelectedAccountId] = useState("");
   const [incomeDate, setIncomeDate] = useState(() => todayISO());
   const [formError, setFormError] = useState<string | null>(null);
