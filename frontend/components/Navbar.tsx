@@ -26,7 +26,8 @@ export default function Navbar() {
               priority
             />
           </div>
-          <span className="font-semibold text-lg tracking-tight text-zinc-900">
+          {/* En teléfonos muy angostos solo el logo, para que quepan los dos botones */}
+          <span className="hidden min-[360px]:inline font-semibold text-lg tracking-tight text-zinc-900">
             FyDry
           </span>
         </Link>
@@ -66,10 +67,11 @@ export default function Navbar() {
         </nav>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3">
+          {/* Visible también en el teléfono: quien ya tiene cuenta entra directo */}
           <Link
             href="/login"
-            className="hidden sm:inline-flex text-sm font-medium text-zinc-700 hover:text-zinc-950 px-3 py-1.5 transition-colors"
+            className="inline-flex whitespace-nowrap text-sm font-medium text-zinc-700 hover:text-zinc-950 px-2 sm:px-3 py-1.5 transition-colors"
           >
             Iniciar Sesión
           </Link>
@@ -77,10 +79,10 @@ export default function Navbar() {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             href="#empezar"
-            className="inline-flex items-center gap-1.5 text-sm font-medium bg-zinc-900 hover:bg-emerald-800 text-white px-4 py-2 rounded-lg shadow-sm transition-all duration-200"
+            className="inline-flex items-center gap-1.5 whitespace-nowrap text-sm font-medium bg-zinc-900 hover:bg-emerald-800 text-white px-3 sm:px-4 py-2 rounded-lg shadow-sm transition-all duration-200"
           >
             <span>Probar Gratis</span>
-            <ArrowRight className="w-4 h-4" />
+            <ArrowRight className="hidden sm:block w-4 h-4" />
           </motion.a>
         </div>
       </div>
