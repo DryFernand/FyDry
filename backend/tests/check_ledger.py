@@ -81,7 +81,8 @@ with TestClient(app) as c:
     # Null explícito no rompe (antes 500); nombre '%' no actúa como comodín
     r = c.put(f"{API}/expenses/{e['id']}", json={"amount": None, "description": "c2"}, headers=H)
     assert r.status_code == 200 and r.json()["amount"] == 300, r.text
-    assert post("/expenses", {"account_name": "%", "category": "Comida", "description": "x", "amount": 1, "date": "2026-10-03"}, 201).json()["account_id"] is None
+    # '%' no encuentra ninguna cuenta, y una cuenta inexistente ya no se acepta en silencio
+    post("/expenses", {"account_name": "%", "category": "Comida", "description": "x", "amount": 1, "date": "2026-10-03"}, 400)
 
     # Fechas inválidas y montos infinitos rechazados
     post("/expenses", {"category": "C", "description": "x", "amount": 1, "date": "12 oct"}, 422)

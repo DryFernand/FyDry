@@ -49,7 +49,7 @@ import { useLanguage } from "@/context/LanguageContext";
 import {
   fetchTransactionsApi,
   createTransactionApi,
-  updateTransactionApi,
+  updateExpenseApi,
   deleteTransactionApi,
   fetchAccountsApi,
   fetchUserSettingsApi,
@@ -390,7 +390,8 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
     setDesc(exp.description);
     setAmount(exp.amount.toString());
     setCat(exp.category);
-    setSelectedAccountId(exp.account);
+    // Por id: si la cuenta se renombró, el gasto puede traer el nombre anterior
+    setSelectedAccountId(accounts.find((a) => a.id === exp.accountId)?.name ?? exp.account);
     setExpenseDate(exp.date ? exp.date.split("T")[0] : todayISO());
     setFormError(null);
     setIsModalOpen(true);
@@ -425,7 +426,7 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
     // Validar fondos y margen de sobregiro contra la cuenta seleccionada
     if (selectedAcc) {
       const funds =
-        editingExpense && editingExpense.account === selectedAcc.name
+        editingExpense && (editingExpense.accountId === selectedAcc.id || editingExpense.account === selectedAcc.name)
           ? availableFunds(selectedAcc) + editingExpense.amount
           : availableFunds(selectedAcc);
 
@@ -450,9 +451,10 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
           amount: parsedAmount,
           category: cat,
           account: accountName,
+          accountId: selectedAcc?.id,
           date: expenseDate || editingExpense.date,
         };
-        await updateTransactionApi(editingExpense.id, updatedItem);
+        await updateExpenseApi(editingExpense.id, updatedItem);
         setExpenses((prev) =>
           prev.map((item) => (item.id === editingExpense.id ? { ...item, ...updatedItem } : item))
         );
@@ -461,6 +463,7 @@ export default function ExpensesView({ initialDraft, onClearDraft }: ExpensesVie
           description: desc.trim(),
           category: cat,
           account: accountName,
+          accountId: selectedAcc?.id,
           amount: parsedAmount,
           type: "expense",
           date: initialDraft?.date || expenseDate || todayISO(),

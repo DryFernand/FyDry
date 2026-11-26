@@ -330,6 +330,7 @@ export default function QuickTransactionModal({
           amount: parsedAmount,
           category,
           account: currentFromAccount,
+          accountId: fromAccObj?.id,
           date,
         });
       } else if (type === "income") {
@@ -338,6 +339,7 @@ export default function QuickTransactionModal({
           amount: parsedAmount,
           category,
           account: currentFromAccount,
+          accountId: fromAccObj?.id,
           date,
         });
       } else if (type === "transfer") {

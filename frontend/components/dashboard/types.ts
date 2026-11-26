@@ -15,6 +15,8 @@ export interface TransactionItem {
   description: string;
   category: string;
   account: string;
+  /** Id de la cuenta: identifica la cuenta aunque se haya renombrado */
+  accountId?: string;
   amount: number;
   type: "expense" | "income";
   date: string;

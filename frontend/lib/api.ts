@@ -120,6 +120,7 @@ const toTransaction = (type: "expense" | "income") => (d: any): TransactionItem 
   type,
   category: d.category,
   account: d.account_name,
+  accountId: d.account_id ?? undefined,
   date: d.date,
   createdAt: d.created_at,
 });
@@ -254,6 +255,7 @@ const transactionPayload = (tx: Partial<TransactionItem>) => ({
   description: tx.description,
   amount: tx.amount,
   category: tx.category,
+  account_id: tx.accountId,
   account_name: tx.account,
   date: tx.date,
 });
@@ -365,10 +367,6 @@ export async function fetchTransactionsApi(type?: "expense" | "income"): Promise
 export async function createTransactionApi(tx: Omit<TransactionItem, "id">): Promise<TransactionItem> {
   const { type, ...rest } = tx;
   return type === "expense" ? createExpenseApi(rest) : createIncomeApi(rest);
-}
-
-export async function updateTransactionApi(id: string, tx: Partial<TransactionItem>): Promise<void> {
-  return tx.type === "expense" ? updateExpenseApi(id, tx) : updateIncomeApi(id, tx);
 }
 
 export async function deleteTransactionApi(id: string, type?: "expense" | "income"): Promise<void> {

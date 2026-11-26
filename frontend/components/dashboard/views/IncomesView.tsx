@@ -38,7 +38,7 @@ import { useLanguage } from "@/context/LanguageContext";
 import {
   fetchTransactionsApi,
   createTransactionApi,
-  updateTransactionApi,
+  updateIncomeApi,
   deleteTransactionApi,
   fetchAccountsApi,
   fetchUserSettingsApi,
@@ -305,7 +305,8 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
     setDesc(inc.description);
     setAmount(inc.amount.toString());
     setCat(inc.category);
-    setSelectedAccountId(inc.account);
+    // Por id: si la cuenta se renombró, el ingreso puede traer el nombre anterior
+    setSelectedAccountId(accounts.find((a) => a.id === inc.accountId)?.name ?? inc.account);
     setIncomeDate(inc.date ? inc.date.split("T")[0] : todayISO());
     setFormError(null);
     setIsModalOpen(true);
@@ -324,6 +325,7 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
     const accountName = incomeAccounts.some((a) => a.name === selectedAccountId)
       ? selectedAccountId
       : incomeAccounts[0]?.name || "Efectivo";
+    const accountId = incomeAccounts.find((a) => a.name === accountName)?.id;
     setFormError(null);
 
     try {
@@ -333,9 +335,10 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
           amount: parsedAmount,
           category: cat,
           account: accountName,
+          accountId,
           date: incomeDate || editingIncome.date,
         };
-        await updateTransactionApi(editingIncome.id, updatedItem);
+        await updateIncomeApi(editingIncome.id, updatedItem);
         setIncomes((prev) =>
           prev.map((item) => (item.id === editingIncome.id ? { ...item, ...updatedItem } : item))
         );
@@ -344,6 +347,7 @@ export default function IncomesView({ initialDraft, onClearDraft }: IncomesViewP
           description: desc.trim(),
           category: cat,
           account: accountName,
+          accountId,
           amount: parsedAmount,
           type: "income",
           date: initialDraft?.date || incomeDate || todayISO(),

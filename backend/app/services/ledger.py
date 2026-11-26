@@ -31,6 +31,19 @@ def get_account(db: Session, user_id: str, account_id: Optional[str] = None, acc
     return None
 
 
+def resolve_account(db: Session, user_id: str, account_id: Optional[str] = None, account_name: Optional[str] = None) -> Optional[Account]:
+    """Como get_account, pero si se indicó una cuenta que no existe (y el usuario tiene cuentas) da error:
+    así un gasto o ingreso nunca se guarda sin afectar saldos por un nombre equivocado o desactualizado."""
+    account = get_account(db, user_id, account_id, account_name)
+    named = account_id or (account_name and account_name.strip())
+    if account is None and named and db.query(Account.id).filter(Account.user_id == user_id).first():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"La cuenta '{(account_name or '').strip() or account_id}' no existe. Elige una de tus cuentas.",
+        )
+    return account
+
+
 def apply_delta(account: Account, delta: Decimal) -> None:
     """delta = efecto sobre el dinero del usuario (+ entra, - sale)."""
     if account.type in LIABILITY_TYPES:
